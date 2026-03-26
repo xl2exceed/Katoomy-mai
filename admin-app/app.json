@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Katoomy Admin",
+    "slug": "katoomy-admin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.katoomy.admin",
+      "entitlements": {
+        "com.apple.developer.proximity-reader.payment.acceptance": true
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.katoomy.admin",
+      "permissions": ["android.permission.NFC"]
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
+      "@stripe/stripe-terminal-react-native"
+    ]
+  }
+}

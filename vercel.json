@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/notifications/send-reminders",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/auto-mark-incomplete",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

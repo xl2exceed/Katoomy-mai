@@ -1,0 +1,25 @@
+{
+  "name": "Katoomy Staff",
+  "short_name": "Staff Portal",
+  "description": "Katoomy staff portal - manage bookings and payments",
+  "id": "/staff/",
+  "scope": "/staff/",
+  "start_url": "/staff/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

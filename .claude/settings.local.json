@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python \"c:/Users/patte/OneDrive/Desktop/clientloop/scripts/write_staff_content.py\")",
+      "Bash(python -c \":*)",
+      "Bash(python \"c:/Users/patte/fix_qr_modal.py\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git tag:*)",
+      "Bash(grep -rn \"signup\\\\|sign-up\\\\|signUp\\\\|businesses\" app/ --include=*.ts --include=*.tsx -l)",
+      "Bash(grep -rn \"signup\\\\|sign-up\\\\|signUp\\\\|Signup\" app/ --include=*.ts --include=*.tsx -l)",
+      "Bash(python3 -:*)",
+      "Bash(py --version)",
+      "Bash(npx tsc:*)",
+      "Bash(find c:/Users/patte/OneDrive/Desktop/clientloop/app -type d -name *checkout* -o -name *customer* -o -name *booking* -o -name *payment*)",
+      "Bash(find c:/Users/patte/OneDrive/Desktop/clientloop/components -type f -name *pay* -o -path *components* -name *payment* -o -path *components* -name *checkout*)"
+    ]
+  }
+}
