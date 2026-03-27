@@ -149,6 +149,15 @@ export default function Sidebar({ businessId, plan, status }: SidebarProps) {
           Analytics
         </Link>
 
+        {/* AI Growth Hub — highlighted entry point */}
+        <Link
+          href="/admin/growth"
+          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-sm"
+        >
+          <span className="mr-3">🚀</span>
+          AI Growth Hub
+        </Link>
+
         <Link
           href="/admin/loyalty"
           className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
