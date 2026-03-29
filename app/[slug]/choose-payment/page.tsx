@@ -21,7 +21,7 @@ export default function ChoosePaymentPage() {
   const bookingId = searchParams.get("bookingId");
   const serviceCents = parseInt(searchParams.get("serviceCents") ?? "0", 10);
   const tipCents = parseInt(searchParams.get("tipCents") ?? "0", 10);
-  const source = searchParams.get("source") ?? "qr"; // "qr" | "tip"
+  const source = searchParams.get("source") ?? "qr"; // "qr" | "tip" | "pay"
 
   const [cashapp, setCashapp] = useState<CashAppSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function ChoosePaymentPage() {
     setSelecting(true);
     const { bookingId, serviceCents, tipCents, source, slug } = stripeParamsRef.current;
     try {
-      if (source === "tip") {
+      if (source === "tip") { // only tip-page flow uses tip-checkout; pay and qr both use pay-with-tip
         const res = await fetch("/api/stripe/tip-checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
