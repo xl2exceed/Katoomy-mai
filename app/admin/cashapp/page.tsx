@@ -2,14 +2,23 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+// DB column names: enabled, fee_mode ('pass_to_customer' | 'business_absorbs')
+// We map them to friendlier local state names on load/save
 interface CashAppSettings {
-  cashapp_enabled: boolean;
+  enabled: boolean;
   cashtag: string;
   phone_number: string;
   qr_code_url: string | null;
-  fee_absorbed_by: "business" | "customer";
-  platform_fee_cents: number;
+  fee_mode: "pass_to_customer" | "business_absorbs";
 }
+
+const DEFAULT_SETTINGS: CashAppSettings = {
+  enabled: false,
+  cashtag: "",
+  phone_number: "",
+  qr_code_url: null,
+  fee_mode: "pass_to_customer", // always default to customer pays
+};
 
 export default function AdminCashAppPage() {
   const supabase = createClient();
@@ -23,14 +32,7 @@ export default function AdminCashAppPage() {
   const [businessId, setBusinessId] = useState("");
   const [token, setToken] = useState("");
 
-  const [settings, setSettings] = useState<CashAppSettings>({
-    cashapp_enabled: false,
-    cashtag: "",
-    phone_number: "",
-    qr_code_url: null,
-    fee_absorbed_by: "customer",
-    platform_fee_cents: 100,
-  });
+  const [settings, setSettings] = useState<CashAppSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
     init();
@@ -49,12 +51,21 @@ export default function AdminCashAppPage() {
       .maybeSingle();
     if (!biz) { setLoading(false); return; }
     setBusinessId(biz.id);
-    const res = await fetch(`/api/cashapp/settings?businessId=${biz.id}`, {
+    const res = await fetch("/api/cashapp/settings", {
       headers: { Authorization: `Bearer ${session?.access_token}` },
     });
     if (res.ok) {
       const data = await res.json();
-      if (data.settings) setSettings(data.settings);
+      if (data.settings) {
+        // Map DB row directly — field names now match
+        setSettings({
+          enabled: data.settings.enabled ?? false,
+          cashtag: data.settings.cashtag ?? "",
+          phone_number: data.settings.phone_number ?? "",
+          qr_code_url: data.settings.qr_code_url ?? null,
+          fee_mode: data.settings.fee_mode ?? "pass_to_customer",
+        });
+      }
     }
     setLoading(false);
   }
@@ -87,7 +98,13 @@ export default function AdminCashAppPage() {
     const res = await fetch("/api/cashapp/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ businessId, ...settings }),
+      body: JSON.stringify({
+        cashtag: settings.cashtag,
+        phone_number: settings.phone_number,
+        qr_code_url: settings.qr_code_url,
+        fee_mode: settings.fee_mode,
+        enabled: settings.enabled,
+      }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -127,20 +144,20 @@ export default function AdminCashAppPage() {
             </p>
           </div>
           <button
-            onClick={() => setSettings((p) => ({ ...p, cashapp_enabled: !p.cashapp_enabled }))}
+            onClick={() => setSettings((p) => ({ ...p, enabled: !p.enabled }))}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              settings.cashapp_enabled ? "bg-green-500" : "bg-gray-300"
+              settings.enabled ? "bg-green-500" : "bg-gray-300"
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                settings.cashapp_enabled ? "translate-x-6" : "translate-x-1"
+                settings.enabled ? "translate-x-6" : "translate-x-1"
               }`}
             />
           </button>
         </div>
 
-        {settings.cashapp_enabled && (
+        {settings.enabled && (
           <>
             <hr className="border-gray-100" />
 
@@ -247,9 +264,9 @@ export default function AdminCashAppPage() {
               </p>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setSettings((p) => ({ ...p, fee_absorbed_by: "customer" }))}
+                  onClick={() => setSettings((p) => ({ ...p, fee_mode: "pass_to_customer" }))}
                   className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition ${
-                    settings.fee_absorbed_by === "customer"
+                    settings.fee_mode === "pass_to_customer"
                       ? "border-green-500 bg-green-50 text-green-800"
                       : "border-gray-200 text-gray-600 hover:border-gray-300"
                   }`}
@@ -259,9 +276,9 @@ export default function AdminCashAppPage() {
                   <div className="text-xs font-normal mt-0.5 opacity-70">Added to their total</div>
                 </button>
                 <button
-                  onClick={() => setSettings((p) => ({ ...p, fee_absorbed_by: "business" }))}
+                  onClick={() => setSettings((p) => ({ ...p, fee_mode: "business_absorbs" }))}
                   className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition ${
-                    settings.fee_absorbed_by === "business"
+                    settings.fee_mode === "business_absorbs"
                       ? "border-blue-500 bg-blue-50 text-blue-800"
                       : "border-gray-200 text-gray-600 hover:border-gray-300"
                   }`}
