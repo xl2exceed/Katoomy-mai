@@ -94,33 +94,18 @@ export default function PayPage() {
     return booking.total_price_cents;
   };
 
-  const handlePay = async () => {
+  const handlePay = () => {
     if (!booking) return;
     setSubmitting(true);
-
-    const customerEmail =
-      (booking.customers as { email: string | null } | null)?.email || undefined;
-
-    const res = await fetch("/api/stripe/pay-with-tip", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bookingId,
-        serviceCents: getServiceCents(),
-        tipCents,
-        businessId: booking.business_id,
-        slug,
-        customerEmail,
-      }),
+    // Route through choose-payment so customers can pick Cash App or Credit Card
+    const sc = getServiceCents();
+    const p = new URLSearchParams({
+      bookingId: bookingId ?? "",
+      serviceCents: String(sc),
+      tipCents: String(tipCents),
+      source: "pay",
     });
-
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      console.error("Failed to create checkout:", data.error);
-      setSubmitting(false);
-    }
+    router.push(`/${slug}/choose-payment?${p.toString()}`);
   };
 
   if (loading) {
