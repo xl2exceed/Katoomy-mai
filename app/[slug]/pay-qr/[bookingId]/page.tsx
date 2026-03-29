@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 const TIP_PRESETS = [
   { label: "15%", pct: 0.15 },
@@ -21,6 +21,7 @@ export default function PayQrPage() {
   const slug = params.slug as string;
   const bookingId = params.bookingId as string;
 
+  const router = useRouter();
   const [info, setInfo] = useState<BookingInfo | null>(null);
   const [loadError, setLoadError] = useState("");
   const [tipCents, setTipCents] = useState(0);
@@ -59,26 +60,11 @@ export default function PayQrPage() {
     if (!info) return;
     setSubmitting(true);
     setPayError("");
-
-    const res = await fetch("/api/stripe/pay-with-tip", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bookingId,
-        serviceCents: info.serviceCents,
-        tipCents,
-        businessId: info.businessId,
-        slug: info.slug,
-      }),
-    });
-
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      setPayError(data.error || "Something went wrong. Please try again.");
-      setSubmitting(false);
-    }
+    // Redirect to payment method selection (Cash App vs Credit Card)
+    const totalCentsForPayment = info.serviceCents + tipCents;
+    router.push(
+      `/${slug}/choose-payment?bookingId=${bookingId}&serviceCents=${info.serviceCents}&tipCents=${tipCents}&totalCents=${totalCentsForPayment}&businessId=${info.businessId}`
+    );
   };
 
   const isPresetSelected = (pct: number) =>

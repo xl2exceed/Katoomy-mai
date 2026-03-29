@@ -48,6 +48,9 @@ export default function StaffPaymentPage() {
   const [customerName, setCustomerName] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cashappBusy, setCashappBusy] = useState(false);
+  const [cashappAvailable, setCashappAvailable] = useState(false);
+  const [businessId, setBusinessId] = useState("");
   const [qrUrl, setQrUrl] = useState("");
   const [error, setError] = useState("");
   const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,9 +65,20 @@ export default function StaffPaymentPage() {
     if (!user) { router.push("/staff/login"); return; }
     const { data: { session } } = await supabase.auth.getSession();
     setToken(session?.access_token || "");
-    const { data: s } = await supabase.from("staff").select("id").eq("user_id", user.id).maybeSingle();
+    const { data: s } = await supabase.from("staff").select("id, business_id").eq("user_id", user.id).maybeSingle();
     if (!s) { router.push("/staff/login"); return; }
     setStaffId(s.id);
+    if (s.business_id) {
+      setBusinessId(s.business_id);
+      // Check if Cash App is enabled for this business
+      const { data: biz } = await supabase.from("businesses").select("slug").eq("id", s.business_id).maybeSingle();
+      if (biz?.slug) {
+        fetch(`/api/cashapp/public-settings?slug=${biz.slug}`)
+          .then(r => r.json())
+          .then(d => { if (d.cashappEnabled) setCashappAvailable(true); })
+          .catch(() => {});
+      }
+    }
     setLoading(false);
   }
 
@@ -100,6 +114,57 @@ export default function StaffPaymentPage() {
       setError("Lookup failed. Check your connection.");
     }
     setLooking(false);
+  }
+
+  async function markCashAppPaid() {
+    setError("");
+    const digits = customerPhone.replace(/\D/g, "");
+    if (digits.length < 10) { setError("Enter a valid 10-digit phone number."); return; }
+    const name = customerName.trim() || lookup?.customerName || "";
+    if (!name) { setError("Enter the customer name."); return; }
+    const serviceId = lookup?.existingBooking ? lookup.existingBooking.serviceId : selectedServiceId;
+    if (!serviceId) { setError("Select a service."); return; }
+    setCashappBusy(true);
+    try {
+      // Create/confirm the booking record via the existing take-payment endpoint
+      const takeRes = await fetch("/api/staff/take-payment", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ staffId, mode: "cash", serviceId, customerName: name, customerPhone: digits }),
+      });
+      const takeData = await takeRes.json();
+      if (!takeRes.ok) { setError(takeData.error || "Something went wrong."); setCashappBusy(false); return; }
+
+      // Log the Cash App payment in the ledger
+      const bookingId = takeData.bookingId || lookup?.existingBooking?.id;
+      const serviceCents = lookup?.existingBooking?.priceCents ||
+        (lookup?.services.find(sv => sv.id === serviceId)?.price_cents ?? 0);
+      const serviceName = lookup?.existingBooking?.serviceName ||
+        lookup?.services.find(sv => sv.id === serviceId)?.name || "";
+
+      if (bookingId && businessId) {
+        await fetch("/api/cashapp/mark-paid", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            bookingId,
+            businessId,
+            customerName: name,
+            customerPhone: digits,
+            serviceName,
+            serviceAmountCents: serviceCents,
+            tipCents: 0,
+            paymentMethod: "cashapp",
+            staffId,
+          }),
+        });
+      }
+      reset();
+      alert("✅ Cash App payment recorded successfully!");
+    } catch {
+      setError("Network error. Please try again.");
+    }
+    setCashappBusy(false);
   }
 
   async function submitPayment(mode: "card" | "cash") {
@@ -267,14 +332,30 @@ export default function StaffPaymentPage() {
 
         {lookup && (
           <div className="space-y-3 pt-1">
-            <button onClick={() => submitPayment("card")} disabled={busy}
+            <button onClick={() => submitPayment("card")} disabled={busy || cashappBusy}
               className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg disabled:opacity-60 active:scale-95 transition">
               {busy ? "Generating..." : "Generate QR Payment"}
             </button>
-            <button onClick={() => submitPayment("cash")} disabled={busy}
+            <button onClick={() => submitPayment("cash")} disabled={busy || cashappBusy}
               className="w-full py-3 bg-white text-gray-800 border-2 border-gray-300 rounded-xl font-semibold text-base disabled:opacity-60 active:scale-95 transition">
               Mark Cash Paid
             </button>
+            {cashappAvailable && (
+              <button
+                onClick={markCashAppPaid}
+                disabled={cashappBusy || busy}
+                className="w-full py-3 bg-green-50 text-green-800 border-2 border-green-400 rounded-xl font-semibold text-base disabled:opacity-60 active:scale-95 transition flex items-center justify-center gap-2"
+              >
+                {cashappBusy ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-700" />
+                    Recording...
+                  </>
+                ) : (
+                  <>💚 Mark Cash App Paid</>
+                )}
+              </button>
+            )}
           </div>
         )}
 

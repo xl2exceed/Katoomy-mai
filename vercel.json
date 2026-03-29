@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/auto-mark-incomplete",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-billing",
+      "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/growth-hub",
+      "schedule": "0 8 * * *"
     }
   ]
 }

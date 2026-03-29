@@ -70,29 +70,11 @@ export default function TipPage() {
   const handleSubmit = async () => {
     if (!selectedCents || !booking) return;
     setSubmitting(true);
-
-    const customerEmail =
-      (booking.customers as { email: string | null } | null)?.email || undefined;
-
-    const res = await fetch("/api/stripe/tip-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bookingId,
-        tipAmountCents: selectedCents,
-        businessId: booking.business_id,
-        slug,
-        customerEmail,
-      }),
-    });
-
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      console.error("Failed to create tip checkout:", data.error);
-      setSubmitting(false);
-    }
+    // Redirect to payment method selection (Cash App vs Credit Card)
+    // source=tip tells choose-payment to use the tip-checkout Stripe flow
+    router.push(
+      `/${slug}/choose-payment?bookingId=${bookingId}&tipCents=${selectedCents}&businessId=${booking.business_id}&source=tip`
+    );
   };
 
   if (loading) {
