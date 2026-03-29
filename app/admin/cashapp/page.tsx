@@ -64,8 +64,7 @@ export default function AdminCashAppPage() {
     setUploading(true);
     setError("");
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("businessId", businessId);
+    formData.append("qr_code", file);
     const res = await fetch("/api/cashapp/upload-qr", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
