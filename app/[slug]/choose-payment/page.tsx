@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 
 interface CashAppSettings {
@@ -27,65 +27,63 @@ export default function ChoosePaymentPage() {
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState(false);
 
-  const handleCreditCard = useCallback(async (businessId?: string) => {
-    setSelecting(true);
-    if (source === "tip") {
-      const res = await fetch("/api/stripe/tip-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookingId,
-          tipAmountCents: tipCents,
-          businessId,
-          slug,
-        }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setSelecting(false);
-        alert(data.error ?? "Something went wrong. Please try again.");
-      }
-    } else {
-      const res = await fetch("/api/stripe/pay-with-tip", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookingId,
-          serviceCents,
-          tipCents,
-          businessId,
-          slug,
-        }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setSelecting(false);
-        alert(data.error ?? "Something went wrong. Please try again.");
-      }
-    }
-  }, [bookingId, serviceCents, tipCents, source, slug]);
+  // Use a ref to hold the latest values so the stripe redirect
+  // function never needs to be in a useEffect dependency array
+  const stripeParamsRef = useRef({ bookingId, serviceCents, tipCents, source, slug });
+  stripeParamsRef.current = { bookingId, serviceCents, tipCents, source, slug };
 
+  const redirectToStripe = async (businessId?: string) => {
+    setSelecting(true);
+    const { bookingId, serviceCents, tipCents, source, slug } = stripeParamsRef.current;
+    try {
+      if (source === "tip") {
+        const res = await fetch("/api/stripe/tip-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId, tipAmountCents: tipCents, businessId, slug }),
+        });
+        const data = await res.json();
+        if (data.url) { window.location.href = data.url; return; }
+        alert(data.error ?? "Something went wrong. Please try again.");
+      } else {
+        const res = await fetch("/api/stripe/pay-with-tip", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId, serviceCents, tipCents, businessId, slug }),
+        });
+        const data = await res.json();
+        if (data.url) { window.location.href = data.url; return; }
+        alert(data.error ?? "Something went wrong. Please try again.");
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    }
+    setSelecting(false);
+  };
+
+  // Load Cash App settings exactly once on mount
   useEffect(() => {
+    let cancelled = false;
     fetch(`/api/cashapp/public-settings?slug=${slug}`)
       .then((r) => r.json())
       .then((d: CashAppSettings) => {
+        if (cancelled) return;
         setCashapp(d);
         setLoading(false);
-        // If Cash App is not enabled, auto-redirect to credit card
+        // Only auto-redirect if Cash App is genuinely disabled
         if (!d.cashappEnabled) {
-          handleCreditCard(d.businessId);
+          redirectToStripe(d.businessId);
         }
       })
       .catch(() => {
+        if (cancelled) return;
         setCashapp({ cashappEnabled: false });
         setLoading(false);
-        handleCreditCard(undefined);
+        redirectToStripe(undefined);
       });
-  }, [slug, handleCreditCard]);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — runs once on mount only
 
   const handleCashApp = () => {
     const p = new URLSearchParams({
@@ -99,8 +97,8 @@ export default function ChoosePaymentPage() {
 
   const totalCents = serviceCents + tipCents;
 
-  // Show spinner while loading or while auto-redirecting to Stripe
-  if (loading || !cashapp?.cashappEnabled) {
+  // Show spinner while loading settings or while auto-redirecting to Stripe
+  if (loading || selecting || !cashapp?.cashappEnabled) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
@@ -128,8 +126,7 @@ export default function ChoosePaymentPage() {
           {/* Cash App Option */}
           <button
             onClick={handleCashApp}
-            disabled={selecting}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-green-400 bg-green-50 hover:bg-green-100 active:scale-95 transition disabled:opacity-50"
+            className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-green-400 bg-green-50 hover:bg-green-100 active:scale-95 transition"
           >
             <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
               <svg viewBox="0 0 24 24" fill="white" className="w-7 h-7">
@@ -151,9 +148,8 @@ export default function ChoosePaymentPage() {
 
           {/* Credit Card Option */}
           <button
-            onClick={() => handleCreditCard(cashapp.businessId)}
-            disabled={selecting}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-gray-200 bg-white hover:bg-gray-50 active:scale-95 transition disabled:opacity-50"
+            onClick={() => redirectToStripe(cashapp.businessId)}
+            className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-gray-200 bg-white hover:bg-gray-50 active:scale-95 transition"
           >
             <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,13 +160,9 @@ export default function ChoosePaymentPage() {
               <p className="font-bold text-gray-900 text-base">Pay with Credit Card</p>
               <p className="text-sm text-gray-500 mt-0.5">Secure checkout via Stripe</p>
             </div>
-            {selecting ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
-            ) : (
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            )}
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
 
