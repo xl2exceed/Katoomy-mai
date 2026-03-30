@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     .lt("start_ts", previousStart.toISOString())
     .order("start_ts", { ascending: true });
 
-  const { data: customers } = await supabaseAdmin
+  const { data: customersRaw } = await supabaseAdmin
     .from("customers")
     .select("id, full_name, created_at")
     .eq("business_id", businessId)
@@ -95,7 +95,10 @@ export async function GET(req: NextRequest) {
 
   const windowBookings = allBookingsRaw || [];
   const allHistoric = [...windowBookings, ...(allTimeBookingsRaw || [])];
-  const allCustomers = customers || [];
+  const allCustomers = customersRaw || [];
+
+  // Only customers with at least one completed/paid booking count toward LTV, rebooking, frequency
+  const customersWithPayment = new Set(allHistoric.filter(isPaid).map(b => b.customer_id));
 
   const inPeriod = (b: { start_ts: string }, start: Date, end: Date) => {
     const d = new Date(b.start_ts);
@@ -213,8 +216,9 @@ export async function GET(req: NextRequest) {
   const avgTicketCents = allPaid.length > 0
     ? Math.round(allPaid.reduce((s, b) => s + revenueOf(b), 0) / allPaid.length) : 0;
 
+  // Only count visits for customers who have at least one completed/paid booking
   const visitsByCustomer = new Map<string, Date[]>();
-  for (const b of allHistoric.filter(b => b.status !== "cancelled" && b.status !== "no_show")) {
+  for (const b of allHistoric.filter(b => b.status !== "cancelled" && b.status !== "no_show" && customersWithPayment.has(b.customer_id))) {
     const dates = visitsByCustomer.get(b.customer_id) || [];
     dates.push(new Date(b.start_ts));
     visitsByCustomer.set(b.customer_id, dates);
@@ -305,6 +309,6 @@ export async function GET(req: NextRequest) {
     avgDaysBetweenVisits,
     rebookingRate,
     alerts,
-    totalCustomers: allCustomers.length,
+    totalCustomers: customersWithPayment.size,
   });
 }
