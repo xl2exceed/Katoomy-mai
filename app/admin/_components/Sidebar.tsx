@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,7 +15,25 @@ type SidebarProps = {
 export default function Sidebar({ businessId, plan, status }: SidebarProps) {
   const supabase = createClient();
   const router = useRouter();
+  const pathname = usePathname();
   const [showMobileQR, setShowMobileQR] = useState(false);
+
+  const navLink = (href: string, icon: string, label: string) => {
+    const isActive = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+    return (
+      <Link
+        href={href}
+        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition ${
+          isActive
+            ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm"
+            : "text-gray-700 hover:bg-gray-50"
+        }`}
+      >
+        <span className="mr-3">{icon}</span>
+        {label}
+      </Link>
+    );
+  };
 
   const mobileUrl =
     typeof window !== "undefined"
@@ -85,183 +103,47 @@ export default function Sidebar({ businessId, plan, status }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="px-3 space-y-1">
-        <Link
-          href="/admin"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">🏠</span>
-          Overview
-        </Link>
+        {/* ── Schedule & Services ── */}
+        {navLink("/admin", "🏠", "Overview")}
+        {navLink("/admin/bookings", "📅", "My Schedule")}
+        {navLink("/admin/services", "✂️", "Services")}
+        {navLink("/admin/availability", "🕒", "Availability")}
+        {hasStaffAccess && navLink("/admin/staff", "👔", "Staff")}
+        {navLink("/admin/customers", "👥", "Customers")}
 
-        <Link
-          href="/admin/bookings"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">📅</span>
-          My Schedule
-        </Link>
+        {/* ── Payments ── */}
+        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Payments</p>
+        {navLink("/admin/stripe", "💰", "Payment Setup")}
+        {navLink("/admin/cashapp", "💵", "Cash App Settings")}
+        {navLink("/admin/take-payment", "💳", "Take Payment")}
+        {navLink("/admin/payments", "📋", "Payment Ledger")}
+        {navLink("/admin/revenue", "📊", "Revenue")}
 
-        <Link
-          href="/admin/services"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">✂️</span>
-          Services
-        </Link>
+        {/* ── Marketing & Growth ── */}
+        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Marketing</p>
+        {navLink("/admin/analytics", "📈", "Analytics")}
+        {navLink("/admin/campaigns", "📣", "Campaigns")}
+        {navLink("/admin/loyalty", "⭐", "Rewards")}
+        {navLink("/admin/referrals", "🎁", "Referrals")}
+        {navLink("/admin/membership", "💎", "Membership")}
+        {navLink("/admin/growth", "🚀", "AI Growth Hub")}
 
-        <Link
-          href="/admin/availability"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">🕒</span>
-          Availability
-        </Link>
-
-        <Link
-          href="/admin/stripe"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">💰</span>
-          Payments
-        </Link>
-
-        <Link
-          href="/admin/cashapp"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">💵</span>
-          Cash App Settings
-        </Link>
-
-        <Link
-          href="/admin/payments"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">📋</span>
-          Payment Ledger
-        </Link>
-
-        <Link
-          href="/admin/take-payment"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">💳</span>
-          Take Payment
-        </Link>
-
-        <Link
-          href="/admin/revenue"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">📊</span>
-          Revenue
-        </Link>
-
-        <Link
-          href="/admin/analytics"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">📈</span>
-          Analytics
-        </Link>
-
-        {/* AI Growth Hub — highlighted entry point */}
-        <Link
-          href="/admin/growth"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-sm"
-        >
-          <span className="mr-3">🚀</span>
-          AI Growth Hub
-        </Link>
-
-        <Link
-          href="/admin/loyalty"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">⭐</span>
-          Rewards
-        </Link>
-
-        <Link
-          href="/admin/referrals"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">🎁</span>
-          Referrals
-        </Link>
-
-        <Link
-          href="/admin/membership"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">💎</span>
-          Membership
-        </Link>
-
-        <Link
-          href="/admin/campaigns"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">📣</span>
-          Campaigns
-        </Link>
-
-        <Link
-          href="/admin/notifications"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">💬</span>
-          Messages
-        </Link>
-
-        <Link
-          href="/admin/customers"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">👥</span>
-          Customers
-        </Link>
-
-        {/* Staff – gated by plan */}
-        {hasStaffAccess && (
-          <Link
-            href="/admin/staff"
-            className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            <span className="mr-3">👔</span>
-            Staff
-          </Link>
-        )}
-
-        <Link
-          href="/admin/branding"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">🎨</span>
-          Branding
-        </Link>
-
-        <Link
-          href="/admin/notifications-log"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">🔔</span>
-          Notifications
-        </Link>
-
-        <Link
-          href="/admin/settings"
-          className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          <span className="mr-3">⚙️</span>
-          Settings
-        </Link>
+        {/* ── Settings ── */}
+        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Settings</p>
+        {navLink("/admin/notifications", "💬", "Messages")}
+        {navLink("/admin/notifications-log", "🔔", "Notifications")}
+        {navLink("/admin/branding", "🎨", "Branding")}
+        {navLink("/admin/settings", "⚙️", "Settings")}
 
         {/* Mobile View */}
         <div className="flex items-center gap-1">
           <Link
             href="/admin/mobile/menu"
-            className="flex-1 flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
+            className={`flex-1 flex items-center px-3 py-2 text-sm font-medium rounded-lg transition ${
+              pathname.startsWith("/admin/mobile")
+                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm"
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
           >
             <span className="mr-3">📱</span>
             Mobile View
