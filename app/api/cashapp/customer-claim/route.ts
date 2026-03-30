@@ -16,8 +16,6 @@ export async function POST(req: NextRequest) {
     .select(`
       id,
       business_id,
-      service_id,
-      customer_id,
       total_price_cents,
       services(name, price_cents),
       customers(full_name, phone, referral_code)
@@ -26,6 +24,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (bookingError || !booking) {
+    console.error("[cashapp/customer-claim] Booking lookup failed:", bookingError?.message);
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
@@ -39,7 +38,7 @@ export async function POST(req: NextRequest) {
   const customersArr = booking.customers as unknown as { full_name: string; phone: string; referral_code: string | null }[] | null;
   const customer = Array.isArray(customersArr) ? customersArr[0] : null;
 
-  // Insert ledger entry with customer_claimed status
+  // Insert ledger entry -- billing_status must be 'pending' per table constraint
   const { error: ledgerError } = await supabaseAdmin
     .from("alternative_payment_ledger")
     .insert({
@@ -54,13 +53,22 @@ export async function POST(req: NextRequest) {
       payment_method: "cashapp",
       fee_absorbed_by: "customer",
       billing_month: billingMonth,
-      billing_status: "customer_claimed",
-      notes: "Customer claimed payment sent via Cash App -- awaiting staff confirmation",
+      billing_status: "pending",
+      notes: "Customer self-reported payment via Cash App -- awaiting staff confirmation",
     });
 
   if (ledgerError) {
-    console.error("[cashapp/customer-claim] Ledger error:", ledgerError.message);
-    // Don't block the customer -- still let them proceed
+    console.error("[cashapp/customer-claim] Ledger insert failed:", ledgerError.message);
+  }
+
+  // Update booking payment_status so dashboard hides the Pay Now button
+  const { error: bookingUpdateError } = await supabaseAdmin
+    .from("bookings")
+    .update({ payment_status: "cashapp_pending" })
+    .eq("id", bookingId);
+
+  if (bookingUpdateError) {
+    console.error("[cashapp/customer-claim] Booking update failed:", bookingUpdateError.message);
   }
 
   return NextResponse.json({
