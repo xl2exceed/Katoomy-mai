@@ -16,6 +16,7 @@ interface Booking {
   payment_status: string;
   total_price_cents: number;
   deposit_amount_cents: number | null;
+  customer_notes: string | null;
   customers: { full_name: string | null; phone: string };
   services: { name: string } | null;
 }
@@ -93,7 +94,7 @@ export default function StaffSchedulePage() {
 
     const { data } = await supabase
       .from("bookings")
-      .select("id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customers(full_name, phone), services(name)")
+      .select("id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customer_notes, customers(full_name, phone), services(name)")
       .eq("staff_id", staffId)
       .gte("start_ts", start.toISOString())
       .lt("start_ts", end.toISOString())
@@ -314,6 +315,12 @@ export default function StaffSchedulePage() {
                 <p className="text-sm text-gray-600">{formatPhone(booking.customers.phone)}</p>
                 {booking.services?.name && (
                   <p className="text-sm text-gray-700 mt-0.5">{booking.services.name}</p>
+                )}
+                {booking.customer_notes && (
+                  <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                    <p className="text-xs font-semibold text-yellow-700 mb-0.5">Customer Note</p>
+                    <p className="text-sm text-yellow-900">{booking.customer_notes}</p>
+                  </div>
                 )}
               </div>
               <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between items-start">

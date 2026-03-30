@@ -15,6 +15,7 @@ interface Booking {
   payment_status: string;
   total_price_cents: number;
   deposit_amount_cents: number | null;
+  customer_notes: string | null;
   customers: {
     full_name: string | null;
     phone: string;
@@ -86,7 +87,7 @@ export default function MobileSchedulePage() {
       const bookResult = await supabase
         .from("bookings")
         .select(
-          "id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customers(full_name, phone), staff(full_name), services(name)",
+          "id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customer_notes, customers(full_name, phone), staff(full_name), services(name)",
         )
         .eq("business_id", bizResult.data.id)
         .gte("start_ts", startDate.toISOString())
@@ -437,6 +438,12 @@ export default function MobileSchedulePage() {
                   <p className="text-sm text-gray-500 mt-0.5">
                     With: {booking.staff?.full_name || "No Preference"}
                   </p>
+                  {booking.customer_notes && (
+                    <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                      <p className="text-xs font-semibold text-yellow-700 mb-0.5">Customer Note</p>
+                      <p className="text-sm text-yellow-900">{booking.customer_notes}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between items-center">
                   <span className="text-sm text-gray-600 capitalize">
