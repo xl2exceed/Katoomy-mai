@@ -54,6 +54,7 @@ export default function DashboardPage() {
     total: 0,
     completed: 0,
   });
+  const [referrerPoints, setReferrerPoints] = useState(15);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -170,6 +171,15 @@ export default function DashboardPage() {
           (r: { status: string }) => r.status === "completed",
         ).length || 0,
     });
+
+    const { data: loyaltySettings } = await supabase
+      .from("loyalty_settings")
+      .select("referrer_reward_points")
+      .eq("business_id", biz.id)
+      .maybeSingle();
+    if (loyaltySettings?.referrer_reward_points) {
+      setReferrerPoints(loyaltySettings.referrer_reward_points);
+    }
 
     // Load active membership
     const { data: memberSub } = await supabase
@@ -722,7 +732,7 @@ export default function DashboardPage() {
                 <ol className="text-xs text-blue-800 space-y-1">
                   <li>1. Share your QR code or link with friends</li>
                   <li>2. They scan/click and book an appointment</li>
-                  <li>3. You earn 15 points when they complete it! 🎉</li>
+                  <li>3. You earn {referrerPoints} points when they complete it! 🎉</li>
                 </ol>
               </div>
             </>
