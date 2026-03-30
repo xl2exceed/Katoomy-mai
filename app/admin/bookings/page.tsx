@@ -24,6 +24,7 @@ interface Booking {
     name: string;
     duration_minutes: number;
   };
+  customer_notes: string | null;
   staff: {
     full_name: string;
   } | null;
@@ -70,7 +71,7 @@ export default function BookingsPage() {
       const { data } = await supabase
         .from("bookings")
         .select(
-          "id, customer_id, business_id, start_ts, end_ts, status, total_price_cents, customers(full_name, phone, email), services(name, duration_minutes), staff(full_name)",
+          "id, customer_id, business_id, start_ts, end_ts, status, total_price_cents, customer_notes, customers(full_name, phone, email), services(name, duration_minutes), staff(full_name)",
         )
         .eq("business_id", business.id)
         .gte("start_ts", startDate.toISOString())
@@ -459,6 +460,12 @@ export default function BookingsPage() {
                           <p className="text-sm text-gray-400 mt-0.5">
                             With: {booking.staff?.full_name || "No Preference"}
                           </p>
+                          {booking.customer_notes && (
+                            <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                              <p className="text-xs font-semibold text-yellow-700 mb-0.5">Customer Note</p>
+                              <p className="text-sm text-yellow-900">{booking.customer_notes}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
