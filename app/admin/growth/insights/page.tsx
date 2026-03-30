@@ -45,7 +45,7 @@ export default function InsightsPage() {
   const load = async (forceRefresh = false) => {
     try {
       const url = forceRefresh
-        ? "/api/growth/insights?refresh=true"
+        ? "/api/growth/insights?force=true"
         : "/api/growth/insights";
       const res = await fetch(url);
       if (!res.ok) throw new Error(await res.text());
