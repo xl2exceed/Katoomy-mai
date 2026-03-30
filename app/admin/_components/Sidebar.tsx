@@ -18,8 +18,11 @@ export default function Sidebar({ businessId, plan, status }: SidebarProps) {
   const pathname = usePathname();
   const [showMobileQR, setShowMobileQR] = useState(false);
 
+  // Routes that need exact match to avoid prefix collisions
+  const exactMatchRoutes = ["/admin", "/admin/notifications", "/admin/notifications-log"];
+
   const navLink = (href: string, icon: string, label: string) => {
-    const isActive = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+    const isActive = exactMatchRoutes.includes(href) ? pathname === href : pathname.startsWith(href);
     return (
       <Link
         href={href}
@@ -129,7 +132,7 @@ export default function Sidebar({ businessId, plan, status }: SidebarProps) {
         {navLink("/admin/growth", "🚀", "AI Growth Hub")}
 
         {/* ── Settings ── */}
-        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Settings</p>
+        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Business Hub</p>
         {navLink("/admin/notifications", "💬", "Messages")}
         {navLink("/admin/notifications-log", "🔔", "Notifications")}
         {navLink("/admin/branding", "🎨", "Branding")}
