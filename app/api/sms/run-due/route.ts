@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getTwilio, getFromNumber } from "@/lib/twilio";
 
-export async function POST() {
+export async function POST(req: Request) {
+  const auth = req.headers.get("authorization");
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const supabase = await createClient();
 
   try {
@@ -127,6 +132,6 @@ export async function POST() {
 }
 
 // Allow GET requests too (for browser testing)
-export async function GET() {
-  return POST();
+export async function GET(req: Request) {
+  return POST(req);
 }

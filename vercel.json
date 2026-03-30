@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/notifications/send-reminders",
-      "schedule": "0 12 * * *"
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/sms/run-due",
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/auto-mark-incomplete",
