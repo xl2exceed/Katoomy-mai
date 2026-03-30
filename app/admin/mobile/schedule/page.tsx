@@ -62,40 +62,24 @@ export default function MobileSchedulePage() {
   }, [selectedDate, view]);
 
   const loadBookings = async () => {
-    const result = await supabase.auth.getUser();
-    const user = result.data.user;
-    if (!user) return;
+    const startDate = new Date(selectedDate);
+    startDate.setHours(0, 0, 0, 0);
 
-    const bizResult = await supabase
-      .from("businesses")
-      .select("id, slug")
-      .eq("owner_user_id", user.id)
-      .single();
+    const endDate = new Date(selectedDate);
+    if (view === "week") {
+      endDate.setDate(endDate.getDate() + 7);
+    } else {
+      endDate.setDate(endDate.getDate() + 1);
+    }
+    endDate.setHours(0, 0, 0, 0);
 
-    if (bizResult.data) {
-      const startDate = new Date(selectedDate);
-      startDate.setHours(0, 0, 0, 0);
-
-      const endDate = new Date(selectedDate);
-      if (view === "week") {
-        endDate.setDate(endDate.getDate() + 7);
-      } else {
-        endDate.setDate(endDate.getDate() + 1);
-      }
-      endDate.setHours(0, 0, 0, 0);
-
-      const bookResult = await supabase
-        .from("bookings")
-        .select(
-          "id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customer_notes, customers(full_name, phone), staff(full_name), services(name)",
-        )
-        .eq("business_id", bizResult.data.id)
-        .gte("start_ts", startDate.toISOString())
-        .lt("start_ts", endDate.toISOString())
-        .order("start_ts", { ascending: true });
-
-      setBookings((bookResult.data as Booking[]) || []);
-      setBusinessSlug(bizResult.data.slug || "");
+    const res = await fetch(
+      `/api/admin/schedule-bookings?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      setBookings(data.bookings || []);
+      setBusinessSlug(data.slug || "");
     }
     setLoading(false);
   };
