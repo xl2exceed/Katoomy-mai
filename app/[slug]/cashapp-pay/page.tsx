@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 
 interface CashAppSettings {
   cashappEnabled: boolean;
@@ -15,6 +15,7 @@ interface CashAppSettings {
 export default function CashAppPayPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const slug = params.slug as string;
 
   const bookingId = searchParams.get("bookingId");
@@ -24,6 +25,7 @@ export default function CashAppPayPage() {
   const [cashapp, setCashapp] = useState<CashAppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
     fetch(`/api/cashapp/public-settings?slug=${slug}`)
@@ -42,6 +44,26 @@ export default function CashAppPayPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handlePaymentSent = async () => {
+    setClaiming(true);
+    try {
+      const res = await fetch("/api/cashapp/customer-claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, totalCents }),
+      });
+      const data = await res.json();
+      const qs = new URLSearchParams({
+        totalCents: String(totalCents),
+        businessName: cashapp?.businessName ?? "",
+      });
+      if (data.referralCode) qs.set("referralCode", data.referralCode);
+      router.push(`/${slug}/cashapp-success?${qs.toString()}`);
+    } catch {
+      setClaiming(false);
+    }
   };
 
   if (loading) {
@@ -197,9 +219,30 @@ export default function CashAppPayPage() {
           </ol>
         </div>
 
-        <p className="text-center text-xs text-gray-400">
+        <p className="text-center text-xs text-gray-400 mb-6">
           Staff will confirm your payment and complete your checkout
         </p>
+
+        {/* Payment Sent Button */}
+        <button
+          onClick={handlePaymentSent}
+          disabled={claiming}
+          className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition active:scale-95 flex items-center justify-center gap-2"
+        >
+          {claiming ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              I&apos;ve Sent the Payment
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
