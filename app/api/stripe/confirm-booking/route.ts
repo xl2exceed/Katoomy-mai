@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
       priceCents,
       staffId,
       existingBookingId,
+      referredByCode,
     } = meta;
 
     // Upsert customer
@@ -131,6 +132,25 @@ export async function POST(req: NextRequest) {
         .select()
         .single();
       customerId = newCustomer!.id;
+
+      // Record referral if customer came via a referral link
+      if (referredByCode) {
+        const { data: referrer } = await supabaseAdmin
+          .from("customers")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("referral_code", referredByCode)
+          .maybeSingle();
+        if (referrer && referrer.id !== customerId) {
+          await supabaseAdmin.from("referrals").insert({
+            business_id: businessId,
+            referrer_customer_id: referrer.id,
+            referred_customer_id: customerId,
+            referral_code: referredByCode,
+            status: "pending",
+          });
+        }
+      }
     }
 
     let bookingId: string;

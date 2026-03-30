@@ -219,6 +219,10 @@ export default function CustomerInfoPage() {
     const cleanPhone = phone.replace(/\D/g, "");
     localStorage.setItem(PHONE_STORAGE_KEY, cleanPhone);
 
+    const pendingReferral = localStorage.getItem("katoomy:pendingReferral");
+    const referredByCode = pendingReferral ? JSON.parse(pendingReferral).referralCode : null;
+    if (referredByCode) localStorage.removeItem("katoomy:pendingReferral");
+
     const discountedFullPriceCents = memberDiscountPct > 0
       ? Math.round(service.price_cents * (1 - memberDiscountPct / 100))
       : service.price_cents;
@@ -246,6 +250,7 @@ export default function CustomerInfoPage() {
         notes: notes || "",
         slug,
         staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
+        referredByCode: referredByCode || undefined,
       }),
     });
 
@@ -265,6 +270,9 @@ export default function CustomerInfoPage() {
     try {
       const cleanPhone = phone.replace(/\D/g, "");
       localStorage.setItem(PHONE_STORAGE_KEY, cleanPhone);
+
+      const pendingReferral = localStorage.getItem("katoomy:pendingReferral");
+      const referredByCode = pendingReferral ? JSON.parse(pendingReferral).referralCode : null;
 
       const discountedPriceCents = memberDiscountPct > 0
         ? Math.round(service.price_cents * (1 - memberDiscountPct / 100))
@@ -289,6 +297,7 @@ export default function CustomerInfoPage() {
           slug,
           defaultBookingStatus,
           staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
+          referredByCode: referredByCode || undefined,
         }),
       });
 
@@ -299,6 +308,7 @@ export default function CustomerInfoPage() {
         return;
       }
 
+      localStorage.removeItem("katoomy:pendingReferral");
       sessionStorage.setItem("bookingId", data.bookingId);
       router.push(`/${slug}/confirmation`);
     } catch (err) {

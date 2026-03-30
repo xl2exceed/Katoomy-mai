@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       notes,
       slug,
       staffId,
+      referredByCode,
     } = await req.json();
 
     if (!businessId || !serviceId || !priceCents || !slug) {
@@ -137,6 +138,7 @@ export async function POST(req: NextRequest) {
           notes: notes || "",
           slug,
           staffId: staffId || "",
+          referredByCode: referredByCode || "",
         },
       },
       {
