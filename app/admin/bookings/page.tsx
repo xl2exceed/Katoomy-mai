@@ -567,7 +567,22 @@ export default function BookingsPage() {
                           {booking.status}
                         </span>
 
-                        <div className="relative">
+                        <div className="flex flex-col gap-1">
+                          {booking.payment_status === "paid" && (
+                            <button
+                              onClick={() => {
+                                setRefundBooking(booking);
+                                setRefundType("full");
+                                setRefundAmount("");
+                                setRefundReason("requested_by_customer");
+                                setRefundError("");
+                                setRefundSuccess("");
+                              }}
+                              className="px-3 py-1.5 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition"
+                            >
+                              Refund
+                            </button>
+                          )}
                           <select
                             value={booking.status}
                             onChange={(e) =>
@@ -584,21 +599,6 @@ export default function BookingsPage() {
                           </select>
                         </div>
 
-                        {booking.payment_status === "paid" && (
-                          <button
-                            onClick={() => {
-                              setRefundBooking(booking);
-                              setRefundType("full");
-                              setRefundAmount("");
-                              setRefundReason("requested_by_customer");
-                              setRefundError("");
-                              setRefundSuccess("");
-                            }}
-                            className="px-3 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition"
-                          >
-                            Refund
-                          </button>
-                        )}
                         {booking.payment_status === "refunded" && (
                           <span className="px-3 py-2 text-sm font-semibold text-gray-400 border border-gray-200 rounded-lg">
                             Refunded
