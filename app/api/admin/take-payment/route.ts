@@ -185,6 +185,26 @@ export async function POST(req: NextRequest) {
     }
 
     await awardLoyaltyOnPayment(businessId, customerId, cashBookingId);
+
+    // Record in alternative payment ledger for billing
+    const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await supabaseAdmin.from("alternative_payment_ledger").insert({
+      business_id: businessId,
+      booking_id: cashBookingId,
+      customer_name: customerName,
+      customer_phone: cleanPhone,
+      service_name: service.name,
+      service_amount_cents: chargeAmountCents,
+      tip_cents: 0,
+      platform_fee_cents: 100,
+      payment_method: "cash",
+      fee_absorbed_by: "business",
+      billing_month: billingMonth,
+      billing_status: "pending",
+      marked_paid_by: null,
+      notes: "Cash payment recorded by admin",
+    });
+
     return NextResponse.json({ success: true, bookingId: cashBookingId });
   }
 

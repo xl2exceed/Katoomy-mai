@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   // Confirm this booking is assigned to the staff member
   const { data: booking } = await supabaseAdmin
     .from('bookings')
-    .select('id, staff_id, business_id, customer_id')
+    .select('id, staff_id, business_id, customer_id, total_price_cents, customers(full_name, phone), services(name)')
     .eq('id', bookingId)
     .eq('staff_id', staffId)
     .maybeSingle();
@@ -93,6 +93,32 @@ export async function POST(req: NextRequest) {
     } catch (smsErr) {
       console.error('Cancellation SMS error (non-fatal):', smsErr);
     }
+  }
+
+  // Record cash payment in alternative payment ledger
+  if (payment_status === 'paid') {
+    const now = new Date();
+    const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const customerArr = booking.customers as unknown as { full_name: string | null; phone: string }[];
+    const serviceArr = booking.services as unknown as { name: string }[];
+    const customerData = Array.isArray(customerArr) ? customerArr[0] : null;
+    const serviceData = Array.isArray(serviceArr) ? serviceArr[0] : null;
+    await supabaseAdmin.from('alternative_payment_ledger').insert({
+      business_id: booking.business_id,
+      booking_id: bookingId,
+      customer_name: customerData?.full_name ?? null,
+      customer_phone: customerData?.phone ?? null,
+      service_name: serviceData?.name ?? null,
+      service_amount_cents: booking.total_price_cents,
+      tip_cents: 0,
+      platform_fee_cents: 100,
+      payment_method: 'cash',
+      fee_absorbed_by: 'business',
+      billing_month: billingMonth,
+      billing_status: 'pending',
+      marked_paid_by: staffId,
+      notes: 'Cash payment marked by staff',
+    });
   }
 
   // Award loyalty points when staff marks a booking as paid

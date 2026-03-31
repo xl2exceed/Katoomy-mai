@@ -188,10 +188,11 @@ export default function MobileSchedulePage() {
   };
 
   const handleMarkPaid = async (booking: Booking) => {
-    await supabase
-      .from("bookings")
-      .update({ payment_status: "paid" })
-      .eq("id", booking.id);
+    await fetch("/api/admin/mark-booking-paid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId: booking.id }),
+    });
 
     await sendPush("customer", booking.customer_id, {
       title: "Payment Received",
