@@ -14,6 +14,7 @@ interface Booking {
   start_ts: string;
   end_ts: string;
   status: string;
+  payment_status: string;
   total_price_cents: number;
   customers: {
     full_name: string | null;
@@ -36,6 +37,15 @@ export default function BookingsPage() {
   const [view, setView] = useState<"day" | "week">("day");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  // Refund modal state
+  const [refundBooking, setRefundBooking] = useState<Booking | null>(null);
+  const [refundType, setRefundType] = useState<"full" | "partial">("full");
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("requested_by_customer");
+  const [refunding, setRefunding] = useState(false);
+  const [refundError, setRefundError] = useState("");
+  const [refundSuccess, setRefundSuccess] = useState("");
 
   const supabase = createClient();
 
@@ -71,7 +81,7 @@ export default function BookingsPage() {
       const { data } = await supabase
         .from("bookings")
         .select(
-          "id, customer_id, business_id, start_ts, end_ts, status, total_price_cents, customer_notes, customers(full_name, phone, email), services(name, duration_minutes), staff(full_name)",
+          "id, customer_id, business_id, start_ts, end_ts, status, payment_status, total_price_cents, customer_notes, customers(full_name, phone, email), services(name, duration_minutes), staff(full_name)",
         )
         .eq("business_id", business.id)
         .gte("start_ts", startDate.toISOString())
@@ -82,6 +92,55 @@ export default function BookingsPage() {
     }
 
     setLoading(false);
+  };
+
+  const handleRefundSubmit = async () => {
+    if (!refundBooking) return;
+    setRefunding(true);
+    setRefundError("");
+    setRefundSuccess("");
+
+    const body: { bookingId: string; reason: string; amountCents?: number } = {
+      bookingId: refundBooking.id,
+      reason: refundReason,
+    };
+
+    if (refundType === "partial") {
+      const cents = Math.round(parseFloat(refundAmount) * 100);
+      if (!cents || cents <= 0) {
+        setRefundError("Enter a valid refund amount.");
+        setRefunding(false);
+        return;
+      }
+      if (cents > refundBooking.total_price_cents) {
+        setRefundError(`Cannot exceed $${(refundBooking.total_price_cents / 100).toFixed(2)}.`);
+        setRefunding(false);
+        return;
+      }
+      body.amountCents = cents;
+    }
+
+    const res = await fetch("/api/stripe/refund", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      setRefundError(data.error || "Refund failed.");
+    } else {
+      const amt = (data.amountCents / 100).toFixed(2);
+      setRefundSuccess(`Refund of $${amt} issued successfully.`);
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === refundBooking.id
+            ? { ...b, payment_status: data.amountCents >= refundBooking.total_price_cents ? "refunded" : b.payment_status }
+            : b
+        )
+      );
+    }
+    setRefunding(false);
   };
 
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
@@ -500,6 +559,27 @@ export default function BookingsPage() {
                             <option value="incomplete">Incomplete</option>
                           </select>
                         </div>
+
+                        {booking.payment_status === "paid" && (
+                          <button
+                            onClick={() => {
+                              setRefundBooking(booking);
+                              setRefundType("full");
+                              setRefundAmount("");
+                              setRefundReason("requested_by_customer");
+                              setRefundError("");
+                              setRefundSuccess("");
+                            }}
+                            className="px-3 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition"
+                          >
+                            Refund
+                          </button>
+                        )}
+                        {booking.payment_status === "refunded" && (
+                          <span className="px-3 py-2 text-sm font-semibold text-gray-400 border border-gray-200 rounded-lg">
+                            Refunded
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -536,6 +616,99 @@ export default function BookingsPage() {
           )}
         </div>
       </main>
+
+      {/* Refund Modal */}
+      {refundBooking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Issue Refund</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              {refundBooking.customers.full_name} — {refundBooking.services.name}
+            </p>
+
+            {/* Refund Type */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setRefundType("full")}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition ${
+                  refundType === "full"
+                    ? "bg-red-600 text-white border-red-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                Full Refund (${(refundBooking.total_price_cents / 100).toFixed(2)})
+              </button>
+              <button
+                onClick={() => setRefundType("partial")}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition ${
+                  refundType === "partial"
+                    ? "bg-red-600 text-white border-red-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                Partial Refund
+              </button>
+            </div>
+
+            {/* Partial amount input */}
+            {refundType === "partial" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Refund Amount ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={(refundBooking.total_price_cents / 100).toFixed(2)}
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+            )}
+
+            {/* Reason */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+              <select
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                <option value="requested_by_customer">Requested by customer</option>
+                <option value="duplicate">Duplicate charge</option>
+                <option value="fraudulent">Fraudulent</option>
+              </select>
+            </div>
+
+            {/* Warning */}
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              ⚠️ Refunds are funded from your connected Stripe account balance. Original processing fees may not be returned by Stripe.
+            </div>
+
+            {refundError && <p className="mb-3 text-sm text-red-600 font-medium">{refundError}</p>}
+            {refundSuccess && <p className="mb-3 text-sm text-green-600 font-medium">{refundSuccess}</p>}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRefundBooking(null)}
+                className="flex-1 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+              >
+                {refundSuccess ? "Close" : "Cancel"}
+              </button>
+              {!refundSuccess && (
+                <button
+                  onClick={handleRefundSubmit}
+                  disabled={refunding}
+                  className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition disabled:opacity-60"
+                >
+                  {refunding ? "Processing…" : "Confirm Refund"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
