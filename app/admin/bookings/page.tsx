@@ -16,6 +16,7 @@ interface Booking {
   status: string;
   payment_status: string;
   total_price_cents: number;
+  deposit_amount_cents: number | null;
   customers: {
     full_name: string | null;
     phone: string;
@@ -81,7 +82,7 @@ export default function BookingsPage() {
       const { data } = await supabase
         .from("bookings")
         .select(
-          "id, customer_id, business_id, start_ts, end_ts, status, payment_status, total_price_cents, customer_notes, customers(full_name, phone, email), services(name, duration_minutes), staff(full_name)",
+          "id, customer_id, business_id, start_ts, end_ts, status, payment_status, total_price_cents, deposit_amount_cents, customer_notes, customers(full_name, phone, email), services(name, duration_minutes), staff(full_name)",
         )
         .eq("business_id", business.id)
         .gte("start_ts", startDate.toISOString())
@@ -333,6 +334,24 @@ export default function BookingsPage() {
     });
   };
 
+  const paymentBadge = (booking: Booking) => {
+    const total = booking.total_price_cents;
+    if (["paid", "cash_paid"].includes(booking.payment_status)) {
+      return { text: `Paid in full ($${(total / 100).toFixed(2)})`, color: "bg-green-100 border-green-500 text-green-800" };
+    }
+    if (booking.payment_status === "deposit_paid") {
+      const deposit = booking.deposit_amount_cents ?? 0;
+      return { text: `Deposit paid — bal: $${((total - deposit) / 100).toFixed(2)}`, color: "bg-yellow-100 border-yellow-500 text-yellow-800" };
+    }
+    if (booking.payment_status === "refunded") {
+      return null; // shown via separate "Refunded" badge
+    }
+    if (booking.status === "completed") {
+      return { text: `Owes $${(total / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" };
+    }
+    return null;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
@@ -533,6 +552,11 @@ export default function BookingsPage() {
                           <p className="text-xl font-bold text-gray-900">
                             ${(booking.total_price_cents / 100).toFixed(2)}
                           </p>
+                          {(() => { const badge = paymentBadge(booking); return badge ? (
+                            <span className={`mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded border ${badge.color}`}>
+                              {badge.text}
+                            </span>
+                          ) : null; })()}
                         </div>
 
                         <span

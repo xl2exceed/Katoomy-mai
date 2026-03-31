@@ -50,9 +50,24 @@ export default function StaffSchedulePage() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
-  const [completionAlert, setCompletionAlert] = useState<{
-    bookingId: string; text: string; color: string;
-  } | null>(null);
+
+  const paymentBadge = (booking: Booking) => {
+    const total = booking.total_price_cents;
+    const deposit = booking.deposit_amount_cents ?? 0;
+    if (["paid", "cash_paid"].includes(booking.payment_status)) {
+      return { text: `Paid in full ($${(total / 100).toFixed(2)})`, color: "bg-green-100 border-green-500 text-green-800" };
+    }
+    if (booking.payment_status === "deposit_paid") {
+      return { text: `Deposit paid — bal: $${((total - deposit) / 100).toFixed(2)}`, color: "bg-yellow-100 border-yellow-500 text-yellow-800" };
+    }
+    if (booking.payment_status === "refunded") {
+      return { text: "Refunded", color: "bg-gray-100 border-gray-400 text-gray-700" };
+    }
+    if (booking.status === "completed") {
+      return { text: `Owes $${(total / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" };
+    }
+    return null;
+  };
 
   useEffect(() => {
     init();
@@ -134,16 +149,6 @@ export default function StaffSchedulePage() {
           : "Thanks for your visit! Open the app to leave a tip.",
         url: `/${businessSlug}/dashboard`,
       });
-
-      const total = booking.total_price_cents;
-      const deposit = booking.deposit_amount_cents ?? 0;
-      if (booking.payment_status === "paid") {
-        setCompletionAlert({ bookingId, text: `Paid in full ($${(total / 100).toFixed(2)})`, color: "bg-green-100 border-green-500 text-green-800" });
-      } else if (booking.payment_status === "deposit_paid") {
-        setCompletionAlert({ bookingId, text: `Deposit paid — bal: $${((total - deposit) / 100).toFixed(2)}`, color: "bg-yellow-100 border-yellow-500 text-yellow-800" });
-      } else {
-        setCompletionAlert({ bookingId, text: `Owes $${(total / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" });
-      }
     }
     loadBookings();
   };
@@ -155,7 +160,6 @@ export default function StaffSchedulePage() {
       body: "Your payment has been recorded. Thank you!",
       url: `/${businessSlug}/dashboard`,
     });
-    if (completionAlert?.bookingId === booking.id) setCompletionAlert(null);
     loadBookings();
   };
 
@@ -296,17 +300,11 @@ export default function StaffSchedulePage() {
                     hour: "numeric", minute: "2-digit",
                   })}
                 </p>
-                {completionAlert?.bookingId === booking.id && (
-                  <div className={`flex items-center gap-1 border rounded-lg px-2 py-1 ${completionAlert.color}`}>
-                    <p className="text-xs font-semibold">{completionAlert.text}</p>
-                    <button
-                      onClick={() => setCompletionAlert(null)}
-                      className="text-sm opacity-60 hover:opacity-100 ml-1"
-                    >
-                      x
-                    </button>
+                {(() => { const badge = paymentBadge(booking); return badge ? (
+                  <div className={`flex items-center border rounded-lg px-2 py-1 ${badge.color}`}>
+                    <p className="text-xs font-semibold">{badge.text}</p>
                   </div>
-                )}
+                ) : null; })()}
               </div>
               <div className="mt-2 pt-2 border-t border-gray-200">
                 <p className="text-base font-semibold text-gray-900">
