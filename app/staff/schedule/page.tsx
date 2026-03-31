@@ -83,6 +83,19 @@ export default function StaffSchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffId, selectedDate, view]);
 
+  // Real-time: reload when any booking's payment_status changes from another portal
+  useEffect(() => {
+    if (!staffId) return;
+    const channel = supabase
+      .channel("staff-bookings")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bookings" }, () => {
+        loadBookings();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffId, selectedDate, view]);
+
   async function init() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/staff/login"); return; }

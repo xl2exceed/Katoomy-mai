@@ -67,6 +67,18 @@ export default function MobileSchedulePage() {
     sessionStorage.setItem("adminScheduleDate", selectedDate.toISOString());
   }, [selectedDate]);
 
+  // Real-time: reload when any booking's payment_status changes from another portal
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-mobile-bookings")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bookings" }, () => {
+        loadBookings();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, view]);
+
   useEffect(() => {
     loadBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
