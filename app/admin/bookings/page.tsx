@@ -567,7 +567,7 @@ export default function BookingsPage() {
                           {booking.status}
                         </span>
 
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-2">
                           {booking.payment_status === "paid" && (
                             <button
                               onClick={() => {
