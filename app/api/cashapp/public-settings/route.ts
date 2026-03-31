@@ -20,20 +20,24 @@ export async function GET(req: NextRequest) {
 
   const { data: settings } = await supabaseAdmin
     .from("cashapp_settings")
-    .select("cashtag, phone_number, qr_code_url, fee_mode, enabled")
+    .select("cashtag, phone_number, fee_mode, enabled, zelle_enabled, zelle_phone, zelle_email")
     .eq("business_id", business.id)
     .maybeSingle();
 
-  if (!settings || !settings.enabled) {
-    return NextResponse.json({ cashappEnabled: false });
+  const cashappEnabled = !!(settings?.enabled && settings?.cashtag);
+  const zelleEnabled = !!(settings?.zelle_enabled && (settings?.zelle_phone || settings?.zelle_email));
+
+  if (!cashappEnabled && !zelleEnabled) {
+    return NextResponse.json({ cashappEnabled: false, zelleEnabled: false });
   }
 
   return NextResponse.json({
-    cashappEnabled: true,
-    cashtag: settings.cashtag,
-    phoneNumber: settings.phone_number,
-    qrCodeUrl: settings.qr_code_url,
-    feeMode: settings.fee_mode,
+    cashappEnabled,
+    zelleEnabled,
+    cashtag: settings?.cashtag ?? null,
+    feeMode: settings?.fee_mode ?? "pass_to_customer",
+    zellePhone: settings?.zelle_phone ?? null,
+    zelleEmail: settings?.zelle_email ?? null,
     businessId: business.id,
     businessName: business.name,
   });

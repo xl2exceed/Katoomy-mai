@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { sendPush } from "@/lib/utils/sendPush";
+import PaymentNotificationBanner from "@/components/PaymentNotificationBanner";
 
 interface Booking {
   id: string;
@@ -42,6 +43,7 @@ export default function MobileSchedulePage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [businessSlug, setBusinessSlug] = useState("");
+  const [businessId, setBusinessId] = useState("");
 
   const supabase = createClient();
 
@@ -103,6 +105,7 @@ export default function MobileSchedulePage() {
       const data = await res.json();
       setBookings(data.bookings || []);
       setBusinessSlug(data.slug || "");
+      setBusinessId(data.businessId || "");
     }
     setLoading(false);
   };
@@ -504,6 +507,9 @@ export default function MobileSchedulePage() {
             </div>
           </div>
         </div>
+      )}
+      {businessId && (
+        <PaymentNotificationBanner businessId={businessId} supabase={supabase} />
       )}
     </div>
   );

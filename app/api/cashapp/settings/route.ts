@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
   const body = await req.json();
-  const { cashtag, phone_number, qr_code_url, fee_mode, enabled } = body;
+  const { cashtag, phone_number, qr_code_url, fee_mode, enabled, zelle_enabled, zelle_phone, zelle_email } = body;
 
   const upsertData = {
     business_id: business.id,
@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
     qr_code_url: qr_code_url ?? null,
     fee_mode: fee_mode ?? "pass_to_customer",
     enabled: enabled ?? false,
+    zelle_enabled: zelle_enabled ?? false,
+    zelle_phone: zelle_phone ?? null,
+    zelle_email: zelle_email ?? null,
     updated_at: new Date().toISOString(),
   };
 

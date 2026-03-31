@@ -33,5 +33,5 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ bookings: bookings || [], slug: business.slug });
+  return NextResponse.json({ bookings: bookings || [], slug: business.slug, businessId: business.id });
 }

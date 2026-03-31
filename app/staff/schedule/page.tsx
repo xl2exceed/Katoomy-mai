@@ -6,6 +6,7 @@ import { createStaffClient as createClient } from "@/lib/supabase/staff-client";
 import { formatPhone } from "@/lib/utils/formatPhone";
 import Link from "next/link";
 import { sendPush } from "@/lib/utils/sendPush";
+import PaymentNotificationBanner from "@/components/PaymentNotificationBanner";
 
 interface Booking {
   id: string;
@@ -38,6 +39,8 @@ export default function StaffSchedulePage() {
   const [loading, setLoading] = useState(true);
   const [staffId, setStaffId] = useState("");
   const [businessSlug, setBusinessSlug] = useState("");
+  const [businessId, setBusinessId] = useState("");
+  const [authToken, setAuthToken] = useState("");
   const [view, setView] = useState<"day" | "week">("day");
   const [selectedDate, setSelectedDate] = useState(() => {
     if (typeof window !== "undefined") {
@@ -99,6 +102,7 @@ export default function StaffSchedulePage() {
   async function init() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/staff/login"); return; }
+    const { data: { session } } = await supabase.auth.getSession();
 
     const { data: s } = await supabase
       .from("staff")
@@ -110,6 +114,8 @@ export default function StaffSchedulePage() {
     const slug = (s.businesses as unknown as { slug: string } | null)?.slug || "";
     setBusinessSlug(slug);
     setStaffId(s.id);
+    setBusinessId(s.business_id);
+    setAuthToken(session?.access_token || "");
   }
 
   async function loadBookings() {
@@ -212,6 +218,13 @@ export default function StaffSchedulePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
+      {businessId && (
+        <PaymentNotificationBanner
+          businessId={businessId}
+          supabase={supabase}
+          authToken={authToken}
+        />
+      )}
       <Link href="/staff/dashboard" className="text-emerald-600 font-medium mb-4 block">
         Back to Menu
       </Link>

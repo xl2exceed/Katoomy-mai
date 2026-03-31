@@ -117,7 +117,7 @@ export default function Sidebar({ businessId, plan, status }: SidebarProps) {
         {/* ── Payments ── */}
         <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Payments</p>
         {navLink("/admin/stripe", "💰", "Payment Setup")}
-        {navLink("/admin/cashapp", "💵", "Cash App Settings")}
+        {navLink("/admin/payment-settings", "💵", "Payment Settings")}
         {navLink("/admin/take-payment", "💳", "Take Payment")}
         {navLink("/admin/payments", "📋", "Payment Ledger")}
         {navLink("/admin/revenue", "📊", "Revenue")}

@@ -2,17 +2,20 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 
-interface CashAppSettings {
+interface PaymentSettings {
   cashappEnabled: boolean;
-  cashtag?: string;
-  phoneNumber?: string;
-  qrCodeUrl?: string;
+  zelleEnabled: boolean;
+  cashtag?: string | null;
   feeMode?: string;
+  zellePhone?: string | null;
+  zelleEmail?: string | null;
   businessId?: string;
   businessName?: string;
 }
 
-export default function CashAppPayPage() {
+type PayMethod = "cash_app" | "zelle" | "cash" | null;
+
+export default function ExternalPayPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -22,49 +25,18 @@ export default function CashAppPayPage() {
   const serviceCents = parseInt(searchParams.get("serviceCents") ?? "0", 10);
   const tipCents = parseInt(searchParams.get("tipCents") ?? "0", 10);
 
-  const [cashapp, setCashapp] = useState<CashAppSettings | null>(null);
+  const [settings, setSettings] = useState<PaymentSettings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [claiming, setClaiming] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<PayMethod>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [zelleOpened, setZelleOpened] = useState(false);
 
   useEffect(() => {
     fetch(`/api/cashapp/public-settings?slug=${slug}`)
       .then((r) => r.json())
-      .then((d) => {
-        setCashapp(d);
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
+      .then((d) => { setSettings(d); setLoading(false); })
+      .catch(() => setLoading(false));
   }, [slug]);
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  const handlePaymentSent = async () => {
-    setClaiming(true);
-    try {
-      const res = await fetch("/api/cashapp/customer-claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId, totalCents }),
-      });
-      const data = await res.json();
-      const qs = new URLSearchParams({
-        totalCents: String(totalCents),
-        businessName: cashapp?.businessName ?? "",
-      });
-      if (data.referralCode) qs.set("referralCode", data.referralCode);
-      router.push(`/${slug}/cashapp-success?${qs.toString()}`);
-    } catch {
-      setClaiming(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -74,39 +46,76 @@ export default function CashAppPayPage() {
     );
   }
 
-  if (!cashapp?.cashappEnabled) {
+  if (!settings?.cashappEnabled && !settings?.zelleEnabled) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">⚠️</div>
-          <p className="text-gray-700 font-medium">Cash App payments are not available for this business.</p>
-          <p className="text-gray-500 text-sm mt-2">Please go back and choose a different payment method.</p>
+          <p className="text-5xl mb-4">⚠️</p>
+          <p className="text-gray-700 font-medium">External payments are not available for this business.</p>
         </div>
       </div>
     );
   }
 
-  const platformFeeCents = cashapp.feeMode === "pass_to_customer" ? 100 : 0;
+  const platformFeeCents = settings?.feeMode === "pass_to_customer" ? 100 : 0;
   const totalCents = serviceCents + tipCents + platformFeeCents;
+  const totalDollars = (totalCents / 100).toFixed(2);
+
+  const cashtag = settings?.cashtag ?? "";
+  const cashAppLink = cashtag
+    ? `https://cash.app/$${cashtag.replace(/^\$/, "")}/${totalDollars}`
+    : null;
+
+  const handleCashAppTap = () => {
+    if (cashAppLink) window.open(cashAppLink, "_blank");
+    setSelectedMethod("cash_app");
+  };
+
+  const handleZelleTap = () => {
+    window.location.href = "zelleapp://";
+    setTimeout(() => setZelleOpened(true), 800);
+    setSelectedMethod("zelle");
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedMethod || !bookingId) return;
+    setSubmitting(true);
+    try {
+      await fetch("/api/payment-reports/customer-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId,
+          paymentMethod: selectedMethod,
+          serviceCents,
+          tipCents,
+          feeMode: settings?.feeMode ?? "pass_to_customer",
+        }),
+      });
+      const qs = new URLSearchParams({
+        totalCents: String(totalCents),
+        businessName: settings?.businessName ?? "",
+      });
+      router.push(`/${slug}/cashapp-success?${qs.toString()}`);
+    } catch {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-sm w-full">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 max-w-sm w-full">
+
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-green-500 flex items-center justify-center mx-auto mb-3">
-            <svg viewBox="0 0 24 24" fill="white" className="w-9 h-9">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Pay with Cash App</h1>
-          {cashapp.businessName && (
-            <p className="text-gray-500 mt-1 text-sm">{cashapp.businessName}</p>
+        <div className="text-center mb-5">
+          <h1 className="text-xl font-bold text-gray-900">Complete Your Payment</h1>
+          {settings?.businessName && (
+            <p className="text-gray-500 text-sm mt-0.5">{settings.businessName}</p>
           )}
         </div>
 
-        {/* Amount Breakdown */}
-        <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-2">
+        {/* Amount breakdown */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-1.5">
           <div className="flex justify-between text-sm text-gray-600">
             <span>Service</span>
             <span>${(serviceCents / 100).toFixed(2)}</span>
@@ -123,126 +132,109 @@ export default function CashAppPayPage() {
               <span>${(platformFeeCents / 100).toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
-            <span>Total to send</span>
-            <span className="text-green-700 text-lg">${(totalCents / 100).toFixed(2)}</span>
+          <div className="flex justify-between font-bold text-gray-900 pt-1.5 border-t border-gray-200">
+            <span>Total</span>
+            <span className="text-lg">${totalDollars}</span>
           </div>
         </div>
 
-        {/* QR Code */}
-        {cashapp.qrCodeUrl && (
-          <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-700 mb-3 text-center">
-              Scan QR code with Cash App
-            </p>
-            <div className="flex justify-center">
-              <div className="border-4 border-green-500 rounded-2xl p-2 inline-block">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={cashapp.qrCodeUrl}
-                  alt="Cash App QR Code"
-                  className="w-48 h-48 object-contain rounded-xl"
-                />
+        {/* Step 1 */}
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Step 1 — Send payment</p>
+        <div className="space-y-2 mb-5">
+
+          {/* Cash App */}
+          {settings?.cashappEnabled && cashAppLink && (
+            <button
+              onClick={handleCashAppTap}
+              className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition active:scale-95 ${
+                selectedMethod === "cash_app"
+                  ? "border-green-500 bg-green-50"
+                  : "border-gray-200 hover:border-green-300"
+              }`}
+            >
+              <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
+                <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
+                </svg>
               </div>
+              <div className="text-left flex-1">
+                <p className="font-bold text-gray-900 text-sm">Open Cash App</p>
+                <p className="text-xs text-gray-500">Sends ${totalDollars} to ${cashtag}</p>
+              </div>
+              {selectedMethod === "cash_app" && <span className="text-green-500 text-lg">✓</span>}
+            </button>
+          )}
+
+          {/* Zelle */}
+          {settings?.zelleEnabled && (
+            <div>
+              <button
+                onClick={handleZelleTap}
+                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition active:scale-95 ${
+                  selectedMethod === "zelle"
+                    ? "border-purple-500 bg-purple-50"
+                    : "border-gray-200 hover:border-purple-300"
+                }`}
+              >
+                <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-sm">Z</span>
+                </div>
+                <div className="text-left flex-1">
+                  <p className="font-bold text-gray-900 text-sm">Open Zelle</p>
+                  <p className="text-xs text-gray-500">
+                    Send ${totalDollars} to {settings.zellePhone || settings.zelleEmail}
+                  </p>
+                </div>
+                {selectedMethod === "zelle" && <span className="text-purple-500 text-lg">✓</span>}
+              </button>
+              {zelleOpened && (settings.zellePhone || settings.zelleEmail) && (
+                <div className="mt-2 bg-purple-50 border border-purple-100 rounded-xl p-3 text-sm text-purple-800">
+                  <p className="font-semibold mb-1">If Zelle didn&apos;t open, send manually:</p>
+                  {settings.zellePhone && <p>Phone: <strong>{settings.zellePhone}</strong></p>}
+                  {settings.zelleEmail && <p>Email: <strong>{settings.zelleEmail}</strong></p>}
+                  <p className="mt-1">Amount: <strong>${totalDollars}</strong></p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Divider */}
-        {cashapp.qrCodeUrl && (cashapp.cashtag || cashapp.phoneNumber) && (
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400 font-medium">OR SEND MANUALLY</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-        )}
-
-        {/* Cashtag / Phone */}
-        {(cashapp.cashtag || cashapp.phoneNumber) && (
-          <div className="space-y-3 mb-6">
-            {cashapp.cashtag && (
-              <button
-                onClick={() => handleCopy(cashapp.cashtag!)}
-                className="w-full flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition active:scale-95"
-              >
-                <div className="text-left">
-                  <p className="text-xs text-gray-500 font-medium">Cash App Cashtag</p>
-                  <p className="text-base font-bold text-green-700">{cashapp.cashtag}</p>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-green-600 font-semibold">
-                  {copied ? (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Tap to copy
-                    </>
-                  )}
-                </div>
-              </button>
-            )}
-            {cashapp.phoneNumber && (
-              <button
-                onClick={() => handleCopy(cashapp.phoneNumber!)}
-                className="w-full flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition active:scale-95"
-              >
-                <div className="text-left">
-                  <p className="text-xs text-gray-500 font-medium">Phone Number</p>
-                  <p className="text-base font-bold text-gray-800">{cashapp.phoneNumber}</p>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-gray-500 font-semibold">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Tap to copy
-                </div>
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Instructions */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4">
-          <p className="text-sm text-blue-800 font-semibold mb-1">How to pay:</p>
-          <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-            <li>Open your Cash App</li>
-            <li>Scan the QR code above {cashapp.phoneNumber ? "or search by phone number" : ""}</li>
-            <li>Send exactly <strong>${(totalCents / 100).toFixed(2)}</strong></li>
-            <li>Show the confirmation to staff</li>
-          </ol>
+          {/* Cash */}
+          <button
+            onClick={() => setSelectedMethod("cash")}
+            className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition active:scale-95 ${
+              selectedMethod === "cash"
+                ? "border-amber-500 bg-amber-50"
+                : "border-gray-200 hover:border-amber-300"
+            }`}
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-lg">$</span>
+            </div>
+            <div className="text-left flex-1">
+              <p className="font-bold text-gray-900 text-sm">Pay with Cash</p>
+              <p className="text-xs text-gray-500">Hand ${totalDollars} to staff</p>
+            </div>
+            {selectedMethod === "cash" && <span className="text-amber-500 text-lg">✓</span>}
+          </button>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mb-6">
-          Staff will confirm your payment and complete your checkout
-        </p>
-
-        {/* Payment Sent Button */}
+        {/* Step 2 */}
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Step 2 — Confirm payment</p>
+        {!selectedMethod && (
+          <p className="text-xs text-gray-400 mb-3">Select your payment method above first.</p>
+        )}
         <button
-          onClick={handlePaymentSent}
-          disabled={claiming}
-          className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition active:scale-95 flex items-center justify-center gap-2"
+          onClick={handleSubmit}
+          disabled={!selectedMethod || submitting}
+          className="w-full bg-gray-900 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-base shadow transition active:scale-95 flex items-center justify-center gap-2"
         >
-          {claiming ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
-              I&apos;ve Sent the Payment
-            </>
-          )}
+          {submitting ? (
+            <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing...</>
+          ) : "I've Paid"}
         </button>
+        <p className="text-center text-xs text-gray-400 mt-3">
+          Staff will confirm your payment shortly.
+        </p>
       </div>
     </div>
   );

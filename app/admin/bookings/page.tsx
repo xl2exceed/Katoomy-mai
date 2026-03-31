@@ -6,6 +6,7 @@ import { formatPhone } from "@/lib/utils/formatPhone";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { sendPush } from "@/lib/utils/sendPush";
+import PaymentNotificationBanner from "@/components/PaymentNotificationBanner";
 
 interface Booking {
   id: string;
@@ -48,6 +49,8 @@ export default function BookingsPage() {
   const [refundError, setRefundError] = useState("");
   const [refundSuccess, setRefundSuccess] = useState("");
 
+  const [businessId, setBusinessId] = useState("");
+
   const supabase = createClient();
 
   useEffect(() => {
@@ -68,6 +71,7 @@ export default function BookingsPage() {
       .single();
 
     if (business) {
+      setBusinessId(business.id);
       const startDate = new Date(selectedDate);
       startDate.setHours(0, 0, 0, 0);
 
@@ -732,6 +736,9 @@ export default function BookingsPage() {
             </div>
           </div>
         </div>
+      )}
+      {businessId && (
+        <PaymentNotificationBanner businessId={businessId} supabase={supabase} />
       )}
     </div>
   );

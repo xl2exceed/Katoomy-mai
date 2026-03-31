@@ -134,7 +134,7 @@ export default function ChoosePaymentPage() {
               </svg>
             </div>
             <div className="text-left flex-1">
-              <p className="font-bold text-gray-900 text-base">Pay with Cash App</p>
+              <p className="font-bold text-gray-900 text-base">Pay with Cash App, Zelle, or Cash</p>
               <p className="text-sm text-green-700 mt-0.5">
                 {cashapp.feeMode === "pass_to_customer"
                   ? "Includes $1.00 platform fee"
