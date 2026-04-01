@@ -15,7 +15,9 @@ interface PendingReport {
   customer_response_at: string;
   // joined
   customerName?: string;
+  customerPhone?: string;
   serviceName?: string;
+  appointmentTs?: string;
 }
 
 interface Props {
@@ -66,7 +68,7 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
   async function loadPending() {
     const { data } = await supabase
       .from("booking_payment_reports")
-      .select("id, booking_id, customer_id, payment_method, total_amount_cents, customer_response_at, customer_response, resolution_status, bookings(services(name)), customers(full_name)")
+      .select("id, booking_id, customer_id, payment_method, total_amount_cents, customer_response_at, customer_response, resolution_status, bookings(start_ts, services(name)), customers(full_name, phone)")
       .eq("business_id", businessId)
       .eq("customer_response", "paid")
       .eq("business_response", "pending")
@@ -76,7 +78,7 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
     if (!data) return;
 
     const reports: PendingReport[] = data.map((r) => {
-      const bookingArr = r.bookings as unknown as { services: { name: string } | null }[] | null;
+      const bookingArr = r.bookings as unknown as { start_ts: string | null; services: { name: string } | null }[] | null;
       const customerArr = r.customers as unknown as { full_name: string | null }[] | null;
       return {
         id: r.id,
@@ -86,7 +88,9 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
         total_amount_cents: r.total_amount_cents,
         customer_response_at: r.customer_response_at,
         customerName: (Array.isArray(customerArr) ? customerArr[0]?.full_name : null) ?? "Customer",
+        customerPhone: (Array.isArray(customerArr) ? customerArr[0]?.phone : null) ?? undefined,
         serviceName: (Array.isArray(bookingArr) ? bookingArr[0]?.services?.name : null) ?? undefined,
+        appointmentTs: (Array.isArray(bookingArr) ? bookingArr[0]?.start_ts : null) ?? undefined,
       };
     });
 
@@ -119,18 +123,28 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
           className="bg-white border-2 border-indigo-400 rounded-2xl shadow-xl p-4 animate-in slide-in-from-bottom-2"
         >
           <div className="flex items-start justify-between gap-2 mb-2">
-            <div>
-              <p className="text-sm font-bold text-gray-900">
-                💰 Payment Claimed
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {report.customerName}
-                {report.serviceName ? ` · ${report.serviceName}` : ""}
-              </p>
-            </div>
+            <p className="text-sm font-bold text-gray-900">💰 Payment Claimed</p>
             <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full whitespace-nowrap">
               {METHOD_LABELS[report.payment_method] ?? report.payment_method}
             </span>
+          </div>
+
+          {/* Customer + appointment details */}
+          <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 space-y-0.5">
+            <p className="text-sm font-semibold text-gray-900">{report.customerName}</p>
+            {report.customerPhone && (
+              <p className="text-xs text-gray-500">{report.customerPhone}</p>
+            )}
+            {report.serviceName && (
+              <p className="text-xs text-gray-600">{report.serviceName}</p>
+            )}
+            {report.appointmentTs && (
+              <p className="text-xs text-gray-500">
+                Appt: {new Date(report.appointmentTs).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                {" at "}
+                {new Date(report.appointmentTs).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+              </p>
+            )}
           </div>
 
           <p className="text-lg font-bold text-gray-900 mb-3">
