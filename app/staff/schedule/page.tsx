@@ -189,8 +189,9 @@ export default function StaffSchedulePage() {
       return;
     }
     if (newStatus === "completed") { await handleComplete(bookingId); return; }
+    // Optimistic update so the card changes instantly
+    setBookings((prev) => prev.map((b) => b.id === bookingId ? { ...b, status: newStatus } : b));
     await updateBooking(bookingId, { status: newStatus });
-    loadBookings();
   };
 
   const handleCancelConfirm = async () => {

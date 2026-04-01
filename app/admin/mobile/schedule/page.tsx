@@ -221,12 +221,13 @@ export default function MobileSchedulePage() {
       return;
     }
 
+    // Optimistic update so the card changes instantly
+    setBookings((prev) => prev.map((b) => b.id === bookingId ? { ...b, status: newStatus } : b));
+
     await supabase
       .from("bookings")
       .update({ status: newStatus })
       .eq("id", bookingId);
-
-    loadBookings();
   };
 
   const handleCancelClick = (booking: Booking) => {
