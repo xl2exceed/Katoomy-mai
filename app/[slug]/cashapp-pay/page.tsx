@@ -29,6 +29,7 @@ export default function ExternalPayPage() {
   const [loading, setLoading] = useState(true);
   const [selectedMethod, setSelectedMethod] = useState<PayMethod>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [zelleOpened, setZelleOpened] = useState(false);
 
   useEffect(() => {
@@ -80,8 +81,9 @@ export default function ExternalPayPage() {
   const handleSubmit = async () => {
     if (!selectedMethod || !bookingId) return;
     setSubmitting(true);
+    setSubmitError("");
     try {
-      await fetch("/api/payment-reports/customer-response", {
+      const res = await fetch("/api/payment-reports/customer-response", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -92,12 +94,19 @@ export default function ExternalPayPage() {
           feeMode: settings?.feeMode ?? "pass_to_customer",
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setSubmitError(data.error || "Something went wrong. Please try again.");
+        setSubmitting(false);
+        return;
+      }
       const qs = new URLSearchParams({
         totalCents: String(totalCents),
         businessName: settings?.businessName ?? "",
       });
       router.push(`/${slug}/cashapp-success?${qs.toString()}`);
     } catch {
+      setSubmitError("Network error. Please check your connection and try again.");
       setSubmitting(false);
     }
   };
@@ -232,6 +241,9 @@ export default function ExternalPayPage() {
             <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing...</>
           ) : "I've Paid"}
         </button>
+        {submitError && (
+          <p className="text-center text-xs text-red-500 mt-2">{submitError}</p>
+        )}
         <p className="text-center text-xs text-gray-400 mt-3">
           Staff will confirm your payment shortly.
         </p>

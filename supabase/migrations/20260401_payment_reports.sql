@@ -87,8 +87,20 @@ CREATE POLICY "Owners can view their business payment reports"
     )
   );
 
+-- Staff members can view payment reports for their business
+CREATE POLICY "Staff can view their business payment reports"
+  ON public.booking_payment_reports FOR SELECT
+  USING (
+    business_id IN (
+      SELECT business_id FROM public.staff WHERE user_id = auth.uid()
+    )
+  );
+
 GRANT ALL ON TABLE public.booking_payment_reports TO service_role;
 GRANT SELECT ON TABLE public.booking_payment_reports TO authenticated;
+
+-- Enable Supabase real-time for this table
+ALTER publication supabase_realtime ADD TABLE public.booking_payment_reports;
 
 -- 3. updated_at trigger
 CREATE OR REPLACE FUNCTION public.set_updated_at()
