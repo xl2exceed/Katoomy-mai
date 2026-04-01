@@ -41,7 +41,7 @@ export default function Sidebar({ businessId, plan, status }: SidebarProps) {
   const mobileUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/admin/mobile/menu`
-      : "https://katoomy-new.vercel.app/admin/mobile/menu";
+      : "https://katoomy-mai.vercel.app/admin/mobile/menu";
 
   // Staff access rule (adjust as needed)
   const hasStaffAccess = plan !== "free";
