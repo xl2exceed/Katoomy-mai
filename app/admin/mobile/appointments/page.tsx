@@ -30,6 +30,17 @@ export default function MobileAppointmentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Real-time: reload when new booking requests come in
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-mobile-appointments")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
+        loadPendingBookings();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const loadPendingBookings = async () => {
     setLoading(true);
 

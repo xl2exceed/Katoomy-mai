@@ -91,7 +91,7 @@ export default function StaffSchedulePage() {
     if (!staffId) return;
     const channel = supabase
       .channel("staff-bookings")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bookings" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
         loadBookings();
       })
       .subscribe();

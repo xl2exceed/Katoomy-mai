@@ -58,6 +58,18 @@ export default function BookingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, view]);
 
+  // Real-time: reload on any booking change (INSERT or UPDATE)
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-bookings")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
+        loadBookings();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, view]);
+
   const loadBookings = async () => {
     const {
       data: { user },

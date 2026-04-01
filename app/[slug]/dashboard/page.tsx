@@ -68,14 +68,52 @@ export default function DashboardPage() {
   const [phoneError, setPhoneError] = useState<"not_found" | null>(null);
   const [phoneLooking, setPhoneLooking] = useState(false);
 
+  const supabase = createClient();
+
+  // Re-runs only the booking queries (called by real-time subscription)
+  const reloadBookings = async (customerId: string) => {
+    const now = new Date().toISOString();
+    const { data: upcoming } = await supabase
+      .from("bookings")
+      .select("*, services(name, duration_minutes, price_cents), staff(full_name)")
+      .eq("customer_id", customerId)
+      .gte("start_ts", now)
+      .in("status", ["requested", "confirmed"])
+      .order("start_ts", { ascending: true });
+    setUpcomingBookings(upcoming || []);
+
+    const { data: awaitingPayment } = await supabase
+      .from("bookings")
+      .select("*, services(name, duration_minutes, price_cents), staff(full_name)")
+      .eq("customer_id", customerId)
+      .eq("status", "completed")
+      .in("payment_status", ["unpaid", "deposit_paid"])
+      .order("start_ts", { ascending: false });
+    setAwaitingPaymentBookings((awaitingPayment as Booking[]) || []);
+  };
+
   useEffect(() => {
     initDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  const initDashboard = async () => {
-    const supabase = createClient();
+  // Real-time: update booking lists instantly when staff/admin changes a booking
+  useEffect(() => {
+    if (!customer) return;
+    const cid = customer.id;
+    const channel = supabase
+      .channel(`customer-bookings-${cid}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `customer_id=eq.${cid}` },
+        () => { reloadBookings(cid); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer?.id]);
 
+  const initDashboard = async () => {
     // Load business first (always needed for branding)
     const { data: businessData } = await supabase
       .from("businesses")
@@ -109,8 +147,6 @@ export default function DashboardPage() {
     biz: Business,
     phone: string,
   ): Promise<boolean> => {
-    const supabase = createClient();
-
     const { data: customerData } = await supabase
       .from("customers")
       .select("*")

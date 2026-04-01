@@ -73,7 +73,7 @@ export default function MobileSchedulePage() {
   useEffect(() => {
     const channel = supabase
       .channel("admin-mobile-bookings")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bookings" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
         loadBookings();
       })
       .subscribe();
