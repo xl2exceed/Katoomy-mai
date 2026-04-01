@@ -79,7 +79,7 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
 
     const reports: PendingReport[] = data.map((r) => {
       const bookingArr = r.bookings as unknown as { start_ts: string | null; services: { name: string } | null }[] | null;
-      const customerArr = r.customers as unknown as { full_name: string | null }[] | null;
+      const customerArr = r.customers as unknown as { full_name: string | null; phone: string | null }[] | null;
       return {
         id: r.id,
         booking_id: r.booking_id,
