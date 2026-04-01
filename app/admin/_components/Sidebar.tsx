@@ -77,7 +77,7 @@ export default function Sidebar({ businessId, plan, status }: SidebarProps) {
 
   return (
     <>
-      <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
+      <aside className="w-64 bg-white border-r border-gray-200 h-full overflow-y-auto flex-shrink-0">
       {/* Brand / Header */}
       <div className="p-6">
         <Image
