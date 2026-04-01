@@ -509,7 +509,7 @@ export default function MobileSchedulePage() {
         </div>
       )}
       {businessId && (
-        <PaymentNotificationBanner businessId={businessId} supabase={supabase} />
+        <PaymentNotificationBanner businessId={businessId} supabase={supabase} onRespond={loadBookings} />
       )}
     </div>
   );

@@ -738,7 +738,7 @@ export default function BookingsPage() {
         </div>
       )}
       {businessId && (
-        <PaymentNotificationBanner businessId={businessId} supabase={supabase} />
+        <PaymentNotificationBanner businessId={businessId} supabase={supabase} onRespond={loadBookings} />
       )}
     </div>
   );

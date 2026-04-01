@@ -223,6 +223,7 @@ export default function StaffSchedulePage() {
           businessId={businessId}
           supabase={supabase}
           authToken={authToken}
+          onRespond={loadBookings}
         />
       )}
       <Link href="/staff/dashboard" className="text-emerald-600 font-medium mb-4 block">

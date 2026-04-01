@@ -23,6 +23,8 @@ interface Props {
   supabase: SupabaseClient;
   // Optional: Bearer token for staff auth on business-response API
   authToken?: string;
+  // Called after Paid/Unpaid is confirmed so the parent can refresh its booking list
+  onRespond?: () => void;
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -31,7 +33,7 @@ const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
 };
 
-export default function PaymentNotificationBanner({ businessId, supabase, authToken }: Props) {
+export default function PaymentNotificationBanner({ businessId, supabase, authToken, onRespond }: Props) {
   const [pending, setPending] = useState<PendingReport[]>([]);
   const [acting, setActing] = useState<string | null>(null);
 
@@ -104,6 +106,7 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
 
     setPending((prev) => prev.filter((r) => r.id !== reportId));
     setActing(null);
+    onRespond?.();
   }
 
   if (pending.length === 0) return null;
