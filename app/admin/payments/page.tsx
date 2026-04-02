@@ -17,6 +17,7 @@ interface LedgerEntry {
   billing_month: string;
   billing_status: string;
   marked_paid_at: string;
+  appointment_ts: string | null;
   notes: string | null;
   businesses?: { name: string; slug: string } | null;
 }
@@ -236,9 +237,14 @@ export default function AdminPaymentsPage() {
                         <span className={statusBadge(entry.billing_status)}>{entry.billing_status}</span>
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                        {new Date(entry.marked_paid_at).toLocaleDateString("en-US", {
-                          month: "short", day: "numeric", year: "numeric",
-                        })}
+                        {entry.appointment_ts ? (
+                          <>
+                            <div>{new Date(entry.appointment_ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+                            <div>{new Date(entry.appointment_ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</div>
+                          </>
+                        ) : (
+                          new Date(entry.marked_paid_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        )}
                       </td>
                     </tr>
                   ))}
