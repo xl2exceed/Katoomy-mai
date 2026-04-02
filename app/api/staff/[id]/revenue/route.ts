@@ -56,13 +56,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   let tipsMap = new Map<string, number>();
 
   if (bookingIds.length > 0) {
-    const { data: tips } = await supabaseAdmin
-      .from('tips')
-      .select('booking_id, amount_cents')
-      .in('booking_id', bookingIds)
-      .eq('status', 'paid');
+    const [{ data: tips }, { data: ledgerTips }] = await Promise.all([
+      supabaseAdmin
+        .from('tips')
+        .select('booking_id, amount_cents')
+        .in('booking_id', bookingIds)
+        .eq('status', 'paid'),
+      supabaseAdmin
+        .from('alternative_payment_ledger')
+        .select('booking_id, tip_cents')
+        .in('booking_id', bookingIds)
+        .gt('tip_cents', 0),
+    ]);
     for (const t of tips || []) {
       tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.amount_cents);
+    }
+    for (const t of ledgerTips || []) {
+      if (t.booking_id) {
+        tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.tip_cents);
+      }
     }
   }
 
