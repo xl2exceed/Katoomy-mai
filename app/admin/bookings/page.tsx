@@ -4,6 +4,7 @@
 
 import { formatPhone } from "@/lib/utils/formatPhone";
 import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { sendPush } from "@/lib/utils/sendPush";
 import PaymentNotificationBanner from "@/components/PaymentNotificationBanner";
@@ -33,11 +34,29 @@ interface Booking {
   } | null;
 }
 
+function dateToParam(d: Date) {
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function paramToDate(s: string | null): Date {
+  if (s && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split("-").map(Number);
+    const date = new Date();
+    date.setFullYear(y, m - 1, d);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+  return new Date();
+}
+
 export default function BookingsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"day" | "week">("day");
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(() => paramToDate(searchParams.get("date")));
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Refund modal state
@@ -325,20 +344,25 @@ export default function BookingsPage() {
     }
   };
 
+  const navigateToDate = (d: Date) => {
+    setSelectedDate(d);
+    router.replace(`?date=${dateToParam(d)}`, { scroll: false });
+  };
+
   const goToPreviousDay = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() - (view === "week" ? 7 : 1));
-    setSelectedDate(newDate);
+    navigateToDate(newDate);
   };
 
   const goToNextDay = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + (view === "week" ? 7 : 1));
-    setSelectedDate(newDate);
+    navigateToDate(newDate);
   };
 
   const goToToday = () => {
-    setSelectedDate(new Date());
+    navigateToDate(new Date());
   };
 
   const formatDate = (date: Date) => {
