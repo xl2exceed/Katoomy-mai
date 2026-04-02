@@ -56,7 +56,6 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
           event: "*",
           schema: "public",
           table: "booking_payment_reports",
-          filter: `business_id=eq.${businessId}`,
         },
         () => { loadPending(); }
       )
@@ -78,8 +77,10 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
     if (!data) return;
 
     const reports: PendingReport[] = data.map((r) => {
-      const bookingArr = r.bookings as unknown as { start_ts: string | null; services: { name: string } | null }[] | null;
-      const customerArr = r.customers as unknown as { full_name: string | null; phone: string | null }[] | null;
+      // booking_id and customer_id are FK columns on this table (many-to-one),
+      // so PostgREST returns single objects, not arrays.
+      const booking = r.bookings as unknown as { start_ts: string | null; services: { name: string } | null } | null;
+      const customer = r.customers as unknown as { full_name: string | null; phone: string | null } | null;
       return {
         id: r.id,
         booking_id: r.booking_id,
@@ -87,10 +88,10 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
         payment_method: r.payment_method,
         total_amount_cents: r.total_amount_cents,
         customer_response_at: r.customer_response_at,
-        customerName: (Array.isArray(customerArr) ? customerArr[0]?.full_name : null) ?? "Customer",
-        customerPhone: (Array.isArray(customerArr) ? customerArr[0]?.phone : null) ?? undefined,
-        serviceName: (Array.isArray(bookingArr) ? bookingArr[0]?.services?.name : null) ?? undefined,
-        appointmentTs: (Array.isArray(bookingArr) ? bookingArr[0]?.start_ts : null) ?? undefined,
+        customerName: customer?.full_name ?? "Customer",
+        customerPhone: customer?.phone ?? undefined,
+        serviceName: booking?.services?.name ?? undefined,
+        appointmentTs: booking?.start_ts ?? undefined,
       };
     });
 

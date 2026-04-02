@@ -68,7 +68,7 @@ export default function ExternalPayPage() {
     : null;
 
   const handleCashAppTap = () => {
-    if (cashAppLink) window.open(cashAppLink, "_blank");
+    if (cashAppLink) window.location.href = cashAppLink;
     setSelectedMethod("cash_app");
   };
 
@@ -153,25 +153,38 @@ export default function ExternalPayPage() {
 
           {/* Cash App */}
           {settings?.cashappEnabled && cashAppLink && (
-            <button
-              onClick={handleCashAppTap}
-              className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition active:scale-95 ${
-                selectedMethod === "cash_app"
-                  ? "border-green-500 bg-green-50"
-                  : "border-gray-200 hover:border-green-300"
-              }`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
-                <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
-                </svg>
+            <div>
+              <button
+                onClick={handleCashAppTap}
+                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition active:scale-95 ${
+                  selectedMethod === "cash_app"
+                    ? "border-green-500 bg-green-50"
+                    : "border-gray-200 hover:border-green-300"
+                }`}
+              >
+                <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
+                  <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
+                  </svg>
+                </div>
+                <div className="text-left flex-1">
+                  <p className="font-bold text-gray-900 text-sm">Open Cash App</p>
+                  <p className="text-xs text-gray-500">Sends ${totalDollars} to ${cashtag}</p>
+                </div>
+                {selectedMethod === "cash_app" && <span className="text-green-500 text-lg">✓</span>}
+              </button>
+              {/* QR code so staff can show customers or desktop users can scan */}
+              <div className="mt-2 flex flex-col items-center bg-green-50 border border-green-100 rounded-xl p-3">
+                <p className="text-xs text-gray-500 mb-2">Or scan to open Cash App with amount pre-filled</p>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(cashAppLink)}`}
+                  alt="Cash App QR code"
+                  width={160}
+                  height={160}
+                  className="rounded-lg"
+                />
               </div>
-              <div className="text-left flex-1">
-                <p className="font-bold text-gray-900 text-sm">Open Cash App</p>
-                <p className="text-xs text-gray-500">Sends ${totalDollars} to ${cashtag}</p>
-              </div>
-              {selectedMethod === "cash_app" && <span className="text-green-500 text-lg">✓</span>}
-            </button>
+            </div>
           )}
 
           {/* Zelle */}
