@@ -53,12 +53,16 @@ BEGIN
    ORDER BY created_at DESC
    LIMIT 1;
 
-  IF v_payment_method IS NULL THEN
-    v_payment_method := CASE
-      WHEN NEW.payment_status = 'cash_paid' THEN 'cash_app'
+  -- Normalize to values allowed by the check constraint
+  v_payment_method := CASE v_payment_method
+    WHEN 'cash_app' THEN 'cashapp'
+    WHEN 'zelle'    THEN 'other'
+    WHEN 'cash'     THEN 'cash'
+    ELSE CASE
+      WHEN NEW.payment_status = 'cash_paid' THEN 'cashapp'
       ELSE 'cash'
-    END;
-  END IF;
+    END
+  END;
 
   v_billing_month := to_char(now(), 'YYYY-MM');
 
