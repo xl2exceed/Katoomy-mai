@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (user) {
       const { data: staff } = await supabaseAdmin
         .from("staff").select("business_id").eq("user_id", user.id).maybeSingle();
-      authorized = staff?.business_id === businessId;
+      authorized = staff?.business_id?.toLowerCase() === businessId.toLowerCase();
     }
   } else {
     const supabase = await createClient();
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     if (user) {
       const { data: biz } = await supabaseAdmin
         .from("businesses").select("id").eq("owner_user_id", user.id).maybeSingle();
-      authorized = biz?.id === businessId;
+      authorized = biz?.id?.toLowerCase() === businessId.toLowerCase();
     }
   }
 

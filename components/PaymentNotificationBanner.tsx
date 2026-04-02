@@ -3,7 +3,7 @@
 // Subscribes to booking_payment_reports via Supabase real-time.
 // Caller provides businessId and supabase client (works for both admin + staff contexts).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 interface PendingReport {
@@ -39,13 +39,17 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
   const [pending, setPending] = useState<PendingReport[]>([]);
   const [acting, setActing] = useState<string | null>(null);
 
-  // Load any existing unresolved reports on mount
+  // Always hold the latest authToken so stale closures don't cause 401s
+  const authTokenRef = useRef(authToken);
+  useEffect(() => { authTokenRef.current = authToken; }, [authToken]);
+
+  // Load on mount/businessId change and re-load if authToken arrives later
   useEffect(() => {
     loadPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessId]);
+  }, [businessId, authToken]);
 
-  // Real-time subscription
+  // Real-time subscription — fires loadPending on any change
   useEffect(() => {
     if (!businessId) return;
     const channel = supabase
@@ -60,7 +64,15 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
         () => { loadPending(); }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    // Polling fallback: re-check every 20s in case real-time misses an event
+    // (happens when REPLICA IDENTITY FULL is not set on the table)
+    const poll = setInterval(() => { loadPending(); }, 20000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(poll);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
@@ -69,8 +81,10 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
     // Use the server-side API so supabaseAdmin handles the joins —
     // direct client queries fail for staff because booking/customer RLS
     // only allows staff to see their own assigned rows.
+    // Read from ref so we always use the latest token even in stale closures.
     const headers: Record<string, string> = {};
-    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    const token = authTokenRef.current;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch(`/api/payment-reports/pending?businessId=${businessId}`, { headers });
     if (!res.ok) return;
     const { reports: data } = await res.json();
