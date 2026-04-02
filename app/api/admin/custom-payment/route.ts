@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     .single();
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
-  const { serviceName, amountCents, customerName, paymentMethod, appointmentTs } = await req.json();
+  const { serviceName, amountCents, tipCents, customerName, paymentMethod, appointmentTs } = await req.json();
   if (!serviceName?.trim()) return NextResponse.json({ error: "Service name is required" }, { status: 400 });
   if (!amountCents || amountCents <= 0) return NextResponse.json({ error: "Amount must be greater than $0" }, { status: 400 });
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     customer_name: customerName?.trim() || null,
     service_name: serviceName.trim(),
     service_amount_cents: amountCents,
-    tip_cents: 0,
+    tip_cents: tipCents ?? 0,
     platform_fee_cents: 100,
     payment_method: method,
     fee_absorbed_by: "business",

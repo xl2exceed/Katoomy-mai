@@ -48,27 +48,38 @@ export async function GET(req: NextRequest) {
   const bookingIds = (bookings || []).map((b) => b.id);
   const tipsMap = new Map<string, number>();
 
-  if (bookingIds.length > 0) {
-    const [{ data: tips }, { data: ledgerTips }] = await Promise.all([
-      supabaseAdmin
-        .from("tips")
-        .select("booking_id, amount_cents")
-        .in("booking_id", bookingIds)
-        .eq("status", "paid"),
-      supabaseAdmin
-        .from("alternative_payment_ledger")
-        .select("booking_id, tip_cents")
-        .in("booking_id", bookingIds)
-        .gt("tip_cents", 0),
-    ]);
-    for (const t of tips || []) {
-      tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.amount_cents);
+  let customPaymentsQuery = supabaseAdmin
+    .from("alternative_payment_ledger")
+    .select("id, appointment_ts, service_amount_cents, tip_cents, service_name, customer_name, payment_method, marked_paid_by")
+    .eq("business_id", business.id)
+    .is("booking_id", null);
+  if (startDate) customPaymentsQuery = customPaymentsQuery.gte("appointment_ts", startDate.toISOString());
+
+  const [tipsResult, ledgerTipsResult, { data: customPayments }] = await Promise.all([
+    bookingIds.length > 0
+      ? supabaseAdmin.from("tips").select("booking_id, amount_cents").in("booking_id", bookingIds).eq("status", "paid")
+      : Promise.resolve({ data: [] as { booking_id: string; amount_cents: number }[] }),
+    bookingIds.length > 0
+      ? supabaseAdmin.from("alternative_payment_ledger").select("booking_id, tip_cents").in("booking_id", bookingIds).gt("tip_cents", 0)
+      : Promise.resolve({ data: [] as { booking_id: string | null; tip_cents: number }[] }),
+    customPaymentsQuery.limit(500),
+  ]);
+
+  for (const t of (tipsResult.data || [])) {
+    tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.amount_cents);
+  }
+  for (const t of (ledgerTipsResult.data || [])) {
+    if (t.booking_id) {
+      tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.tip_cents);
     }
-    for (const t of ledgerTips || []) {
-      if (t.booking_id) {
-        tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.tip_cents);
-      }
-    }
+  }
+
+  // Look up staff names for custom payments attributed to staff
+  const customStaffIds = [...new Set((customPayments || []).map((p) => p.marked_paid_by).filter(Boolean))];
+  const customStaffNameMap = new Map<string, string>();
+  if (customStaffIds.length > 0) {
+    const { data: staffRows } = await supabaseAdmin.from("staff").select("id, full_name").in("id", customStaffIds);
+    for (const s of staffRows || []) customStaffNameMap.set(s.id, s.full_name ?? "Staff");
   }
 
   // Helper: resolve Supabase join (may be array or object)
@@ -78,8 +89,7 @@ export async function GET(req: NextRequest) {
     return (obj as Record<string, unknown>)?.[key as string] as string ?? "";
   }
 
-  const transactions = (bookings || []).map((b) => {
-    // For cancelled/no-show with deposit: only the deposit was kept, not the full price
+  const bookingTransactions = (bookings || []).map((b) => {
     const isForfeited = (b.status === "cancelled" || b.status === "no_show") && b.payment_status === "deposit_paid";
     const serviceAmountCents = isForfeited ? (b.deposit_amount_cents || 0) : (b.total_price_cents || 0);
     const tipAmountCents = isForfeited ? 0 : (tipsMap.get(b.id) || 0);
@@ -96,6 +106,21 @@ export async function GET(req: NextRequest) {
       forfeited: isForfeited,
     };
   });
+
+  const customTransactions = (customPayments || []).map((p) => ({
+    id: p.id,
+    date: p.appointment_ts,
+    staffId: p.marked_paid_by ?? null,
+    staffName: p.marked_paid_by ? (customStaffNameMap.get(p.marked_paid_by) || "Staff") : "Admin",
+    customerName: p.customer_name ?? "—",
+    serviceName: p.service_name ?? "Custom Payment",
+    serviceAmountCents: p.service_amount_cents,
+    tipAmountCents: p.tip_cents ?? 0,
+    totalCents: p.service_amount_cents + (p.tip_cents ?? 0),
+    forfeited: false,
+  }));
+
+  const transactions = [...bookingTransactions, ...customTransactions];
 
   // Build per-staff breakdown
   const staffMap = new Map<string, { staffName: string; serviceRevenueCents: number; tipsCents: number; count: number }>();

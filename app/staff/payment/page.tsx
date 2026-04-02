@@ -58,6 +58,7 @@ export default function StaffPaymentPage() {
   // Custom payment state
   const [customServiceName, setCustomServiceName] = useState("");
   const [customAmount, setCustomAmount] = useState("");
+  const [customTip, setCustomTip] = useState("");
   const [customCustomerName, setCustomCustomerName] = useState("");
   const [customMethod, setCustomMethod] = useState("cash");
   const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -220,6 +221,7 @@ export default function StaffPaymentPage() {
     if (!customServiceName.trim()) { setCustomError("Enter a service or description."); return; }
     const amountCents = Math.round(parseFloat(customAmount) * 100);
     if (!amountCents || amountCents <= 0) { setCustomError("Enter a valid amount."); return; }
+    const tipCents = customTip ? Math.round(parseFloat(customTip) * 100) : 0;
     setCustomBusy(true);
     try {
       const appointmentTs = new Date(`${customDate}T${customTime}`).toISOString();
@@ -229,6 +231,7 @@ export default function StaffPaymentPage() {
         body: JSON.stringify({
           serviceName: customServiceName,
           amountCents,
+          tipCents,
           customerName: customCustomerName,
           paymentMethod: customMethod,
           appointmentTs,
@@ -239,6 +242,7 @@ export default function StaffPaymentPage() {
       setCustomSuccess("Payment recorded successfully.");
       setCustomServiceName("");
       setCustomAmount("");
+      setCustomTip("");
       setCustomCustomerName("");
       setCustomMethod("cash");
       const now = new Date();
@@ -436,6 +440,17 @@ export default function StaffPaymentPage() {
                 <input
                   type="number" inputMode="decimal" placeholder="0.00" value={customAmount} min="0" step="0.01"
                   onChange={(e) => setCustomAmount(e.target.value)}
+                  className="w-full pl-7 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base text-gray-900 bg-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Tip (optional)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                <input
+                  type="number" inputMode="decimal" placeholder="0.00" value={customTip} min="0" step="0.01"
+                  onChange={(e) => setCustomTip(e.target.value)}
                   className="w-full pl-7 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base text-gray-900 bg-white"
                 />
               </div>

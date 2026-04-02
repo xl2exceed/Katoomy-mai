@@ -55,30 +55,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const bookingIds = (bookings || []).map((b) => b.id);
   let tipsMap = new Map<string, number>();
 
-  if (bookingIds.length > 0) {
-    const [{ data: tips }, { data: ledgerTips }] = await Promise.all([
-      supabaseAdmin
-        .from('tips')
-        .select('booking_id, amount_cents')
-        .in('booking_id', bookingIds)
-        .eq('status', 'paid'),
-      supabaseAdmin
-        .from('alternative_payment_ledger')
-        .select('booking_id, tip_cents')
-        .in('booking_id', bookingIds)
-        .gt('tip_cents', 0),
-    ]);
-    for (const t of tips || []) {
-      tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.amount_cents);
-    }
-    for (const t of ledgerTips || []) {
-      if (t.booking_id) {
-        tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.tip_cents);
-      }
+  let customPaymentsQuery = supabaseAdmin
+    .from('alternative_payment_ledger')
+    .select('id, appointment_ts, service_amount_cents, tip_cents, service_name, customer_name')
+    .eq('marked_paid_by', staffId)
+    .is('booking_id', null);
+  if (startDate) customPaymentsQuery = customPaymentsQuery.gte('appointment_ts', startDate.toISOString());
+
+  const [tipsResult, ledgerTipsResult, { data: customPayments }] = await Promise.all([
+    bookingIds.length > 0
+      ? supabaseAdmin.from('tips').select('booking_id, amount_cents').in('booking_id', bookingIds).eq('status', 'paid')
+      : Promise.resolve({ data: [] as { booking_id: string; amount_cents: number }[] }),
+    bookingIds.length > 0
+      ? supabaseAdmin.from('alternative_payment_ledger').select('booking_id, tip_cents').in('booking_id', bookingIds).gt('tip_cents', 0)
+      : Promise.resolve({ data: [] as { booking_id: string | null; tip_cents: number }[] }),
+    customPaymentsQuery.limit(500),
+  ]);
+
+  for (const t of (tipsResult.data || [])) {
+    tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.amount_cents);
+  }
+  for (const t of (ledgerTipsResult.data || [])) {
+    if (t.booking_id) {
+      tipsMap.set(t.booking_id, (tipsMap.get(t.booking_id) || 0) + t.tip_cents);
     }
   }
 
-  const transactions = (bookings || []).map((b) => {
+  const bookingTransactions = (bookings || []).map((b) => {
     const isForfeited = (b.status === 'cancelled' || b.status === 'no_show') && b.payment_status === 'deposit_paid';
     const serviceAmountCents = isForfeited ? (b.deposit_amount_cents || 0) : (b.total_price_cents || 0);
     const tipAmountCents = isForfeited ? 0 : (tipsMap.get(b.id) || 0);
@@ -92,6 +95,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       totalCents: serviceAmountCents + tipAmountCents,
     };
   });
+
+  const customTransactions = (customPayments || []).map((p) => ({
+    id: p.id,
+    date: p.appointment_ts,
+    customerName: p.customer_name ?? '—',
+    serviceName: p.service_name ?? 'Custom Payment',
+    serviceAmountCents: p.service_amount_cents,
+    tipAmountCents: p.tip_cents ?? 0,
+    totalCents: p.service_amount_cents + (p.tip_cents ?? 0),
+  }));
+
+  const transactions = [...bookingTransactions, ...customTransactions];
 
   const serviceRevenueCents = transactions.reduce((s, t) => s + t.serviceAmountCents, 0);
   const tipsCents = transactions.reduce((s, t) => s + t.tipAmountCents, 0);
