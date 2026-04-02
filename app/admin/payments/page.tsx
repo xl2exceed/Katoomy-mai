@@ -55,7 +55,7 @@ export default function AdminPaymentsPage() {
         .from("alternative_payment_ledger")
         .select("*, businesses(name, slug)")
         .order("marked_paid_at", { ascending: false })
-        .limit(200),
+        .limit(1000),
       supabase
         .from("monthly_platform_billing")
         .select("*, businesses(name)")
