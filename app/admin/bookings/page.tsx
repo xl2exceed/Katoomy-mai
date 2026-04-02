@@ -4,7 +4,6 @@
 
 import { formatPhone } from "@/lib/utils/formatPhone";
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { sendPush } from "@/lib/utils/sendPush";
 import PaymentNotificationBanner from "@/components/PaymentNotificationBanner";
@@ -34,11 +33,11 @@ interface Booking {
   } | null;
 }
 
-function dateToParam(d: Date) {
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
-}
+const STORAGE_KEY = "admin_schedule_date";
 
-function paramToDate(s: string | null): Date {
+function savedDate(): Date {
+  if (typeof window === "undefined") return new Date();
+  const s = localStorage.getItem(STORAGE_KEY);
   if (s && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
     const [y, m, d] = s.split("-").map(Number);
     const date = new Date();
@@ -50,13 +49,10 @@ function paramToDate(s: string | null): Date {
 }
 
 export default function BookingsPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"day" | "week">("day");
-  const [selectedDate, setSelectedDate] = useState(() => paramToDate(searchParams.get("date")));
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Refund modal state
@@ -71,6 +67,11 @@ export default function BookingsPage() {
   const [businessId, setBusinessId] = useState("");
 
   const supabase = createClient();
+
+  // Restore persisted date on first mount
+  useEffect(() => {
+    setSelectedDate(savedDate());
+  }, []);
 
   useEffect(() => {
     loadBookings();
@@ -345,8 +346,9 @@ export default function BookingsPage() {
   };
 
   const navigateToDate = (d: Date) => {
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    localStorage.setItem(STORAGE_KEY, key);
     setSelectedDate(d);
-    router.replace(`?date=${dateToParam(d)}`, { scroll: false });
   };
 
   const goToPreviousDay = () => {
