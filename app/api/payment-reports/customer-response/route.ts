@@ -26,7 +26,19 @@ export async function POST(req: NextRequest) {
 
   const autoResolveAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-  // Upsert — idempotent if customer taps again
+  // Check if a previous report exists (e.g. business clicked Unpaid after first claim)
+  const { data: existing } = await supabaseAdmin
+    .from("booking_payment_reports")
+    .select("id, resolution_status")
+    .eq("booking_id", bookingId)
+    .maybeSingle();
+
+  // If the report was disputed/resolved, reset it to pending so the business
+  // gets a new notification banner when the customer tries to pay again.
+  const resetFields = existing && existing.resolution_status !== "pending"
+    ? { business_response: "pending", business_response_at: null, resolution_status: "pending", resolution_reason: null, resolved_at: null }
+    : {};
+
   const { data: report, error } = await supabaseAdmin
     .from("booking_payment_reports")
     .upsert({
@@ -40,6 +52,7 @@ export async function POST(req: NextRequest) {
       tip_cents: tip,
       total_amount_cents: total,
       auto_resolve_at: autoResolveAt,
+      ...resetFields,
     }, { onConflict: "booking_id", ignoreDuplicates: false })
     .select()
     .single();
