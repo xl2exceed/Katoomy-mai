@@ -113,6 +113,29 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer?.id]);
 
+  // Real-time: update loyalty points instantly when staff/admin marks a booking complete
+  useEffect(() => {
+    if (!customer) return;
+    const cid = customer.id;
+    const channel = supabase
+      .channel(`customer-loyalty-${cid}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "loyalty_ledger", filter: `customer_id=eq.${cid}` },
+        async () => {
+          const { data } = await supabase
+            .from("loyalty_ledger")
+            .select("points_delta")
+            .eq("customer_id", cid);
+          const total = data?.reduce((sum: number, e: { points_delta: number }) => sum + e.points_delta, 0) ?? 0;
+          setLoyaltyPoints(total);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer?.id]);
+
   const initDashboard = async () => {
     // Load business first (always needed for branding)
     const { data: businessData } = await supabase
