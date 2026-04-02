@@ -38,6 +38,18 @@ export default function SettingsPage() {
   const [referrerRewardPoints, setReferrerRewardPoints] = useState(15);
   const [depositEnabled, setDepositEnabled] = useState(false);
 
+  // SMS template state
+  const [smsTemplates, setSmsTemplates] = useState({
+    reminder:        "Hi {{customer_name}}! Reminder: your {{service_name}} appointment is tomorrow at {{appt_time}}. Reply STOP to opt out.",
+    cancel_customer: "Hi {{customer_name}}! Your {{appt_time}} appointment has been cancelled. Contact {{business_name}} to reschedule.",
+    cancel_staff:    "Hi {{customer_name}}! Your {{service_name}} appointment on {{appt_time}} has been cancelled. Contact {{business_name}} to reschedule.",
+    payment_dispute: "Hi {{customer_name}}! {{business_name}} did not receive your payment of ${{amount}}. Please send payment or visit {{pay_link}} to pay online.",
+    winback:         "Hey {{customer_name}}! We miss you at {{business_name}}. Come back and book: {{booking_link}}",
+    referral:        "Hi {{customer_name}}! Thanks for visiting {{business_name}}. Refer a friend and you both get a discount: {{referral_link}}",
+  });
+  const [smsTemplateSaving, setSmsTemplateSaving] = useState(false);
+  const [smsTemplateMsg, setSmsTemplateMsg] = useState("");
+
   // Notification settings state
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>({
     booking_confirmations: true,
@@ -101,6 +113,13 @@ export default function SettingsPage() {
         .eq("business_id", business.id)
         .single();
       if (notifData) setNotifSettings(notifData as NotificationSettings);
+
+      const { data: tmplData } = await supabase
+        .from("sms_templates")
+        .select("reminder, cancel_customer, cancel_staff, payment_dispute, winback, referral")
+        .eq("business_id", business.id)
+        .maybeSingle();
+      if (tmplData) setSmsTemplates((prev) => ({ ...prev, ...tmplData }));
     }
 
     setLoading(false);
@@ -154,6 +173,23 @@ export default function SettingsPage() {
       setSaveMessage("✅ Settings saved successfully!");
       console.log("✅ Settings saved to database");
       setTimeout(() => setSaveMessage(""), 3000);
+    }
+  };
+
+  const handleSaveSmsTemplates = async () => {
+    setSmsTemplateSaving(true);
+    setSmsTemplateMsg("");
+    const res = await fetch("/api/admin/sms-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(smsTemplates),
+    });
+    setSmsTemplateSaving(false);
+    if (res.ok) {
+      setSmsTemplateMsg("✅ SMS templates saved!");
+      setTimeout(() => setSmsTemplateMsg(""), 3000);
+    } else {
+      setSmsTemplateMsg("❌ Failed to save templates.");
     }
   };
 
@@ -539,6 +575,78 @@ export default function SettingsPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* SMS Message Templates */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-1">SMS Message Templates</h2>
+          <p className="text-sm text-gray-600 mb-1">
+            Customize the text messages sent to your customers. Use <code className="bg-gray-100 px-1 rounded text-xs">{"{{variable}}"}</code> placeholders — they are replaced automatically.
+          </p>
+          <div className="space-y-5 mt-5">
+            {([
+              {
+                key: "reminder",
+                label: "Appointment Reminder",
+                hint: "Sent the day before an appointment.",
+                vars: "{{customer_name}}, {{service_name}}, {{appt_time}}",
+              },
+              {
+                key: "cancel_customer",
+                label: "Cancellation (customer cancels)",
+                hint: "Sent to the customer when they cancel their own booking.",
+                vars: "{{customer_name}}, {{appt_time}}, {{business_name}}",
+              },
+              {
+                key: "cancel_staff",
+                label: "Cancellation (staff/admin cancels)",
+                hint: "Sent to the customer when a staff member cancels their booking.",
+                vars: "{{customer_name}}, {{service_name}}, {{appt_time}}, {{business_name}}",
+              },
+              {
+                key: "payment_dispute",
+                label: "Payment Dispute",
+                hint: "Sent when the business marks a claimed payment as not received.",
+                vars: "{{customer_name}}, {{business_name}}, {{amount}}, {{pay_link}}",
+              },
+              {
+                key: "winback",
+                label: "Win-Back (inactive customers)",
+                hint: "Also editable in Growth Hub. This setting is used when no Growth Hub template is set.",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
+              },
+              {
+                key: "referral",
+                label: "Referral Reminder",
+                hint: "Also editable in Growth Hub. This setting is used when no Growth Hub template is set.",
+                vars: "{{customer_name}}, {{business_name}}, {{referral_link}}",
+              },
+            ] as { key: keyof typeof smsTemplates; label: string; hint: string; vars: string }[]).map(({ key, label, hint, vars }) => (
+              <div key={key}>
+                <label className="block text-sm font-semibold text-gray-800 mb-0.5">{label}</label>
+                <p className="text-xs text-gray-500 mb-1">{hint}</p>
+                <textarea
+                  rows={3}
+                  value={smsTemplates[key]}
+                  onChange={(e) => setSmsTemplates({ ...smsTemplates, [key]: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-y"
+                />
+                <p className="text-xs text-gray-400 mt-0.5">Variables: <span className="font-mono">{vars}</span></p>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-5">
+            <p className={`text-sm font-medium ${smsTemplateMsg.startsWith("✅") ? "text-green-600" : "text-red-600"}`}>
+              {smsTemplateMsg}
+            </p>
+            <button
+              onClick={handleSaveSmsTemplates}
+              disabled={smsTemplateSaving}
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 text-sm"
+            >
+              {smsTemplateSaving ? "Saving…" : "Save SMS Templates"}
+            </button>
           </div>
         </div>
 

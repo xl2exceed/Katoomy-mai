@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/webpush";
+import { getSmsTemplate, fillSmsTemplate } from "@/lib/smsTemplates";
 
 export async function POST(req: NextRequest) {
   try {
@@ -108,7 +109,12 @@ export async function POST(req: NextRequest) {
       ]);
       if (customer?.phone) {
         const bizName = biz?.name || "us";
-        const smsBody = `Hi ${customerName || "there"}! Your ${apptTime} appointment has been cancelled. Contact ${bizName} to reschedule.`;
+        const tmpl = await getSmsTemplate(businessId, "cancel_customer");
+        const smsBody = fillSmsTemplate(tmpl, {
+          customer_name: customerName || "there",
+          appt_time: apptTime,
+          business_name: bizName,
+        });
         const appUrl = process.env.NEXT_PUBLIC_APP_URL;
         if (appUrl) {
           await fetch(`${appUrl}/api/sms/send`, {

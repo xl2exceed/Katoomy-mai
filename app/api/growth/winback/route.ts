@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getTwilio, getFromNumber } from "@/lib/twilio";
+import { getSmsTemplate } from "@/lib/smsTemplates";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
@@ -128,8 +129,8 @@ export async function POST(req: NextRequest) {
 
   const inactiveDays = settings.winback_inactive_days ?? 60;
   const cooldownDays = settings.winback_cooldown_days ?? 30;
-  const template = settings.winback_template ??
-    "Hey {{customer_name}}! We miss you at {{business_name}}. Come back and book: {{booking_link}}";
+  // Priority: Growth Hub template field → sms_templates settings → built-in default
+  const template = settings.winback_template ?? await getSmsTemplate(businessId!, "winback");
 
   // For auto-run, find all eligible customers
   let targets: { id: string; full_name: string | null; phone: string }[] = [];

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getTwilio, getFromNumber } from "@/lib/twilio";
+import { getSmsTemplate } from "@/lib/smsTemplates";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
@@ -117,8 +118,8 @@ export async function POST(req: NextRequest) {
 
   const delayDays = settings.referral_delay_days ?? 7;
   const cooldownDays = settings.referral_cooldown_days ?? 90;
-  const template = settings.referral_template ??
-    "Hi {{customer_name}}! Thanks for visiting {{business_name}}. Refer a friend and you both get a discount: {{referral_link}}";
+  // Priority: Growth Hub template field → sms_templates settings → built-in default
+  const template = settings.referral_template ?? await getSmsTemplate(businessId!, "referral");
 
   let targets: { id: string; full_name: string | null; phone: string }[] = [];
 

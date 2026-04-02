@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushNotification } from "@/lib/webpush";
+import { getSmsTemplate, fillSmsTemplate } from "@/lib/smsTemplates";
 
 interface ReminderRow {
   id: string;
@@ -161,7 +162,12 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        const smsBody = `Hi ${customerName}! Reminder: your ${serviceName} appointment is tomorrow at ${apptTime}. Reply STOP to opt out.`;
+        const tmpl = await getSmsTemplate(reminder.business_id, "reminder");
+        const smsBody = fillSmsTemplate(tmpl, {
+          customer_name: customerName,
+          service_name: serviceName,
+          appt_time: apptTime,
+        });
 
         const { error: smsError } = await supabase
           .from("scheduled_messages")

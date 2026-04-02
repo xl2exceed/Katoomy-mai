@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { getSmsTemplate, fillSmsTemplate } from '@/lib/smsTemplates';
 
 const VALID_STATUSES = ['requested', 'confirmed', 'completed', 'cancelled', 'no_show', 'incomplete'];
 
@@ -78,9 +79,14 @@ export async function POST(req: NextRequest) {
           : 'your upcoming appointment';
         const servicesArr = updatedBooking?.services as unknown as { name: string }[] | null;
         const serviceName = Array.isArray(servicesArr) ? servicesArr[0]?.name : undefined;
-        const apptLabel = serviceName ? `${serviceName} appointment on ${apptTime}` : `appointment on ${apptTime}`;
         const bizName = biz?.name || 'us';
-        const smsBody = `Hi ${customer.full_name || 'there'}! Your ${apptLabel} has been cancelled. Contact ${bizName} to reschedule.`;
+        const tmpl = await getSmsTemplate(booking.business_id, 'cancel_staff');
+        const smsBody = fillSmsTemplate(tmpl, {
+          customer_name: customer.full_name || 'there',
+          service_name: serviceName || 'appointment',
+          appt_time: apptTime,
+          business_name: bizName,
+        });
         const appUrl = process.env.NEXT_PUBLIC_APP_URL;
         if (appUrl) {
           await fetch(`${appUrl}/api/sms/send`, {
