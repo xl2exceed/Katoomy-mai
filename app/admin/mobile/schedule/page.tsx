@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { sendPush } from "@/lib/utils/sendPush";
 import PaymentNotificationBanner from "@/components/PaymentNotificationBanner";
+import Pagination from "@/components/Pagination";
 
 interface Booking {
   id: string;
@@ -37,6 +38,8 @@ export default function MobileSchedulePage() {
     return new Date();
   });
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
 
   // Cancel modal state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -359,21 +362,17 @@ export default function MobileSchedulePage() {
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
         </div>
-      ) : bookings.filter((booking) => {
-          if (statusFilter === "all") return true;
-          return booking.status === statusFilter;
-        }).length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl p-8">
-          <p className="text-gray-500 text-lg">No appointments found</p>
-        </div>
-      ) : (
+      ) : (() => {
+        const filtered = bookings.filter((b) => statusFilter === "all" || b.status === statusFilter);
+        const paged = filtered.slice((page - 1) * perPage, page * perPage);
+        if (filtered.length === 0) return (
+          <div className="text-center py-12 bg-white rounded-xl p-8">
+            <p className="text-gray-500 text-lg">No appointments found</p>
+          </div>
+        );
+        return (
         <div className="space-y-3">
-          {bookings
-            .filter((booking) => {
-              if (statusFilter === "all") return true;
-              return booking.status === statusFilter;
-            })
-            .map((booking) => (
+          {paged.map((booking) => (
               <div
                 key={booking.id}
                 className="bg-blue-50 p-4 rounded-xl shadow border-2 border-blue-500"
@@ -457,8 +456,13 @@ export default function MobileSchedulePage() {
                   )}
               </div>
             ))}
+          <Pagination
+            total={filtered.length} perPage={perPage} page={page}
+            onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+          />
         </div>
-      )}
+        );
+      })()}
 
       {/* Cancel Confirmation Modal */}
       {cancelModalOpen && selectedBooking && (

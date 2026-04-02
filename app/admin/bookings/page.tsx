@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { sendPush } from "@/lib/utils/sendPush";
 import PaymentNotificationBanner from "@/components/PaymentNotificationBanner";
+import Pagination from "@/components/Pagination";
 
 interface Booking {
   id: string;
@@ -54,6 +55,8 @@ export default function BookingsPage() {
   const [view, setView] = useState<"day" | "week">("day");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
 
   // Refund modal state
   const [refundBooking, setRefundBooking] = useState<Booking | null>(null);
@@ -349,6 +352,7 @@ export default function BookingsPage() {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     localStorage.setItem(STORAGE_KEY, key);
     setSelectedDate(d);
+    setPage(1);
   };
 
   const goToPreviousDay = () => {
@@ -458,7 +462,7 @@ export default function BookingsPage() {
                   </label>
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
                     className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="all">All Appointments</option>
@@ -524,12 +528,11 @@ export default function BookingsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {bookings
-                .filter((booking) => {
-                  if (statusFilter === "all") return true;
-                  return booking.status === statusFilter;
-                })
-                .map((booking) => (
+              {(() => {
+                const filtered = bookings.filter((b) => statusFilter === "all" || b.status === statusFilter);
+                const paged = filtered.slice((page - 1) * perPage, page * perPage);
+                return (<>
+                  {paged.map((booking) => (
                   <div
                     key={booking.id}
                     className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition"
@@ -650,6 +653,12 @@ export default function BookingsPage() {
                     </div>
                   </div>
                 ))}
+                  <Pagination
+                    total={filtered.length} perPage={perPage} page={page}
+                    onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+                  />
+                </>);
+              })()}
             </div>
           )}
 

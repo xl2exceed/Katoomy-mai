@@ -7,6 +7,7 @@ import { formatPhone } from "@/lib/utils/formatPhone";
 import Link from "next/link";
 import { sendPush } from "@/lib/utils/sendPush";
 import PaymentNotificationBanner from "@/components/PaymentNotificationBanner";
+import Pagination from "@/components/Pagination";
 
 interface Booking {
   id: string;
@@ -50,6 +51,8 @@ export default function StaffSchedulePage() {
     return new Date();
   });
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -216,6 +219,7 @@ export default function StaffSchedulePage() {
     d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
 
   const filtered = bookings.filter((b) => statusFilter === "all" || b.status === statusFilter);
+  const paged = filtered.slice((page - 1) * perPage, page * perPage);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -290,7 +294,7 @@ export default function StaffSchedulePage() {
       <div className="mb-4">
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-emerald-500 text-base"
         >
           <option value="all">All Appointments</option>
@@ -313,7 +317,7 @@ export default function StaffSchedulePage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((booking) => (
+          {paged.map((booking) => (
             <div key={booking.id} className="bg-white p-4 rounded-xl shadow border border-gray-200">
               {view === "week" && (
                 <p className="text-xs font-semibold text-emerald-600 mb-1">
@@ -396,6 +400,10 @@ export default function StaffSchedulePage() {
               )}
             </div>
           ))}
+          <Pagination
+            total={filtered.length} perPage={perPage} page={page}
+            onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+          />
         </div>
       )}
 

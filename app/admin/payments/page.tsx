@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Pagination from "@/components/Pagination";
 
 interface LedgerEntry {
   id: string;
@@ -42,6 +43,11 @@ export default function AdminPaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"ledger" | "billing">("ledger");
   const [filterMonth, setFilterMonth] = useState("");
+  const [search, setSearch] = useState("");
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerPerPage, setLedgerPerPage] = useState(20);
+  const [billingPage, setBillingPage] = useState(1);
+  const [billingPerPage, setBillingPerPage] = useState(20);
   const [triggeringBilling, setTriggeringBilling] = useState(false);
   const [billingMsg, setBillingMsg] = useState("");
 
@@ -89,9 +95,23 @@ export default function AdminPaymentsPage() {
     setTriggeringBilling(false);
   }
 
-  const filteredLedger = filterMonth
-    ? ledger.filter((e) => e.billing_month === filterMonth)
-    : ledger;
+  const filteredLedger = ledger.filter((e) => {
+    if (filterMonth && e.billing_month !== filterMonth) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        e.customer_name?.toLowerCase().includes(q) ||
+        e.service_name?.toLowerCase().includes(q) ||
+        e.businesses?.name?.toLowerCase().includes(q) ||
+        e.payment_method?.toLowerCase().includes(q) ||
+        e.notes?.toLowerCase().includes(q) ||
+        false
+      );
+    }
+    return true;
+  });
+  const pagedLedger = filteredLedger.slice((ledgerPage - 1) * ledgerPerPage, ledgerPage * ledgerPerPage);
+  const pagedBilling = billing.slice((billingPage - 1) * billingPerPage, billingPage * billingPerPage);
 
   const totalPendingFees = ledger
     .filter((e) => e.billing_status === "pending")
@@ -164,11 +184,16 @@ export default function AdminPaymentsPage() {
 
       {activeTab === "ledger" && (
         <>
-          {/* Filter */}
-          <div className="flex items-center gap-3 mb-4">
+          {/* Filter + Search */}
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <input
+              type="text" placeholder="Search customer, service, method…" value={search}
+              onChange={(e) => { setSearch(e.target.value); setLedgerPage(1); }}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white w-64"
+            />
             <select
               value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
+              onChange={(e) => { setFilterMonth(e.target.value); setLedgerPage(1); }}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white"
             >
               <option value="">All months</option>
@@ -203,7 +228,7 @@ export default function AdminPaymentsPage() {
                       </td>
                     </tr>
                   )}
-                  {filteredLedger.map((entry) => (
+                  {pagedLedger.map((entry) => (
                     <tr key={entry.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {entry.businesses?.name ?? entry.business_id.slice(0, 8)}
@@ -251,6 +276,10 @@ export default function AdminPaymentsPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              total={filteredLedger.length} perPage={ledgerPerPage} page={ledgerPage}
+              onPageChange={setLedgerPage} onPerPageChange={(n) => { setLedgerPerPage(n); setLedgerPage(1); }}
+            />
           </div>
         </>
       )}
@@ -294,7 +323,7 @@ export default function AdminPaymentsPage() {
                       </td>
                     </tr>
                   )}
-                  {billing.map((record) => (
+                  {pagedBilling.map((record) => (
                     <tr key={record.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {record.businesses?.name ?? record.business_id.slice(0, 8)}
@@ -320,6 +349,10 @@ export default function AdminPaymentsPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              total={billing.length} perPage={billingPerPage} page={billingPage}
+              onPageChange={setBillingPage} onPerPageChange={(n) => { setBillingPerPage(n); setBillingPage(1); }}
+            />
           </div>
         </>
       )}

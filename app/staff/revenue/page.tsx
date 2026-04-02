@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Pagination from "@/components/Pagination";
 import { createStaffClient as createClient } from "@/lib/supabase/staff-client";
 import Link from "next/link";
 
@@ -32,6 +33,8 @@ export default function StaffRevenuePage() {
   const [period, setPeriod] = useState<Period>("week");
   const [stats, setStats] = useState<RevenueStats>({ serviceRevenueCents: 0, tipsCents: 0, totalRevenueCents: 0, transactions: [] });
   const [loading, setLoading] = useState(true);
+  const [txPage, setTxPage] = useState(1);
+  const [txPerPage, setTxPerPage] = useState(20);
 
   useEffect(() => {
     init();
@@ -53,6 +56,7 @@ export default function StaffRevenuePage() {
 
   async function loadRevenue() {
     setLoading(true);
+    setTxPage(1);
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(`/api/staff/${staffId}/revenue?period=${period}`, {
       headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
@@ -127,11 +131,12 @@ export default function StaffRevenuePage() {
 
           {stats.transactions.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide px-5 pt-5 pb-3">
-                Transactions
-              </p>
+              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Transactions</p>
+                <span className="text-xs text-gray-400">{stats.transactions.length} total</span>
+              </div>
               <div className="divide-y divide-gray-100">
-                {stats.transactions.map((t) => (
+                {stats.transactions.slice((txPage - 1) * txPerPage, txPage * txPerPage).map((t) => (
                   <div key={t.id} className="px-5 py-3 flex justify-between items-center">
                     <div>
                       <p className="font-semibold text-gray-900 text-sm">{t.customerName}</p>
@@ -150,6 +155,10 @@ export default function StaffRevenuePage() {
                   </div>
                 ))}
               </div>
+              <Pagination
+                total={stats.transactions.length} perPage={txPerPage} page={txPage}
+                onPageChange={setTxPage} onPerPageChange={(n) => { setTxPerPage(n); setTxPage(1); }}
+              />
             </div>
           )}
         </div>

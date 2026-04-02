@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Pagination from "@/components/Pagination";
 
 type Period = "today" | "week" | "month" | "all";
 
@@ -56,6 +57,10 @@ export default function AdminRevenuePage() {
   const [period, setPeriod] = useState<Period>("week");
   const [data, setData] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [txPage, setTxPage] = useState(1);
+  const [txPerPage, setTxPerPage] = useState(20);
+  const [memPage, setMemPage] = useState(1);
+  const [memPerPage, setMemPerPage] = useState(20);
 
   useEffect(() => {
     load();
@@ -64,6 +69,8 @@ export default function AdminRevenuePage() {
 
   async function load() {
     setLoading(true);
+    setTxPage(1);
+    setMemPage(1);
     const res = await fetch(`/api/admin/revenue?period=${period}`);
     if (res.ok) setData(await res.json());
     setLoading(false);
@@ -152,11 +159,12 @@ export default function AdminRevenuePage() {
           {/* Transaction List */}
           {data.transactions.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Transactions</h2>
+                <span className="text-xs text-gray-400">{data.transactions.length} total</span>
               </div>
               <div className="divide-y divide-gray-100">
-                {data.transactions.map((t) => (
+                {data.transactions.slice((txPage - 1) * txPerPage, txPage * txPerPage).map((t) => (
                   <div key={t.id} className="px-6 py-4 flex justify-between items-center">
                     <div>
                       <p className="font-semibold text-gray-900">{t.customerName}</p>
@@ -176,17 +184,22 @@ export default function AdminRevenuePage() {
                   </div>
                 ))}
               </div>
+              <Pagination
+                total={data.transactions.length} perPage={txPerPage} page={txPage}
+                onPageChange={setTxPage} onPerPageChange={(n) => { setTxPerPage(n); setTxPage(1); }}
+              />
             </div>
           )}
 
           {/* Membership Transactions */}
           {data.membershipTransactions.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Membership Sign-ups</h2>
+                <span className="text-xs text-gray-400">{data.membershipTransactions.length} total</span>
               </div>
               <div className="divide-y divide-gray-100">
-                {data.membershipTransactions.map((m) => (
+                {data.membershipTransactions.slice((memPage - 1) * memPerPage, memPage * memPerPage).map((m) => (
                   <div key={m.id} className="px-6 py-4 flex justify-between items-center">
                     <div>
                       <p className="font-semibold text-gray-900">{m.customerName}</p>
@@ -199,6 +212,10 @@ export default function AdminRevenuePage() {
                   </div>
                 ))}
               </div>
+              <Pagination
+                total={data.membershipTransactions.length} perPage={memPerPage} page={memPage}
+                onPageChange={setMemPage} onPerPageChange={(n) => { setMemPerPage(n); setMemPage(1); }}
+              />
             </div>
           )}
 
