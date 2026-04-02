@@ -49,6 +49,20 @@ export default function AdminTakePaymentPage() {
   const [error, setError] = useState("");
   const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Custom payment state
+  const [customServiceName, setCustomServiceName] = useState("");
+  const [customAmount, setCustomAmount] = useState("");
+  const [customCustomerName, setCustomCustomerName] = useState("");
+  const [customMethod, setCustomMethod] = useState("cash");
+  const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customTime, setCustomTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  });
+  const [customBusy, setCustomBusy] = useState(false);
+  const [customError, setCustomError] = useState("");
+  const [customSuccess, setCustomSuccess] = useState("");
+
   useEffect(() => {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,6 +135,42 @@ export default function AdminTakePaymentPage() {
 
   function reset() {
     setQrUrl(""); setCustomerPhone(""); setCustomerName(""); setSelectedServiceId(""); setLookup(null); setError("");
+  }
+
+  async function submitCustomPayment() {
+    setCustomError("");
+    setCustomSuccess("");
+    if (!customServiceName.trim()) { setCustomError("Enter a service or description."); return; }
+    const amountCents = Math.round(parseFloat(customAmount) * 100);
+    if (!amountCents || amountCents <= 0) { setCustomError("Enter a valid amount."); return; }
+    setCustomBusy(true);
+    try {
+      const appointmentTs = new Date(`${customDate}T${customTime}`).toISOString();
+      const res = await fetch("/api/admin/custom-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceName: customServiceName,
+          amountCents,
+          customerName: customCustomerName,
+          paymentMethod: customMethod,
+          appointmentTs,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCustomError(data.error || "Something went wrong."); setCustomBusy(false); return; }
+      setCustomSuccess("Payment recorded successfully.");
+      setCustomServiceName("");
+      setCustomAmount("");
+      setCustomCustomerName("");
+      setCustomMethod("cash");
+      const now = new Date();
+      setCustomDate(now.toISOString().slice(0, 10));
+      setCustomTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+    } catch {
+      setCustomError("Network error. Please try again.");
+    }
+    setCustomBusy(false);
   }
 
   if (loading) {
@@ -269,6 +319,81 @@ export default function AdminTakePaymentPage() {
         {!lookup && !looking && (
           <p className="text-xs text-gray-400 text-center">Enter the customer phone number to look them up</p>
         )}
+      </div>
+
+      {/* ── Custom Payment ───────────────────────────────────────────── */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Custom Payment</h2>
+        <p className="text-sm text-gray-500 mb-4">Record a one-off payment for any service or product not in the system.</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Service / Description <span className="text-red-500">*</span></label>
+              <input
+                type="text" placeholder="e.g. Haircut, Product sale…" value={customServiceName}
+                onChange={(e) => setCustomServiceName(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base text-gray-900 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                <input
+                  type="number" inputMode="decimal" placeholder="0.00" value={customAmount} min="0" step="0.01"
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className="w-full pl-7 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base text-gray-900 bg-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Payment Method</label>
+              <select
+                value={customMethod} onChange={(e) => setCustomMethod(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base text-gray-900 bg-white"
+              >
+                <option value="cash">Cash</option>
+                <option value="cashapp">Cash App</option>
+                <option value="other">Zelle / Other</option>
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Customer Name (optional)</label>
+              <input
+                type="text" placeholder="John Doe" value={customCustomerName}
+                onChange={(e) => setCustomCustomerName(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base text-gray-900 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Date</label>
+              <input
+                type="date" value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base text-gray-900 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Time</label>
+              <input
+                type="time" value={customTime}
+                onChange={(e) => setCustomTime(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base text-gray-900 bg-white"
+              />
+            </div>
+          </div>
+
+          {customError && <p className="text-red-600 text-sm">{customError}</p>}
+          {customSuccess && <p className="text-green-600 text-sm font-semibold">{customSuccess}</p>}
+
+          <button
+            onClick={submitCustomPayment} disabled={customBusy}
+            className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-base disabled:opacity-60 active:scale-95 transition"
+          >
+            {customBusy ? "Recording..." : "Record Payment"}
+          </button>
+        </div>
       </div>
     </div>
   );
