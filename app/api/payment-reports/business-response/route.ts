@@ -69,19 +69,26 @@ export async function POST(req: NextRequest) {
       .select("id").eq("booking_id", report.booking_id).maybeSingle();
 
     if (!existingLedger) {
-      await supabaseAdmin.from("alternative_payment_ledger").insert({
+      // Map payment_method to values allowed by the ledger check constraint
+      const ledgerMethod =
+        report.payment_method === "cash_app" ? "cashapp" :
+        report.payment_method === "zelle"    ? "other"   :
+        report.payment_method === "cash"     ? "cash"    : "cashapp";
+
+      const { error: ledgerErr } = await supabaseAdmin.from("alternative_payment_ledger").insert({
         business_id: report.business_id,
         booking_id: report.booking_id,
         service_amount_cents: report.service_amount_cents,
         tip_cents: report.tip_cents,
         platform_fee_cents: report.fee_amount_cents,
-        payment_method: report.payment_method,
+        payment_method: ledgerMethod,
         fee_absorbed_by: report.fee_amount_cents > 0 ? "customer" : "business",
         billing_month: billingMonth,
         billing_status: "pending",
         marked_paid_by: staffId,
         notes: `Confirmed by ${staffId ? "staff" : "admin"}`,
       });
+      if (ledgerErr) console.error("[business-response] Ledger insert error:", ledgerErr.message);
     }
 
     // ── Award loyalty points ──────────────────────────────────────────
