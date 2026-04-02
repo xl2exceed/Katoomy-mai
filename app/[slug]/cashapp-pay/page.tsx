@@ -68,8 +68,8 @@ export default function ExternalPayPage() {
     : null;
 
   const handleCashAppTap = () => {
-    if (cashAppLink) window.location.href = cashAppLink;
     setSelectedMethod("cash_app");
+    if (cashAppLink) window.open(cashAppLink, "_blank");
   };
 
   const handleZelleTap = () => {
@@ -173,17 +173,20 @@ export default function ExternalPayPage() {
                 </div>
                 {selectedMethod === "cash_app" && <span className="text-green-500 text-lg">✓</span>}
               </button>
-              {/* QR code so staff can show customers or desktop users can scan */}
-              <div className="mt-2 flex flex-col items-center bg-green-50 border border-green-100 rounded-xl p-3">
-                <p className="text-xs text-gray-500 mb-2">Or scan to open Cash App with amount pre-filled</p>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(cashAppLink)}`}
-                  alt="Cash App QR code"
-                  width={160}
-                  height={160}
-                  className="rounded-lg"
-                />
-              </div>
+              {/* QR only shows after Cash App is selected — scan to open with amount pre-filled */}
+              {selectedMethod === "cash_app" && (
+                <div className="mt-2 flex flex-col items-center bg-green-50 border border-green-100 rounded-xl p-3">
+                  <p className="text-xs text-gray-500 mb-2">Can&apos;t open Cash App? Scan this QR code instead</p>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(cashAppLink)}`}
+                    alt="Cash App QR code"
+                    width={160}
+                    height={160}
+                    className="rounded-lg"
+                  />
+                  <p className="text-xs text-green-700 mt-2 font-medium">After paying, scroll down and tap &quot;I&apos;ve Paid&quot;</p>
+                </div>
+              )}
             </div>
           )}
 

@@ -65,35 +65,34 @@ export default function PaymentNotificationBanner({ businessId, supabase, authTo
   }, [businessId]);
 
   async function loadPending() {
-    const { data } = await supabase
-      .from("booking_payment_reports")
-      .select("id, booking_id, customer_id, payment_method, total_amount_cents, customer_response_at, customer_response, resolution_status, bookings(start_ts, services(name)), customers(full_name, phone)")
-      .eq("business_id", businessId)
-      .eq("customer_response", "paid")
-      .eq("business_response", "pending")
-      .eq("resolution_status", "pending")
-      .order("customer_response_at", { ascending: true });
-
+    if (!businessId) return;
+    // Use the server-side API so supabaseAdmin handles the joins —
+    // direct client queries fail for staff because booking/customer RLS
+    // only allows staff to see their own assigned rows.
+    const headers: Record<string, string> = {};
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    const res = await fetch(`/api/payment-reports/pending?businessId=${businessId}`, { headers });
+    if (!res.ok) return;
+    const { reports: data } = await res.json();
     if (!data) return;
 
-    const reports: PendingReport[] = data.map((r) => {
-      // booking_id and customer_id are FK columns on this table (many-to-one),
-      // so PostgREST returns single objects, not arrays.
-      const booking = r.bookings as unknown as { start_ts: string | null; services: { name: string } | null } | null;
-      const customer = r.customers as unknown as { full_name: string | null; phone: string | null } | null;
-      return {
-        id: r.id,
-        booking_id: r.booking_id,
-        customer_id: r.customer_id,
-        payment_method: r.payment_method,
-        total_amount_cents: r.total_amount_cents,
-        customer_response_at: r.customer_response_at,
-        customerName: customer?.full_name ?? "Customer",
-        customerPhone: customer?.phone ?? undefined,
-        serviceName: booking?.services?.name ?? undefined,
-        appointmentTs: booking?.start_ts ?? undefined,
-      };
-    });
+    const reports: PendingReport[] = data.map((r: {
+      id: string; booking_id: string; customer_id: string; payment_method: string;
+      total_amount_cents: number; customer_response_at: string;
+      bookings: { start_ts: string | null; services: { name: string } | null } | null;
+      customers: { full_name: string | null; phone: string | null } | null;
+    }) => ({
+      id: r.id,
+      booking_id: r.booking_id,
+      customer_id: r.customer_id,
+      payment_method: r.payment_method,
+      total_amount_cents: r.total_amount_cents,
+      customer_response_at: r.customer_response_at,
+      customerName: r.customers?.full_name ?? "Customer",
+      customerPhone: r.customers?.phone ?? undefined,
+      serviceName: r.bookings?.services?.name ?? undefined,
+      appointmentTs: r.bookings?.start_ts ?? undefined,
+    }));
 
     setPending(reports);
   }
