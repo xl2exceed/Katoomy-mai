@@ -142,7 +142,7 @@ export default function MobileNotificationsPage() {
               ))}
             </div>
             <div className="mt-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <Pagination
+              <Pagination mobile
                 total={notifications.length} perPage={perPage} page={page}
                 onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
               />

@@ -157,7 +157,7 @@ export default function MobileAdminRevenuePage() {
                   </div>
                 ))}
               </div>
-              <Pagination
+              <Pagination mobile
                 total={data.transactions.length} perPage={txPerPage} page={txPage}
                 onPageChange={setTxPage} onPerPageChange={(n) => { setTxPerPage(n); setTxPage(1); }}
               />

@@ -157,7 +157,7 @@ export default function StaffNotificationsPage() {
                   {recent.slice((recentPage - 1) * recentPerPage, recentPage * recentPerPage).map((b) => <BookingCard key={b.id} booking={b} />)}
                 </div>
                 <div className="mt-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <Pagination
+                  <Pagination mobile
                     total={recent.length} perPage={recentPerPage} page={recentPage}
                     onPageChange={setRecentPage} onPerPageChange={(n) => { setRecentPerPage(n); setRecentPage(1); }}
                   />

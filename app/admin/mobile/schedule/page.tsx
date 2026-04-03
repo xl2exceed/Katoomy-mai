@@ -456,7 +456,7 @@ export default function MobileSchedulePage() {
                   )}
               </div>
             ))}
-          <Pagination
+          <Pagination mobile
             total={filtered.length} perPage={perPage} page={page}
             onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
           />

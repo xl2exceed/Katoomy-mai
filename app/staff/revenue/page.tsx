@@ -155,7 +155,7 @@ export default function StaffRevenuePage() {
                   </div>
                 ))}
               </div>
-              <Pagination
+              <Pagination mobile
                 total={stats.transactions.length} perPage={txPerPage} page={txPage}
                 onPageChange={setTxPage} onPerPageChange={(n) => { setTxPerPage(n); setTxPage(1); }}
               />
