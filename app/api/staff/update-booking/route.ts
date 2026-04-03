@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getSmsTemplate, fillSmsTemplate } from '@/lib/smsTemplates';
 
-const VALID_STATUSES = ['requested', 'confirmed', 'completed', 'cancelled', 'no_show', 'incomplete'];
+const VALID_STATUSES = ['requested', 'confirmed', 'completed', 'cancelled', 'no_show', 'incomplete', 'custom'];
 
 // POST /api/staff/update-booking
 // Staff portals cannot rely on cookie-based RLS, so updates go through supabaseAdmin.

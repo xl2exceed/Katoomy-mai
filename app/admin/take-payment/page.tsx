@@ -64,6 +64,14 @@ export default function AdminTakePaymentPage() {
   const [customError, setCustomError] = useState("");
   const [customSuccess, setCustomSuccess] = useState("");
 
+  // Calculator state
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [calcDisplay, setCalcDisplay] = useState("0");
+  const [calcExpression, setCalcExpression] = useState("");
+  const [calcPrevValue, setCalcPrevValue] = useState<number | null>(null);
+  const [calcOperator, setCalcOperator] = useState<string | null>(null);
+  const [calcWaiting, setCalcWaiting] = useState(false);
+
   useEffect(() => {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,6 +183,74 @@ export default function AdminTakePaymentPage() {
       setCustomError("Network error. Please try again.");
     }
     setCustomBusy(false);
+  }
+
+  function calcDigit(d: string) {
+    if (calcWaiting) {
+      setCalcDisplay(d === "." ? "0." : d);
+      setCalcWaiting(false);
+    } else {
+      if (d === "." && calcDisplay.includes(".")) return;
+      setCalcDisplay(calcDisplay === "0" && d !== "." ? d : calcDisplay + d);
+    }
+  }
+  function calcOp(op: string) {
+    const cur = parseFloat(calcDisplay);
+    const sym = op === "*" ? "×" : op === "/" ? "÷" : op === "-" ? "−" : op;
+    if (calcPrevValue !== null && calcOperator && !calcWaiting) {
+      const res = applyCalcOp(calcPrevValue, cur, calcOperator);
+      const resStr = fmtCalc(res);
+      setCalcDisplay(resStr);
+      setCalcExpression(resStr + " " + sym);
+      setCalcPrevValue(res);
+    } else {
+      setCalcExpression(calcDisplay + " " + sym);
+      setCalcPrevValue(cur);
+    }
+    setCalcOperator(op);
+    setCalcWaiting(true);
+  }
+  function calcEquals() {
+    const cur = parseFloat(calcDisplay);
+    if (calcPrevValue !== null && calcOperator) {
+      const res = applyCalcOp(calcPrevValue, cur, calcOperator);
+      setCalcExpression(calcExpression + " " + calcDisplay + " =");
+      setCalcDisplay(fmtCalc(res));
+      setCalcPrevValue(null);
+      setCalcOperator(null);
+      setCalcWaiting(true);
+    }
+  }
+  function calcPercent() {
+    const cur = parseFloat(calcDisplay);
+    if (calcPrevValue !== null && calcOperator === "*") {
+      const res = calcPrevValue * (cur / 100);
+      setCalcExpression(fmtCalc(calcPrevValue) + " × " + cur + "% =");
+      setCalcDisplay(fmtCalc(res));
+      setCalcPrevValue(null); setCalcOperator(null); setCalcWaiting(true);
+    } else {
+      setCalcDisplay(fmtCalc(cur / 100));
+      setCalcWaiting(true);
+    }
+  }
+  function calcClear() {
+    setCalcDisplay("0"); setCalcExpression("");
+    setCalcPrevValue(null); setCalcOperator(null); setCalcWaiting(false);
+  }
+  function calcBack() {
+    if (calcWaiting) return;
+    setCalcDisplay(calcDisplay.length > 1 ? calcDisplay.slice(0, -1) : "0");
+  }
+  function applyCalcOp(a: number, b: number, op: string) {
+    if (op === "+") return a + b;
+    if (op === "-") return a - b;
+    if (op === "*") return a * b;
+    if (op === "/") return b !== 0 ? a / b : 0;
+    return b;
+  }
+  function fmtCalc(n: number) {
+    if (!isFinite(n) || isNaN(n)) return "0";
+    return parseFloat(n.toFixed(10)).toString();
   }
 
   if (loading) {
@@ -409,6 +485,51 @@ export default function AdminTakePaymentPage() {
             {customBusy ? "Recording..." : "Record Payment"}
           </button>
         </div>
+      </div>
+
+      {/* ── Calculator ───────────────────────────────────────────────── */}
+      <div className="mt-8">
+        <button
+          onClick={() => setCalcOpen(!calcOpen)}
+          className="w-full flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4"
+        >
+          <span className="text-lg font-bold text-gray-900">Calculator</span>
+          <span className="text-gray-400 text-xl">{calcOpen ? "▲" : "▼"}</span>
+        </button>
+        {calcOpen && (
+          <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 p-4">
+            <div className="bg-gray-900 rounded-xl px-4 pt-3 pb-4 mb-3">
+              <div className="text-gray-400 text-sm h-5 text-right truncate">{calcExpression || " "}</div>
+              <div className="text-white text-4xl font-bold text-right mt-1 overflow-hidden">{calcDisplay}</div>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <button onClick={calcClear} className="col-span-2 py-4 bg-red-50 text-red-700 rounded-xl font-bold text-lg active:scale-95 transition">C</button>
+              <button onClick={calcBack} className="py-4 bg-gray-100 text-gray-700 rounded-xl font-bold text-lg active:scale-95 transition">⌫</button>
+              <button onClick={() => calcOp("/")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl active:scale-95 transition">÷</button>
+
+              <button onClick={() => calcDigit("7")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">7</button>
+              <button onClick={() => calcDigit("8")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">8</button>
+              <button onClick={() => calcDigit("9")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">9</button>
+              <button onClick={() => calcOp("*")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl active:scale-95 transition">×</button>
+
+              <button onClick={() => calcDigit("4")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">4</button>
+              <button onClick={() => calcDigit("5")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">5</button>
+              <button onClick={() => calcDigit("6")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">6</button>
+              <button onClick={() => calcOp("-")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl active:scale-95 transition">−</button>
+
+              <button onClick={() => calcDigit("1")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">1</button>
+              <button onClick={() => calcDigit("2")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">2</button>
+              <button onClick={() => calcDigit("3")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">3</button>
+              <button onClick={() => calcOp("+")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl active:scale-95 transition">+</button>
+
+              <button onClick={calcPercent} className="py-4 bg-blue-50 text-blue-700 rounded-xl font-bold text-lg active:scale-95 transition">%</button>
+              <button onClick={() => calcDigit("0")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">0</button>
+              <button onClick={() => calcDigit(".")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">.</button>
+              <button onClick={calcEquals} className="py-4 bg-purple-600 text-white rounded-xl font-bold text-xl active:scale-95 transition">=</button>
+            </div>
+            <p className="text-xs text-gray-400 text-center mt-3">Tip: type price × percent % to calculate a discount (e.g. 33 × 15 %)</p>
+          </div>
+        )}
       </div>
     </div>
   );

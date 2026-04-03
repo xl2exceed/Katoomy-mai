@@ -62,6 +62,9 @@ export default function MobileSchedulePage() {
     if (booking.payment_status === "refunded") {
       return { text: "Refunded", color: "bg-gray-100 border-gray-400 text-gray-700" };
     }
+    if (booking.status === "custom") {
+      return { text: "Custom — see payment ledger", color: "bg-purple-100 border-purple-400 text-purple-800" };
+    }
     if (booking.status === "completed") {
       return { text: `Owes $${(total / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" };
     }
@@ -355,6 +358,7 @@ export default function MobileSchedulePage() {
           <option value="cancelled">Cancelled</option>
           <option value="no_show">No Show</option>
           <option value="incomplete">Incomplete</option>
+          <option value="custom">Custom</option>
         </select>
       </div>
 
@@ -442,6 +446,7 @@ export default function MobileSchedulePage() {
                     <option value="cancelled">Cancelled</option>
                     <option value="no_show">No Show</option>
                     <option value="incomplete">Incomplete</option>
+                    <option value="custom">Custom</option>
                   </select>
                 </div>
 

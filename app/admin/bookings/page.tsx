@@ -410,6 +410,8 @@ export default function BookingsPage() {
         return "bg-gray-100 text-gray-700";
       case "incomplete":
         return "bg-orange-100 text-orange-700";
+      case "custom":
+        return "bg-purple-100 text-purple-700";
       default:
         return "bg-yellow-100 text-yellow-700";
     }
@@ -472,6 +474,7 @@ export default function BookingsPage() {
                     <option value="cancelled">Cancelled</option>
                     <option value="no_show">No Show</option>
                     <option value="incomplete">Incomplete</option>
+                    <option value="custom">Custom</option>
                   </select>
                 </div>
 
@@ -641,6 +644,7 @@ export default function BookingsPage() {
                             <option value="cancelled">Cancelled</option>
                             <option value="no_show">No Show</option>
                             <option value="incomplete">Incomplete</option>
+                            <option value="custom">Custom</option>
                           </select>
                         </div>
 
