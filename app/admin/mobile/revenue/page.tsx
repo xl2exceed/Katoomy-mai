@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Pagination from "@/components/Pagination";
 
 type Period = "today" | "week" | "month" | "all";
 
@@ -47,6 +48,8 @@ export default function MobileAdminRevenuePage() {
   const [period, setPeriod] = useState<Period>("week");
   const [data, setData] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [txPage, setTxPage] = useState(1);
+  const [txPerPage, setTxPerPage] = useState(20);
 
   useEffect(() => {
     load();
@@ -55,6 +58,7 @@ export default function MobileAdminRevenuePage() {
 
   async function load() {
     setLoading(true);
+    setTxPage(1);
     const res = await fetch(`/api/admin/revenue?period=${period}`);
     if (res.ok) setData(await res.json());
     setLoading(false);
@@ -129,9 +133,12 @@ export default function MobileAdminRevenuePage() {
           {/* Transaction List */}
           {data.transactions.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <p className="text-xs font-semibold text-gray-500 uppercase px-4 pt-4 pb-2">Transactions</p>
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase">Transactions</p>
+                <span className="text-xs text-gray-400">{data.transactions.length} total</span>
+              </div>
               <div className="divide-y divide-gray-100">
-                {data.transactions.map((t) => (
+                {data.transactions.slice((txPage - 1) * txPerPage, txPage * txPerPage).map((t) => (
                   <div key={t.id} className="px-4 py-3 flex justify-between items-center">
                     <div>
                       <p className="font-semibold text-gray-900 text-sm">{t.customerName}</p>
@@ -150,6 +157,10 @@ export default function MobileAdminRevenuePage() {
                   </div>
                 ))}
               </div>
+              <Pagination
+                total={data.transactions.length} perPage={txPerPage} page={txPage}
+                onPageChange={setTxPage} onPerPageChange={(n) => { setTxPerPage(n); setTxPage(1); }}
+              />
             </div>
           )}
 

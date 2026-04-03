@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import Pagination from "@/components/Pagination";
 
 interface NotificationEntry {
   id: string;
@@ -31,6 +32,8 @@ export default function CustomerNotificationsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [noPhone, setNoPhone] = useState(false);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const supabase = createClient();
 
   useEffect(() => {
@@ -75,8 +78,7 @@ export default function CustomerNotificationsPage() {
       .from("notification_log")
       .select("*")
       .eq("customer_id", customer.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
+      .order("created_at", { ascending: false });
 
     setNotifications(data || []);
 
@@ -172,7 +174,7 @@ export default function CustomerNotificationsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {notifications.map((n) => (
+            {notifications.slice((page - 1) * perPage, page * perPage).map((n) => (
               <div
                 key={n.id}
                 className={`bg-white rounded-xl shadow-sm border p-5 ${
@@ -194,6 +196,12 @@ export default function CustomerNotificationsPage() {
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mt-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <Pagination
+              total={notifications.length} perPage={perPage} page={page}
+              onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+            />
           </div>
         )}
       </div>

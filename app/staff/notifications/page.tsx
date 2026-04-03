@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createStaffClient as createClient } from "@/lib/supabase/staff-client";
 import { formatPhone } from "@/lib/utils/formatPhone";
 import Link from "next/link";
+import Pagination from "@/components/Pagination";
 
 interface Booking {
   id: string;
@@ -40,6 +41,8 @@ export default function StaffNotificationsPage() {
   const [newRequests, setNewRequests] = useState<Booking[]>([]);
   const [recent, setRecent] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recentPage, setRecentPage] = useState(1);
+  const [recentPerPage, setRecentPerPage] = useState(20);
 
   useEffect(() => {
     init();
@@ -149,9 +152,17 @@ export default function StaffNotificationsPage() {
                 <p className="text-gray-500">No recent activity</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {recent.map((b) => <BookingCard key={b.id} booking={b} />)}
-              </div>
+              <>
+                <div className="space-y-3">
+                  {recent.slice((recentPage - 1) * recentPerPage, recentPage * recentPerPage).map((b) => <BookingCard key={b.id} booking={b} />)}
+                </div>
+                <div className="mt-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <Pagination
+                    total={recent.length} perPage={recentPerPage} page={recentPage}
+                    onPageChange={setRecentPage} onPerPageChange={(n) => { setRecentPerPage(n); setRecentPage(1); }}
+                  />
+                </div>
+              </>
             )}
           </div>
 

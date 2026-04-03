@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import Pagination from "@/components/Pagination";
 
 interface NotificationSettings {
   booking_confirmations: boolean;
@@ -77,6 +78,8 @@ export default function NotificationsPage() {
     total: number;
   } | null>(null);
   const [sendResults, setSendResults] = useState<SendResult[]>([]);
+  const [resultsPage, setResultsPage] = useState(1);
+  const [resultsPerPage, setResultsPerPage] = useState(20);
 
   // Manual message state
   const [messageType, setMessageType] = useState<MessageType>("all");
@@ -351,6 +354,7 @@ export default function NotificationsPage() {
     setSendingMessage(true);
     setSendProgress(null);
     setSendResults([]);
+    setResultsPage(1);
     const results: SendResult[] = [];
     setSendProgress({ current: 0, total: resolvedAudience.length });
 
@@ -489,35 +493,41 @@ export default function NotificationsPage() {
 
                     {/* Send Results */}
                     {sendResults.length > 0 && !sendProgress && (
-                      <div className="border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                          Send Results
-                        </h3>
-                        <div className="space-y-2">
-                          {sendResults.map((result, index) => (
-                            <div
-                              key={index}
-                              className={`flex items-center justify-between p-2 rounded ${
-                                result.success
-                                  ? "bg-green-50 text-green-900"
-                                  : "bg-red-50 text-red-900"
-                              }`}
-                            >
-                              <div className="flex items-center space-x-2">
-                                <span>{result.success ? "✓" : "✗"}</span>
-                                <span className="text-sm font-medium">
-                                  {result.name || "Unknown"}
-                                </span>
-                                <span className="text-xs text-gray-600">
-                                  {result.phone}
-                                </span>
+                      <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="p-4 pb-2">
+                          <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                            Send Results
+                          </h3>
+                          <div className="space-y-2">
+                            {sendResults.slice((resultsPage - 1) * resultsPerPage, resultsPage * resultsPerPage).map((result, index) => (
+                              <div
+                                key={index}
+                                className={`flex items-center justify-between p-2 rounded ${
+                                  result.success
+                                    ? "bg-green-50 text-green-900"
+                                    : "bg-red-50 text-red-900"
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <span>{result.success ? "✓" : "✗"}</span>
+                                  <span className="text-sm font-medium">
+                                    {result.name || "Unknown"}
+                                  </span>
+                                  <span className="text-xs text-gray-600">
+                                    {result.phone}
+                                  </span>
+                                </div>
+                                {!result.success && result.error && (
+                                  <span className="text-xs">{result.error}</span>
+                                )}
                               </div>
-                              {!result.success && result.error && (
-                                <span className="text-xs">{result.error}</span>
-                              )}
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
+                        <Pagination
+                          total={sendResults.length} perPage={resultsPerPage} page={resultsPage}
+                          onPageChange={setResultsPage} onPerPageChange={(n) => { setResultsPerPage(n); setResultsPage(1); }}
+                        />
                       </div>
                     )}
 
