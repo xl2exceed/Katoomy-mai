@@ -80,6 +80,8 @@ export default function NotificationsPage() {
   const [sendResults, setSendResults] = useState<SendResult[]>([]);
   const [resultsPage, setResultsPage] = useState(1);
   const [resultsPerPage, setResultsPerPage] = useState(20);
+  const [audiencePage, setAudiencePage] = useState(1);
+  const [audiencePerPage, setAudiencePerPage] = useState(20);
 
   // Manual message state
   const [messageType, setMessageType] = useState<MessageType>("all");
@@ -245,6 +247,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!businessId) return;
     setAudienceLoading(true);
+    setAudiencePage(1);
     resolveAudience(messageType, businessId).then((customers: typeof resolvedAudience) => {
       setResolvedAudience(customers);
       setAudienceLoading(false);
@@ -447,6 +450,22 @@ export default function NotificationsPage() {
                           {audienceLoading ? "..." : `${resolvedAudience.length} recipient${resolvedAudience.length !== 1 ? "s" : ""}`}
                         </span>
                       </div>
+                      {!audienceLoading && resolvedAudience.length > 0 && (
+                        <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                          <div className="divide-y divide-gray-100">
+                            {resolvedAudience.slice((audiencePage - 1) * audiencePerPage, audiencePage * audiencePerPage).map((c) => (
+                              <div key={c.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                                <span className="font-medium text-gray-900">{c.full_name || "Guest"}</span>
+                                <span className="text-gray-500 text-xs">{c.phone}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <Pagination
+                            total={resolvedAudience.length} perPage={audiencePerPage} page={audiencePage}
+                            onPageChange={setAudiencePage} onPerPageChange={(n) => { setAudiencePerPage(n); setAudiencePage(1); }}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Message Text */}

@@ -30,20 +30,20 @@ export default function Pagination({ total, perPage, page, onPageChange, onPerPa
       </div>
       <div className="flex items-center gap-1">
         <button onClick={() => onPageChange(1)} disabled={page === 1}
-          className="px-2 py-1 text-sm rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
+          className="px-2 py-1 text-sm text-gray-700 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
           «
         </button>
         <button onClick={() => onPageChange(page - 1)} disabled={page === 1}
-          className="px-2 py-1 text-sm rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
+          className="px-2 py-1 text-sm text-gray-700 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
           ‹
         </button>
         <span className="px-3 py-1 text-sm font-medium text-gray-700">{page} / {totalPages}</span>
         <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}
-          className="px-2 py-1 text-sm rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
+          className="px-2 py-1 text-sm text-gray-700 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
           ›
         </button>
         <button onClick={() => onPageChange(totalPages)} disabled={page >= totalPages}
-          className="px-2 py-1 text-sm rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
+          className="px-2 py-1 text-sm text-gray-700 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
           »
         </button>
       </div>
