@@ -140,6 +140,12 @@ export default function MobileMenuPage() {
       href: "/admin/mobile/notifications",
       description: "Recent alerts and updates",
     },
+    {
+      title: "Services",
+      icon: "✂️",
+      href: "/admin/mobile/services",
+      description: "View service prices",
+    },
     // HIDDEN ON MOBILE — uncomment to restore
     // {
     //   title: "Settings",
