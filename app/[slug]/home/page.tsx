@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import Image from "next/image";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -33,12 +32,12 @@ export default async function CustomerHomePage({ params }: PageProps) {
         {/* Logo & Business Name */}
         <div className="text-center mb-8">
           {business.logo_url ? (
-            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden bg-white shadow-lg relative">
-              <Image
+            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden bg-white shadow-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={business.logo_url}
                 alt={business.app_name}
-                fill
-                className="object-cover"
+                className="w-full h-full object-cover"
               />
             </div>
           ) : (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -170,12 +169,12 @@ export default function InstallGate({
     >
       <div className="flex-1 flex flex-col items-center justify-center text-center">
         {business.logo_url ? (
-          <div className="w-32 h-32 rounded-3xl overflow-hidden bg-white shadow-2xl mb-6 relative">
-            <Image
+          <div className="w-32 h-32 rounded-3xl overflow-hidden bg-white shadow-2xl mb-6">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={business.logo_url}
               alt={business.app_name}
-              fill
-              className="object-cover"
+              className="w-full h-full object-cover"
             />
           </div>
         ) : (

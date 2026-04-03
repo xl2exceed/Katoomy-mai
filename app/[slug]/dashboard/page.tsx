@@ -386,12 +386,11 @@ export default function DashboardPage() {
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-3">
               {business?.logo_url && (
-                <Image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={business.logo_url}
                   alt={business.name}
-                  width={48}
-                  height={48}
-                  className="rounded-full bg-white p-1"
+                  className="w-12 h-12 rounded-full bg-white p-1 object-cover"
                 />
               )}
               <div>
@@ -490,12 +489,11 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               {business?.logo_url && (
-                <Image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={business.logo_url}
                   alt={business.name}
-                  width={48}
-                  height={48}
-                  className="rounded-full bg-white p-1"
+                  className="w-12 h-12 rounded-full bg-white p-1 object-cover"
                 />
               )}
               <div>

@@ -602,11 +602,11 @@ export default function BrandingPage() {
                           <div className="flex flex-col items-center mb-6">
                             <div className="w-20 h-20 rounded-2xl border-2 border-gray-200 flex items-center justify-center overflow-hidden mb-3 bg-gray-50 relative">
                               {business?.logo_url ? (
-                                <Image
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
                                   src={business.logo_url}
                                   alt="Logo"
-                                  fill
-                                  className="object-cover"
+                                  className="w-full h-full object-cover"
                                 />
                               ) : (
                                 <span className="text-3xl">🏢</span>

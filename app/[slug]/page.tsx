@@ -3,7 +3,6 @@
 import ReferralCapture from "./components/ReferralCapture";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import Image from "next/image";
 import InstallGate from "@/components/InstallGate";
 
 export default async function CustomerLandingPage({
@@ -57,12 +56,12 @@ export default async function CustomerLandingPage({
         >
           <div className="container mx-auto px-4 max-w-md text-center">
             {business.logo_url ? (
-              <div className="w-28 h-28 mx-auto mb-4 rounded-2xl overflow-hidden bg-white shadow-xl relative">
-                <Image
+              <div className="w-28 h-28 mx-auto mb-4 rounded-2xl overflow-hidden bg-white shadow-xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={business.logo_url}
                   alt={business.app_name}
-                  fill
-                  className="object-cover"
+                  className="w-full h-full object-cover"
                 />
               </div>
             ) : (
