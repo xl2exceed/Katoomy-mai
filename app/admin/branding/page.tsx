@@ -99,6 +99,8 @@ export default function BrandingPage() {
         data: { publicUrl },
       } = supabase.storage.from("business-assets").getPublicUrl(filePath);
 
+      console.log("Logo publicUrl:", publicUrl);
+
       const { error: dbError } = await supabase
         .from("businesses")
         .update({ logo_url: publicUrl })
@@ -110,7 +112,7 @@ export default function BrandingPage() {
       }
 
       setBusiness({ ...business, logo_url: publicUrl });
-      alert("Logo uploaded successfully!");
+      alert(`Logo uploaded successfully!\n\nURL: ${publicUrl}`);
     } catch (error) {
       console.error("Error uploading logo:", error);
       alert(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
@@ -456,11 +458,11 @@ export default function BrandingPage() {
                   <div className="flex items-center space-x-6">
                     <div className="w-24 h-24 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 relative">
                       {business?.logo_url ? (
-                        <Image
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
                           src={business.logo_url}
                           alt="Business logo"
-                          fill
-                          className="object-cover"
+                          className="w-full h-full object-cover"
                         />
                       ) : (
                         <span className="text-4xl text-gray-400">🏢</span>
