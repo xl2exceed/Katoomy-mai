@@ -88,24 +88,32 @@ export default function BrandingPage() {
 
       const { error: uploadError } = await supabase.storage
         .from("business-assets")
-        .upload(filePath, file);
+        .upload(filePath, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        alert(`Upload failed: ${uploadError.message}`);
+        return;
+      }
 
       const {
         data: { publicUrl },
       } = supabase.storage.from("business-assets").getPublicUrl(filePath);
 
-      await supabase
+      const { error: dbError } = await supabase
         .from("businesses")
         .update({ logo_url: publicUrl })
         .eq("id", business.id);
+
+      if (dbError) {
+        alert(`Saved to storage but failed to update business record: ${dbError.message}`);
+        return;
+      }
 
       setBusiness({ ...business, logo_url: publicUrl });
       alert("Logo uploaded successfully!");
     } catch (error) {
       console.error("Error uploading logo:", error);
-      alert("Failed to upload logo. Please try again.");
+      alert(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setUploadingLogo(false);
     }
