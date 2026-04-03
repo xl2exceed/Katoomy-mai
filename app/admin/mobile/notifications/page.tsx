@@ -115,37 +115,39 @@ export default function MobileNotificationsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3 mt-4">
-            {notifications.slice((page - 1) * perPage, page * perPage).map((n) => (
-              <div
-                key={n.id}
-                className={`bg-white rounded-xl shadow-sm p-4 border-l-4 ${
-                  !n.read ? "border-blue-500" : "border-gray-200"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">{getIcon(n.title)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-gray-900 text-sm">
-                        {n.title}
-                      </p>
-                      <p className="text-xs text-gray-400 whitespace-nowrap">
-                        {formatTime(n.created_at)}
-                      </p>
+          <>
+            <div className="space-y-3 mt-4">
+              {notifications.slice((page - 1) * perPage, page * perPage).map((n) => (
+                <div
+                  key={n.id}
+                  className={`bg-white rounded-xl shadow-sm p-4 border-l-4 ${
+                    !n.read ? "border-blue-500" : "border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">{getIcon(n.title)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-gray-900 text-sm">
+                          {n.title}
+                        </p>
+                        <p className="text-xs text-gray-400 whitespace-nowrap">
+                          {formatTime(n.created_at)}
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-0.5">{n.body}</p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-0.5">{n.body}</p>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <Pagination
-              total={notifications.length} perPage={perPage} page={page}
-              onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
-            />
-          </div>
+              ))}
+            </div>
+            <div className="mt-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <Pagination
+                total={notifications.length} perPage={perPage} page={page}
+                onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>
