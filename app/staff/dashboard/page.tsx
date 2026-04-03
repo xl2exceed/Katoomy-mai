@@ -21,6 +21,7 @@ const tiles = [
   { title: "Customers", icon: "👥", href: "/staff/customers", description: "Clients you've served" },
   { title: "Revenue", icon: "💰", href: "/staff/revenue", description: "Your earnings" },
   { title: "Take Payment", icon: "💳", href: "/staff/payment", description: "Walk-in QR payment" },
+  { title: "QR Code", icon: "📲", href: "/staff/qr-code", description: "Show booking QR code" },
 ];
 
 export default function StaffDashboardPage() {
