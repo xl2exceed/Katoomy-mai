@@ -173,36 +173,38 @@ export default function CustomerNotificationsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {notifications.slice((page - 1) * perPage, page * perPage).map((n) => (
-              <div
-                key={n.id}
-                className={`bg-white rounded-xl shadow-sm border p-5 ${
-                  !n.read ? "border-l-4" : "border-gray-100"
-                }`}
-                style={!n.read ? { borderLeftColor: primaryColor } : {}}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">{getIcon(n.title)}</div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-gray-900">{n.title}</p>
-                      <p className="text-xs text-gray-400 whitespace-nowrap">
-                        {formatTime(n.created_at)}
-                      </p>
+          <>
+            <div className="space-y-3">
+              {notifications.slice((page - 1) * perPage, page * perPage).map((n) => (
+                <div
+                  key={n.id}
+                  className={`bg-white rounded-xl shadow-sm border p-5 ${
+                    !n.read ? "border-l-4" : "border-gray-100"
+                  }`}
+                  style={!n.read ? { borderLeftColor: primaryColor } : {}}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">{getIcon(n.title)}</div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-gray-900">{n.title}</p>
+                        <p className="text-xs text-gray-400 whitespace-nowrap">
+                          {formatTime(n.created_at)}
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{n.body}</p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{n.body}</p>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <Pagination
-              total={notifications.length} perPage={perPage} page={page}
-              onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
-            />
-          </div>
+              ))}
+            </div>
+            <div className="mt-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <Pagination
+                total={notifications.length} perPage={perPage} page={page}
+                onPageChange={setPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>
