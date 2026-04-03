@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   const { client, mode } = getTwilio();
   const from = getFromNumber(mode);
   const isSimulated = mode === "TEST";
-  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy-new.vercel.app";
+  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
   const bookingLink = `${origin}/${business.slug}`;
 
   let sentCount = 0, failedCount = 0;

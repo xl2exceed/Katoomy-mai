@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || '';
   const proto = req.headers.get('x-forwarded-proto') || 'https';
-  const origin = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'https://katoomy-new.vercel.app');
+  const origin = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'https://katoomy.com');
   const redirectTo = `${origin}/staff/auth`;
 
   // ── Resend invite for existing staff ─────────────────────────────────────

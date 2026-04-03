@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://katoomy-new.vercel.app";
+      process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
 
     const safeTipCents = tipCents && tipCents > 0 ? tipCents : 0;
     // Use client-computed serviceCents (handles deposit remaining balance correctly)

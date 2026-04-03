@@ -268,7 +268,7 @@ export async function POST(req: NextRequest) {
     qrBookingId = newBooking.id;
   }
 
-  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy-new.vercel.app";
+  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
 
   return NextResponse.json({ bookingUrl: `${origin}/${business.slug}/pay-qr/${qrBookingId}` });
 }
