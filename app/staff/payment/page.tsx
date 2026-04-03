@@ -70,6 +70,10 @@ export default function StaffPaymentPage() {
   const [customError, setCustomError] = useState("");
   const [customSuccess, setCustomSuccess] = useState("");
 
+  // Discount calculator state
+  const [discountPrice, setDiscountPrice] = useState("");
+  const [discountPct, setDiscountPct] = useState("");
+
   // Calculator state
   const [calcOpen, setCalcOpen] = useState(false);
   const [calcDisplay, setCalcDisplay] = useState("0");
@@ -575,6 +579,61 @@ export default function StaffPaymentPage() {
           >
             {customBusy ? "Recording..." : "Record Payment"}
           </button>
+        </div>
+      </div>
+
+      {/* ── Discount Calculator ──────────────────────────────────────── */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Discount Calculator</h2>
+        <p className="text-sm text-gray-500 mb-4">Enter the original price and discount — see exactly what to charge.</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Original Price</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                <input
+                  type="number" inputMode="decimal" placeholder="0.00" value={discountPrice} min="0" step="0.01"
+                  onChange={(e) => setDiscountPrice(e.target.value)}
+                  className="w-full pl-7 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base text-gray-900 bg-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Discount %</label>
+              <div className="relative">
+                <input
+                  type="number" inputMode="decimal" placeholder="15" value={discountPct} min="0" max="100" step="0.1"
+                  onChange={(e) => setDiscountPct(e.target.value)}
+                  className="w-full pl-4 pr-8 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base text-gray-900 bg-white"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">%</span>
+              </div>
+            </div>
+          </div>
+          {(() => {
+            const price = parseFloat(discountPrice);
+            const pct = parseFloat(discountPct);
+            if (!price || !pct || price <= 0 || pct <= 0 || pct > 100) return null;
+            const savings = price * (pct / 100);
+            const charge = price - savings;
+            return (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-4">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-gray-600">Original price</span>
+                  <span className="text-sm font-semibold text-gray-700">${price.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm text-gray-600">{pct}% discount</span>
+                  <span className="text-sm font-semibold text-red-600">− ${savings.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-emerald-200 pt-3">
+                  <span className="text-base font-bold text-gray-900">Charge customer</span>
+                  <span className="text-2xl font-bold text-emerald-700">${charge.toFixed(2)}</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
