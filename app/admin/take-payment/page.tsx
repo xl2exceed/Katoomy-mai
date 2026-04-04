@@ -19,6 +19,7 @@ interface ExistingBooking {
   priceCents: number;
   depositPaidCents: number;
   date: string;
+  isCustom?: boolean;
 }
 
 interface LookupResult {
@@ -55,6 +56,8 @@ export default function AdminTakePaymentPage() {
   const [customTip, setCustomTip] = useState("");
   const [customCustomerName, setCustomCustomerName] = useState("");
   const [customMethod, setCustomMethod] = useState("cash");
+  const [customQrUrl, setCustomQrUrl] = useState("");  // for credit card custom payments
+  const [linkedBookingId, setLinkedBookingId] = useState<string | null>(null);  // booking being paid via custom
   const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [customTime, setCustomTime] = useState(() => {
     const now = new Date();
@@ -111,6 +114,15 @@ export default function AdminTakePaymentPage() {
       setLookup(data);
       setCustomerName(data.customerName || "");
       if (data.services.length > 0) setSelectedServiceId(data.services[0].id);
+      // If the customer has a custom-status booking, pre-fill the custom payment form
+      if (data.existingBooking?.isCustom) {
+        setLinkedBookingId(data.existingBooking.id);
+        setCustomServiceName(data.existingBooking.serviceName);
+        setCustomAmount((data.existingBooking.priceCents / 100).toFixed(2));
+        setCustomCustomerName(data.customerName || "");
+      } else {
+        setLinkedBookingId(null);
+      }
     } catch {
       setError("Lookup failed. Check your connection.");
     }
@@ -157,6 +169,33 @@ export default function AdminTakePaymentPage() {
     const amountCents = Math.round(parseFloat(customAmount) * 100);
     if (!amountCents || amountCents <= 0) { setCustomError("Enter a valid amount."); return; }
     const tipCents = customTip ? Math.round(parseFloat(customTip) * 100) : 0;
+
+    // Credit card: generate a Stripe QR link for the custom amount
+    if (customMethod === "card") {
+      setCustomBusy(true);
+      try {
+        const res = await fetch("/api/admin/custom-payment-card", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            serviceName: customServiceName,
+            amountCents,
+            tipCents,
+            customerName: customCustomerName,
+            customerPhone: customerPhone.replace(/\D/g, ""),
+            bookingId: linkedBookingId,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setCustomError(data.error || "Something went wrong."); setCustomBusy(false); return; }
+        setCustomQrUrl(data.url);
+      } catch {
+        setCustomError("Network error. Please try again.");
+      }
+      setCustomBusy(false);
+      return;
+    }
+
     setCustomBusy(true);
     try {
       const appointmentTs = new Date(`${customDate}T${customTime}`).toISOString();
@@ -168,8 +207,10 @@ export default function AdminTakePaymentPage() {
           amountCents,
           tipCents,
           customerName: customCustomerName,
+          customerPhone: customerPhone.replace(/\D/g, ""),
           paymentMethod: customMethod,
           appointmentTs,
+          bookingId: linkedBookingId,
         }),
       });
       const data = await res.json();
@@ -180,6 +221,7 @@ export default function AdminTakePaymentPage() {
       setCustomTip("");
       setCustomCustomerName("");
       setCustomMethod("cash");
+      setLinkedBookingId(null);
       const now = new Date();
       setCustomDate(now.toISOString().slice(0, 10));
       setCustomTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
@@ -450,7 +492,8 @@ export default function AdminTakePaymentPage() {
               >
                 <option value="cash">Cash</option>
                 <option value="cashapp">Cash App</option>
-                <option value="other">Zelle / Other</option>
+                <option value="zelle">Zelle / Other</option>
+                <option value="card">Credit Card</option>
               </select>
             </div>
             <div className="col-span-2">
@@ -479,15 +522,47 @@ export default function AdminTakePaymentPage() {
             </div>
           </div>
 
-          {customError && <p className="text-red-600 text-sm">{customError}</p>}
-          {customSuccess && <p className="text-green-600 text-sm font-semibold">{customSuccess}</p>}
+          {linkedBookingId && (
+            <div className="rounded-xl border border-purple-300 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+              <span className="font-semibold">Linked booking detected.</span> This payment will be applied to the customer&apos;s custom-status appointment and marked as paid.
+            </div>
+          )}
 
-          <button
-            onClick={submitCustomPayment} disabled={customBusy}
-            className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-base disabled:opacity-60 active:scale-95 transition"
-          >
-            {customBusy ? "Recording..." : "Record Payment"}
-          </button>
+          {customQrUrl ? (
+            <div className="text-center space-y-3">
+              <p className="font-semibold text-gray-900">Have the customer scan to pay</p>
+              <div className="flex justify-center">
+                <img
+                  src={"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(customQrUrl)}
+                  alt="Payment QR" width={200} height={200}
+                  className="rounded-lg border border-gray-200"
+                />
+              </div>
+              <button
+                onClick={() => { navigator.clipboard.writeText(customQrUrl); alert("Link copied!"); }}
+                className="w-full py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm"
+              >
+                📋 Copy Link
+              </button>
+              <button
+                onClick={() => { setCustomQrUrl(""); setCustomSuccess(""); setCustomError(""); }}
+                className="w-full py-2 bg-purple-600 text-white rounded-xl font-semibold text-sm"
+              >
+                New Custom Payment
+              </button>
+            </div>
+          ) : (
+            <>
+              {customError && <p className="text-red-600 text-sm">{customError}</p>}
+              {customSuccess && <p className="text-green-600 text-sm font-semibold">{customSuccess}</p>}
+              <button
+                onClick={submitCustomPayment} disabled={customBusy}
+                className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-base disabled:opacity-60 active:scale-95 transition"
+              >
+                {customBusy ? (customMethod === "card" ? "Generating..." : "Recording...") : (customMethod === "card" ? "Generate QR for Custom Amount" : "Record Payment")}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

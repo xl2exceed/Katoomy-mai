@@ -137,21 +137,44 @@ export async function POST(req: NextRequest) {
     // Idempotency: skip if booking already marked paid
     const { data: existingBooking } = await supabaseAdmin
       .from("bookings")
-      .select("id, payment_status")
+      .select("id, status, payment_status, total_price_cents, customer_id")
       .eq("id", bookingId)
       .single();
 
-    if (existingBooking?.payment_status === "paid") {
+    if (["paid", "cash_paid", "custom_paid"].includes(existingBooking?.payment_status ?? "")) {
       return NextResponse.json({ success: true });
     }
 
     const safeTipCents = Number(tipCents) || 0;
+    const isCustomBooking = existingBooking?.status === "custom";
 
-    // Mark booking as paid
+    // Mark booking as paid (custom_paid for custom-status bookings, paid otherwise)
     await supabaseAdmin
       .from("bookings")
-      .update({ payment_status: "paid" })
+      .update({ payment_status: isCustomBooking ? "custom_paid" : "paid" })
       .eq("id", bookingId);
+
+    // For custom-status bookings, also record in alternative_payment_ledger
+    if (isCustomBooking) {
+      const ts = new Date();
+      const billingMonth = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}`;
+      const serviceCentsForLedger = (session.amount_total ?? 0) - safeTipCents;
+      await supabaseAdmin.from("alternative_payment_ledger").insert({
+        business_id: businessId,
+        booking_id: bookingId,
+        customer_name: null,
+        service_name: "Custom payment (credit card)",
+        service_amount_cents: serviceCentsForLedger,
+        tip_cents: safeTipCents,
+        platform_fee_cents: Math.round((session.amount_total ?? 0) * 0.015),
+        payment_method: "card",
+        fee_absorbed_by: "customer",
+        billing_month: billingMonth,
+        billing_status: "pending",
+        appointment_ts: ts.toISOString(),
+        notes: "Custom payment — Stripe credit card",
+      });
+    }
 
     // Record payment (service portion only; tip goes in tips table)
     const serviceCents = (session.amount_total ?? 0) - safeTipCents;

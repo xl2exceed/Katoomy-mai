@@ -69,8 +69,11 @@ export default function StaffSchedulePage() {
     if (booking.payment_status === "refunded") {
       return { text: "Refunded", color: "bg-gray-100 border-gray-400 text-gray-700" };
     }
+    if (booking.payment_status === "custom_paid") {
+      return { text: "Custom — paid (see ledger)", color: "bg-green-100 border-green-500 text-green-800" };
+    }
     if (booking.status === "custom") {
-      return { text: "Custom — see payment ledger", color: "bg-purple-100 border-purple-400 text-purple-800" };
+      return { text: "Custom — payment pending", color: "bg-purple-100 border-purple-400 text-purple-800" };
     }
     if (booking.status === "completed") {
       return { text: `Owes $${(total / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" };

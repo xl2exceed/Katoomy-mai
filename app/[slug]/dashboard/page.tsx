@@ -88,6 +88,7 @@ export default function DashboardPage() {
       .eq("customer_id", customerId)
       .eq("status", "completed")
       .in("payment_status", ["unpaid", "deposit_paid"])
+      .not("payment_status", "eq", "custom_paid")
       .order("start_ts", { ascending: false });
     setAwaitingPaymentBookings((awaitingPayment as Booking[]) || []);
   };
@@ -201,6 +202,7 @@ export default function DashboardPage() {
       .eq("customer_id", customerData.id)
       .eq("status", "completed")
       .in("payment_status", ["unpaid", "deposit_paid"])
+      .not("payment_status", "eq", "custom_paid")
       .order("start_ts", { ascending: false });
 
     setAwaitingPaymentBookings((awaitingPayment as Booking[]) || []);

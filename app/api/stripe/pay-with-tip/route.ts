@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    if (booking.payment_status === "paid") {
+    if (["paid", "cash_paid", "custom_paid"].includes(booking.payment_status)) {
       return NextResponse.json(
         { error: "Booking already paid" },
         { status: 400 },

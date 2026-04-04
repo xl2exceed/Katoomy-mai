@@ -43,14 +43,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ customerName: null, existingBooking: null, services: services || [] });
   }
 
-  // Find most recent unpaid/deposit-paid booking
+  // Find most recent unpaid/deposit-paid booking, OR a custom-status booking awaiting payment
   const { data: booking } = await supabaseAdmin
     .from("bookings")
-    .select("id, service_id, total_price_cents, deposit_amount_cents, payment_status, start_ts, services(name, price_cents)")
+    .select("id, service_id, total_price_cents, deposit_amount_cents, payment_status, status, start_ts, services(name, price_cents)")
     .eq("business_id", businessId)
     .eq("customer_id", customer.id)
-    .in("payment_status", ["unpaid", "deposit_paid"])
-    .in("status", ["completed", "confirmed"])
+    .or("and(payment_status.in.(unpaid,deposit_paid),status.in.(completed,confirmed)),and(status.eq.custom,payment_status.eq.unpaid)")
     .order("start_ts", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -83,6 +82,7 @@ export async function POST(req: NextRequest) {
           priceCents,
           depositPaidCents,
           date: booking.start_ts,
+          isCustom: booking.status === "custom",  // flag so UI knows to use custom payment flow
         }
       : null,
     services: services || [],
