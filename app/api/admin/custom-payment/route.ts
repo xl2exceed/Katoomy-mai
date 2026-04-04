@@ -1,10 +1,51 @@
 // POST /api/admin/custom-payment
 // Records a manual custom payment directly into alternative_payment_ledger.
 // If bookingId is provided (custom-status booking), also marks the booking as custom_paid
-// so the schedule page and customer portal reflect the payment correctly.
+// and awards loyalty points to the customer.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+
+async function awardLoyaltyOnPayment(businessId: string, customerId: string, bookingId: string) {
+  const { data: loyalty } = await supabaseAdmin
+    .from("loyalty_settings")
+    .select("enabled, earn_on_completion, points_per_event, referral_enabled, referrer_reward_points")
+    .eq("business_id", businessId)
+    .single();
+  if (loyalty?.enabled && loyalty.earn_on_completion) {
+    const { data: existing } = await supabaseAdmin
+      .from("loyalty_ledger").select("id")
+      .eq("related_booking_id", bookingId).eq("event_type", "completion").maybeSingle();
+    if (!existing) {
+      await supabaseAdmin.from("loyalty_ledger").insert({
+        business_id: businessId, customer_id: customerId,
+        event_type: "completion", points_delta: loyalty.points_per_event, related_booking_id: bookingId,
+      });
+    }
+  }
+  if (loyalty?.referral_enabled !== false) {
+    const { data: referral } = await supabaseAdmin
+      .from("referrals").select("id, referrer_customer_id")
+      .eq("business_id", businessId).eq("referred_customer_id", customerId).eq("status", "pending").maybeSingle();
+    if (referral) {
+      const referrerPoints = loyalty?.referrer_reward_points ?? 15;
+      const { data: existingRef } = await supabaseAdmin
+        .from("loyalty_ledger").select("id")
+        .eq("related_booking_id", bookingId).eq("event_type", "referral")
+        .eq("customer_id", referral.referrer_customer_id).maybeSingle();
+      if (!existingRef) {
+        await supabaseAdmin.from("loyalty_ledger").insert({
+          business_id: businessId, customer_id: referral.referrer_customer_id,
+          points_delta: referrerPoints, event_type: "referral", related_booking_id: bookingId,
+        });
+      }
+      await supabaseAdmin.from("referrals").update({
+        status: "completed", reward_points_awarded: referrerPoints,
+        first_completed_booking_id: bookingId, completed_at: new Date().toISOString(),
+      }).eq("id", referral.id);
+    }
+  }
+}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -32,7 +73,7 @@ export async function POST(req: NextRequest) {
   if (!serviceName?.trim()) return NextResponse.json({ error: "Service name is required" }, { status: 400 });
   if (!amountCents || amountCents <= 0) return NextResponse.json({ error: "Amount must be greater than $0" }, { status: 400 });
 
-  const validMethods = ["cash", "cashapp", "zelle", "other", "card"];
+  const validMethods = ["cash", "cashapp", "zelle", "card", "other"];
   const method = validMethods.includes(paymentMethod) ? paymentMethod : "cash";
 
   const ts = appointmentTs ? new Date(appointmentTs) : new Date();
@@ -40,15 +81,17 @@ export async function POST(req: NextRequest) {
 
   // If a bookingId is provided, verify it belongs to this business and is in custom status
   let resolvedBookingId: string | null = null;
+  let resolvedCustomerId: string | null = null;
   if (bookingId) {
     const { data: booking } = await supabaseAdmin
       .from("bookings")
-      .select("id, status, payment_status")
+      .select("id, status, payment_status, customer_id")
       .eq("id", bookingId)
       .eq("business_id", business.id)
       .maybeSingle();
     if (booking && booking.status === "custom" && !["custom_paid", "paid", "cash_paid"].includes(booking.payment_status)) {
       resolvedBookingId = booking.id;
+      resolvedCustomerId = booking.customer_id;
     }
   }
 
@@ -82,7 +125,10 @@ export async function POST(req: NextRequest) {
       .eq("id", resolvedBookingId);
     if (updateError) {
       console.error("[custom-payment] Booking update error:", updateError.message);
-      // Non-fatal: ledger entry already recorded, just log it
+    }
+    // Award loyalty points to the customer
+    if (resolvedCustomerId) {
+      await awardLoyaltyOnPayment(business.id, resolvedCustomerId, resolvedBookingId);
     }
   }
 

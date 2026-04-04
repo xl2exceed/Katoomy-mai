@@ -41,6 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .eq('staff_id', staffId)
     .or(
       'and(status.eq.completed,payment_status.in.(paid,cash_paid)),' +
+      'and(status.eq.custom,payment_status.eq.custom_paid),' +
       'and(status.in.(cancelled,no_show),payment_status.eq.deposit_paid)'
     )
     .order('start_ts', { ascending: false });
@@ -57,9 +58,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   let customPaymentsQuery = supabaseAdmin
     .from('alternative_payment_ledger')
-    .select('id, appointment_ts, service_amount_cents, tip_cents, service_name, customer_name')
-    .eq('marked_paid_by', staffId)
-    .is('booking_id', null);
+    .select('id, appointment_ts, service_amount_cents, tip_cents, service_name, customer_name, booking_id')
+    .eq('marked_paid_by', staffId);
   if (startDate) customPaymentsQuery = customPaymentsQuery.gte('appointment_ts', startDate.toISOString());
 
   const [tipsResult, ledgerTipsResult, { data: customPayments }] = await Promise.all([
@@ -81,10 +81,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Build a map of booking_id -> ledger entry for custom-paid bookings so we use the actual charged amount
+  const customLedgerByBookingId = new Map<string, { service_amount_cents: number; tip_cents: number }>();
+  for (const p of (customPayments || [])) {
+    if (p.booking_id) customLedgerByBookingId.set(p.booking_id, p);
+  }
+
   const bookingTransactions = (bookings || []).map((b) => {
     const isForfeited = (b.status === 'cancelled' || b.status === 'no_show') && b.payment_status === 'deposit_paid';
-    const serviceAmountCents = isForfeited ? (b.deposit_amount_cents || 0) : (b.total_price_cents || 0);
-    const tipAmountCents = isForfeited ? 0 : (tipsMap.get(b.id) || 0);
+    const isCustomPaid = b.status === 'custom' && b.payment_status === 'custom_paid';
+    const ledgerEntry = isCustomPaid ? customLedgerByBookingId.get(b.id) : undefined;
+    const serviceAmountCents = isForfeited
+      ? (b.deposit_amount_cents || 0)
+      : isCustomPaid
+        ? (ledgerEntry?.service_amount_cents ?? b.total_price_cents ?? 0)
+        : (b.total_price_cents || 0);
+    const tipAmountCents = isForfeited ? 0 : isCustomPaid ? (ledgerEntry?.tip_cents ?? 0) : (tipsMap.get(b.id) || 0);
     return {
       id: b.id,
       date: b.start_ts,
@@ -96,7 +108,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     };
   });
 
-  const customTransactions = (customPayments || []).map((p) => ({
+  // Only include ledger entries NOT linked to a booking (standalone custom payments)
+  // Booking-linked entries are already counted via bookingTransactions
+  const customTransactions = (customPayments || []).filter((p) => !p.booking_id).map((p) => ({
     id: p.id,
     date: p.appointment_ts,
     customerName: p.customer_name ?? '—',
