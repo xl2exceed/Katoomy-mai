@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Pagination from "@/components/Pagination";
 import { createStaffClient as createClient } from "@/lib/supabase/staff-client";
@@ -23,6 +23,15 @@ interface RevenueStats {
   tipsCents: number;
   totalRevenueCents: number;
   transactions: Transaction[];
+  timezone?: string;
+}
+
+function fmtDate(dateStr: string, tz: string) {
+  return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz });
+}
+
+function fmtTime(dateStr: string, tz: string) {
+  return new Date(dateStr).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: tz });
 }
 
 export default function StaffRevenuePage() {
@@ -36,6 +45,11 @@ export default function StaffRevenuePage() {
   const [txPage, setTxPage] = useState(1);
   const [txPerPage, setTxPerPage] = useState(20);
 
+  const staffIdRef = useRef(staffId);
+  const periodRef = useRef(period);
+  staffIdRef.current = staffId;
+  periodRef.current = period;
+
   useEffect(() => {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -45,6 +59,35 @@ export default function StaffRevenuePage() {
     if (staffId) loadRevenue();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffId, period]);
+
+  // Real-time auto-refresh
+  useEffect(() => {
+    // BroadcastChannel: fires when Take Payment page records a custom payment
+    const bc = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("katoomy-booking-update") : null;
+    if (bc) {
+      bc.onmessage = () => { if (staffIdRef.current) loadRevenue(); };
+    }
+
+    // Supabase Realtime: fires when a booking or ledger entry changes
+    const channel = supabase
+      .channel("staff-revenue-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
+        if (staffIdRef.current) loadRevenue();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alternative_payment_ledger" }, () => {
+        if (staffIdRef.current) loadRevenue();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "payments" }, () => {
+        if (staffIdRef.current) loadRevenue();
+      })
+      .subscribe();
+
+    return () => {
+      bc?.close();
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function init() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -58,7 +101,7 @@ export default function StaffRevenuePage() {
     setLoading(true);
     setTxPage(1);
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(`/api/staff/${staffId}/revenue?period=${period}`, {
+    const res = await fetch(`/api/staff/${staffIdRef.current}/revenue?period=${periodRef.current}`, {
       headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
     });
     if (res.ok) {
@@ -70,6 +113,8 @@ export default function StaffRevenuePage() {
 
   const fmt = (cents: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+
+  const tz = stats.timezone || "America/New_York";
 
   const periods: { key: Period; label: string }[] = [
     { key: "today", label: "Today" },
@@ -142,9 +187,7 @@ export default function StaffRevenuePage() {
                       <p className="font-semibold text-gray-900 text-sm">{t.customerName}</p>
                       <p className="text-xs text-gray-500">
                         {t.serviceName} &middot;{" "}
-                        {new Date(t.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                        {" "}
-                        {new Date(t.date).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                        {fmtDate(t.date, tz)} {fmtTime(t.date, tz)}
                       </p>
                       <p className="text-xs text-gray-500">Service: {fmt(t.serviceAmountCents)}</p>
                       {t.tipAmountCents > 0 && (

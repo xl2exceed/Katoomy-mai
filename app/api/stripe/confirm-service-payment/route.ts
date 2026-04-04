@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { bookingId, businessId, customerId, tipCents } = session.metadata!;
+    const { bookingId, businessId, customerId, tipCents, staffId: metaStaffId, customerName: metaCustomerName } = session.metadata!;
 
     // Idempotency: skip if booking already marked paid
     const { data: existingBooking } = await supabaseAdmin
@@ -159,21 +159,47 @@ export async function POST(req: NextRequest) {
       const ts = new Date();
       const billingMonth = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}`;
       const serviceCentsForLedger = (session.amount_total ?? 0) - safeTipCents;
-      await supabaseAdmin.from("alternative_payment_ledger").insert({
-        business_id: businessId,
-        booking_id: bookingId,
-        customer_name: null,
-        service_name: "Custom payment (credit card)",
-        service_amount_cents: serviceCentsForLedger,
-        tip_cents: safeTipCents,
-        platform_fee_cents: Math.round((session.amount_total ?? 0) * 0.015),
-        payment_method: "card",
-        fee_absorbed_by: "customer",
-        billing_month: billingMonth,
-        billing_status: "pending",
-        appointment_ts: ts.toISOString(),
-        notes: "Custom payment — Stripe credit card",
-      });
+      // Look up the booking's service name and customer name if not in metadata
+      const { data: bookingForLedger } = await supabaseAdmin
+        .from("bookings")
+        .select("services(name), customers(full_name), staff_id")
+        .eq("id", bookingId)
+        .single();
+      const serviceNameForLedger =
+        (bookingForLedger?.services as unknown as { name: string } | null)?.name ||
+        "Custom payment (credit card)";
+      const customerNameForLedger =
+        metaCustomerName ||
+        (bookingForLedger?.customers as unknown as { full_name: string } | null)?.full_name ||
+        null;
+      const staffIdForLedger =
+        metaStaffId ||
+        (bookingForLedger?.staff_id as string | null) ||
+        null;
+      // Idempotency: skip if ledger entry already exists for this booking
+      const { data: existingLedger } = await supabaseAdmin
+        .from("alternative_payment_ledger")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .maybeSingle();
+      if (!existingLedger) {
+        await supabaseAdmin.from("alternative_payment_ledger").insert({
+          business_id: businessId,
+          booking_id: bookingId,
+          customer_name: customerNameForLedger,
+          service_name: serviceNameForLedger,
+          service_amount_cents: serviceCentsForLedger,
+          tip_cents: safeTipCents,
+          platform_fee_cents: Math.round((session.amount_total ?? 0) * 0.015),
+          payment_method: "card",
+          fee_absorbed_by: "customer",
+          billing_month: billingMonth,
+          billing_status: "pending",
+          appointment_ts: ts.toISOString(),
+          marked_paid_by: staffIdForLedger,
+          notes: "Custom payment — Stripe credit card",
+        });
+      }
     }
 
     // Record payment (service portion only; tip goes in tips table)

@@ -11,6 +11,11 @@ async function checkAccess(userId: string, staffId: string) {
   return biz ? staff : null;
 }
 
+async function getBusinessTimezone(businessId: string): Promise<string> {
+  const { data } = await supabaseAdmin.from('businesses').select('timezone').eq('id', businessId).single();
+  return (data as { timezone?: string } | null)?.timezone || 'America/New_York';
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authHeader = req.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -124,11 +129,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const serviceRevenueCents = transactions.reduce((s, t) => s + t.serviceAmountCents, 0);
   const tipsCents = transactions.reduce((s, t) => s + t.tipAmountCents, 0);
+  const timezone = await getBusinessTimezone(staff.business_id);
 
   return NextResponse.json({
     serviceRevenueCents,
     tipsCents,
     totalRevenueCents: serviceRevenueCents + tipsCents,
     transactions,
+    timezone,
   });
 }

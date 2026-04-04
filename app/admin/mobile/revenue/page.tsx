@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Pagination from "@/components/Pagination";
+import { createClient } from "@/lib/supabase/client";
 
 type Period = "today" | "week" | "month" | "all";
 
@@ -32,10 +33,21 @@ interface RevenueData {
   totalRevenueCents: number;
   staffBreakdown: StaffBreakdown[];
   transactions: Transaction[];
+  timezone?: string;
 }
 
 const fmt = (cents: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+
+function fmtDate(dateStr: string, tz: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz });
+}
+
+function fmtTime(dateStr: string, tz: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: tz });
+}
 
 const periods: { key: Period; label: string }[] = [
   { key: "today", label: "Today" },
@@ -50,19 +62,48 @@ export default function MobileAdminRevenuePage() {
   const [loading, setLoading] = useState(true);
   const [txPage, setTxPage] = useState(1);
   const [txPerPage, setTxPerPage] = useState(20);
+  const periodRef = useRef(period);
+  periodRef.current = period;
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
+  // Real-time auto-refresh: listen for payment events via BroadcastChannel + Supabase Realtime
+  useEffect(() => {
+    const supabase = createClient();
+
+    // BroadcastChannel: fires when Take Payment page records a custom payment
+    const bc = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("katoomy-booking-update") : null;
+    if (bc) {
+      bc.onmessage = () => load();
+    }
+
+    // Supabase Realtime: fires when a booking or ledger entry changes
+    const channel = supabase
+      .channel("admin-revenue-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alternative_payment_ledger" }, () => load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "payments" }, () => load())
+      .subscribe();
+
+    return () => {
+      bc?.close();
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function load() {
     setLoading(true);
     setTxPage(1);
-    const res = await fetch(`/api/admin/revenue?period=${period}`);
+    const res = await fetch(`/api/admin/revenue?period=${periodRef.current}`);
     if (res.ok) setData(await res.json());
     setLoading(false);
   }
+
+  const tz = data?.timezone || "America/New_York";
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -144,9 +185,7 @@ export default function MobileAdminRevenuePage() {
                       <p className="font-semibold text-gray-900 text-sm">{t.customerName}</p>
                       <p className="text-xs text-gray-500">
                         {t.serviceName} &middot;{" "}
-                        {new Date(t.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                        {" "}
-                        {new Date(t.date).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                        {fmtDate(t.date, tz)} {fmtTime(t.date, tz)}
                       </p>
                       <p className="text-xs text-gray-500">{t.staffName} · Service: {fmt(t.serviceAmountCents)}</p>
                       {t.tipAmountCents > 0 && (

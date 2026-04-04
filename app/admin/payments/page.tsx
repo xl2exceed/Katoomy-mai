@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Pagination from "@/components/Pagination";
 
@@ -53,6 +53,24 @@ export default function AdminPaymentsPage() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Real-time auto-refresh
+  useEffect(() => {
+    const bc = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("katoomy-booking-update") : null;
+    if (bc) bc.onmessage = () => loadData();
+
+    const channel = supabase
+      .channel("admin-payments-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alternative_payment_ledger" }, () => loadData())
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "alternative_payment_ledger" }, () => loadData())
+      .subscribe();
+
+    return () => {
+      bc?.close();
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadData() {

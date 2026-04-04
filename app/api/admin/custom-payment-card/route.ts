@@ -22,7 +22,18 @@ export async function POST(req: NextRequest) {
     .single();
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
-  const { serviceName, amountCents, tipCents, customerName, bookingId } = await req.json();
+  const { serviceName, amountCents, tipCents, customerName, bookingId, staffId: bodyStaffId } = await req.json();
+  // If no staffId passed in body, try to find the owner's own staff record
+  let resolvedStaffId = bodyStaffId || "";
+  if (!resolvedStaffId) {
+    const { data: ownerStaff } = await supabaseAdmin
+      .from("staff")
+      .select("id")
+      .eq("business_id", business.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    resolvedStaffId = ownerStaff?.id || "";
+  }
   if (!serviceName?.trim()) return NextResponse.json({ error: "Service name is required" }, { status: 400 });
   if (!amountCents || amountCents <= 0) return NextResponse.json({ error: "Amount must be greater than $0" }, { status: 400 });
 
@@ -86,6 +97,7 @@ export async function POST(req: NextRequest) {
         tipCents: String(safeTipCents),
         isCustomPayment: "true",
         customerName: customerName || "",
+        staffId: resolvedStaffId,
       },
     },
     { stripeAccount: connectAccount.stripe_account_id },

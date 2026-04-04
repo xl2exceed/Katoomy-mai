@@ -11,11 +11,12 @@ export async function GET(req: NextRequest) {
 
   const { data: business } = await supabaseAdmin
     .from("businesses")
-    .select("id")
+    .select("id, timezone")
     .eq("owner_user_id", user.id)
     .single();
 
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+  const businessTimezone = (business as { id: string; timezone?: string }).timezone || "America/New_York";
 
   const { searchParams } = new URL(req.url);
   const period = searchParams.get("period") ?? "week";
@@ -192,5 +193,6 @@ export async function GET(req: NextRequest) {
     staffBreakdown,
     transactions,
     membershipTransactions,
+    timezone: businessTimezone,
   });
 }
