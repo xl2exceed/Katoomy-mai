@@ -10,9 +10,11 @@ type SidebarProps = {
   businessId: string | null;
   plan: string; // "free" | "pro" | "premium" etc
   status: string | null; // "active", "trialing", etc
+  niche?: string; // "barber" | "carwash" etc
 };
 
-export default function Sidebar({ businessId, plan, status }: SidebarProps) {
+export default function Sidebar({ businessId, plan, status, niche = "barber" }: SidebarProps) {
+  const isCarwash = niche === "carwash";
   const supabase = createClient();
   const router = useRouter();
   const pathname = usePathname();
@@ -109,7 +111,10 @@ export default function Sidebar({ businessId, plan, status }: SidebarProps) {
         {/* ── Schedule & Services ── */}
         {navLink("/admin", "🏠", "Overview")}
         {navLink("/admin/bookings", "📅", "My Schedule")}
-        {navLink("/admin/services", "✂️", "Services")}
+        {isCarwash
+          ? navLink("/admin/services", "🚗", "Services")
+          : navLink("/admin/services", "✂️", "Services")}
+        {isCarwash && navLink("/admin/carwash", "⚙️", "Car Wash Settings")}
         {navLink("/admin/availability", "🕒", "Availability")}
         {hasStaffAccess && navLink("/admin/staff", "👔", "Staff")}
         {navLink("/admin/customers", "👥", "Customers")}

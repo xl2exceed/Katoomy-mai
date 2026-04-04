@@ -6,8 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 // Safely build a local-timezone ISO string from date ("YYYY-MM-DD") + time ("HH:MM").
-// Using new Date(y, m, d, h, min) always interprets as local time in every browser,
-// unlike new Date("YYYY-MM-DDTHH:MM:SS") which Safari treats as UTC.
 function localDateTimeISO(date: string, time: string): string {
   const [y, mo, d] = date.split("-").map(Number);
   const [h, mi] = time.split(":").map(Number);
@@ -19,12 +17,14 @@ interface Service {
   name: string;
   price_cents: number;
   duration_minutes: number;
+  pricing_type?: "flat" | "vehicle_based";
 }
 
 interface Business {
   id: string;
   name: string;
   primary_color: string;
+  features?: Record<string, unknown>;
 }
 
 interface DepositSettings {
@@ -48,15 +48,21 @@ export default function CustomerInfoPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
-  const [defaultBookingStatus, setDefaultBookingStatus] =
-    useState<string>("confirmed");
-  const [depositSettings, setDepositSettings] =
-    useState<DepositSettings | null>(null);
-  const [paymentChoice, setPaymentChoice] = useState<
-    "full" | "deposit" | "cash"
-  >("full");
+  const [defaultBookingStatus, setDefaultBookingStatus] = useState<string>("confirmed");
+  const [depositSettings, setDepositSettings] = useState<DepositSettings | null>(null);
+  const [paymentChoice, setPaymentChoice] = useState<"full" | "deposit" | "cash">("full");
   const [memberDiscountPct, setMemberDiscountPct] = useState(0);
   const [selectedStaffId, setSelectedStaffId] = useState("");
+
+  // Car wash fields
+  const [vehicleType, setVehicleType] = useState("");
+  const [vehicleCondition, setVehicleCondition] = useState("");
+  const [addonIds, setAddonIds] = useState<string[]>([]);
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [travelFeeCents, setTravelFeeCents] = useState(0);
+  const [vehicleBasedPriceCents, setVehicleBasedPriceCents] = useState<number | null>(null);
+  const [isCarwash, setIsCarwash] = useState(false);
+  const [isMobileService, setIsMobileService] = useState(false);
 
   // Form fields
   const [name, setName] = useState("");
@@ -91,6 +97,21 @@ export default function CustomerInfoPage() {
     const staffId = sessionStorage.getItem("selectedStaffId") || "";
     setSelectedStaffId(staffId);
 
+    // Car wash session data
+    const vType = sessionStorage.getItem("selectedVehicleType") || "";
+    const vCondition = sessionStorage.getItem("selectedVehicleCondition") || "";
+    const addonIdsRaw = sessionStorage.getItem("selectedAddonIds");
+    const parsedAddonIds: string[] = addonIdsRaw ? JSON.parse(addonIdsRaw) : [];
+    const savedAddress = sessionStorage.getItem("customerAddress") || "";
+    const savedTravelFee = parseInt(sessionStorage.getItem("travelFeeCents") || "0", 10);
+    const savedVehiclePrice = sessionStorage.getItem("vehicleBasedPriceCents");
+    setVehicleType(vType);
+    setVehicleCondition(vCondition);
+    setAddonIds(parsedAddonIds);
+    setCustomerAddress(savedAddress);
+    setTravelFeeCents(savedTravelFee);
+    if (savedVehiclePrice) setVehicleBasedPriceCents(parseInt(savedVehiclePrice, 10));
+
     if (!serviceId || !date || !time) {
       router.push(`/${slug}/services`);
       return;
@@ -102,15 +123,30 @@ export default function CustomerInfoPage() {
     // Get business
     const { data: businessData } = await supabase
       .from("businesses")
-      .select("id, name, primary_color, default_booking_status")
+      .select("id, name, primary_color, default_booking_status, features")
       .eq("slug", slug)
       .single();
 
     if (businessData) {
       setBusiness(businessData);
-      setDefaultBookingStatus(
-        businessData.default_booking_status || "confirmed",
-      );
+      setDefaultBookingStatus(businessData.default_booking_status || "confirmed");
+
+      // Detect niche
+      const features = businessData.features as Record<string, unknown> | null;
+      const niche = (features?.niche as string) ?? "barber";
+      setIsCarwash(niche === "carwash");
+
+      // Detect service mode for mobile address requirement
+      if (niche === "carwash") {
+        const { data: cwSettings } = await supabase
+          .from("carwash_settings")
+          .select("service_mode")
+          .eq("business_id", businessData.id)
+          .maybeSingle();
+        if (cwSettings?.service_mode === "mobile" || cwSettings?.service_mode === "hybrid") {
+          setIsMobileService(true);
+        }
+      }
 
       // Load deposit settings
       const { data: depositData } = await supabase
@@ -126,12 +162,12 @@ export default function CustomerInfoPage() {
       // Get service
       const { data: serviceData } = await supabase
         .from("services")
-        .select("*")
+        .select("id, name, price_cents, duration_minutes, pricing_type")
         .eq("id", serviceId)
         .single();
 
       if (serviceData) {
-        setService(serviceData);
+        setService(serviceData as Service);
       }
 
       // ── Prefill if we know this customer ──────────────────────────────────
@@ -151,7 +187,6 @@ export default function CustomerInfoPage() {
           setPrefilled(true);
         }
 
-        // Check member discount via server-side API (bypasses RLS)
         try {
           const checkRes = await fetch(
             `/api/memberships/check?businessId=${businessData.id}&phone=${savedPhone.replace(/\D/g, "")}`,
@@ -161,13 +196,27 @@ export default function CustomerInfoPage() {
             setMemberDiscountPct(checkData.discountPercent);
           }
         } catch {
-          // non-critical, server will still apply discount at checkout
+          // non-critical
         }
       }
-      // ─────────────────────────────────────────────────────────────────────
     }
 
     setLoading(false);
+  };
+
+  // The effective price for this booking (vehicle-based overrides flat price)
+  const effectiveServicePriceCents = (): number => {
+    if (vehicleBasedPriceCents !== null) return vehicleBasedPriceCents;
+    if (!service) return 0;
+    return service.price_cents;
+  };
+
+  const effectiveTotalCents = (): number => {
+    const base = effectiveServicePriceCents();
+    const discounted = memberDiscountPct > 0
+      ? Math.round(base * (1 - memberDiscountPct / 100))
+      : base;
+    return discounted + travelFeeCents;
   };
 
   const formatDate = (dateString: string) => {
@@ -190,8 +239,7 @@ export default function CustomerInfoPage() {
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, "");
     if (numbers.length <= 3) return numbers;
-    if (numbers.length <= 6)
-      return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
+    if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
     return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
   };
 
@@ -201,16 +249,21 @@ export default function CustomerInfoPage() {
 
   const getDepositCents = (): number => {
     if (!depositSettings || !service) return 0;
-    if (depositSettings.type === "flat")
-      return depositSettings.amount_cents || 0;
+    if (depositSettings.type === "flat") return depositSettings.amount_cents || 0;
     if (depositSettings.type === "percent" && depositSettings.percent) {
-      const baseCents = memberDiscountPct > 0
-        ? Math.round(service.price_cents * (1 - memberDiscountPct / 100))
-        : service.price_cents;
-      return Math.round(baseCents * (depositSettings.percent / 100));
+      return Math.round(effectiveTotalCents() * (depositSettings.percent / 100));
     }
     return 0;
   };
+
+  // Build the shared extra fields for car wash bookings
+  const carwashPayload = isCarwash ? {
+    vehicleType: vehicleType || undefined,
+    vehicleCondition: vehicleCondition || undefined,
+    addonIds: addonIds.length > 0 ? addonIds : undefined,
+    customerAddress: customerAddress || undefined,
+    travelFeeCents: travelFeeCents > 0 ? travelFeeCents : undefined,
+  } : {};
 
   const handlePayWithStripe = async (type: "full" | "deposit") => {
     if (!business || !service) return;
@@ -223,12 +276,8 @@ export default function CustomerInfoPage() {
     const referredByCode = pendingReferral ? JSON.parse(pendingReferral).referralCode : null;
     if (referredByCode) localStorage.removeItem("katoomy:pendingReferral");
 
-    const discountedFullPriceCents = memberDiscountPct > 0
-      ? Math.round(service.price_cents * (1 - memberDiscountPct / 100))
-      : service.price_cents;
-
-    const priceCents =
-      type === "deposit" ? getDepositCents() : service.price_cents;
+    const totalCents = effectiveTotalCents();
+    const priceCents = type === "deposit" ? getDepositCents() : totalCents;
 
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
@@ -238,7 +287,7 @@ export default function CustomerInfoPage() {
         serviceId: service.id,
         serviceName: service.name,
         priceCents,
-        fullPriceCents: discountedFullPriceCents,
+        fullPriceCents: totalCents,
         paymentType: type,
         customerName: name,
         customerPhone: cleanPhone,
@@ -251,6 +300,7 @@ export default function CustomerInfoPage() {
         slug,
         staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
         referredByCode: referredByCode || undefined,
+        ...carwashPayload,
       }),
     });
 
@@ -274,9 +324,7 @@ export default function CustomerInfoPage() {
       const pendingReferral = localStorage.getItem("katoomy:pendingReferral");
       const referredByCode = pendingReferral ? JSON.parse(pendingReferral).referralCode : null;
 
-      const discountedPriceCents = memberDiscountPct > 0
-        ? Math.round(service.price_cents * (1 - memberDiscountPct / 100))
-        : service.price_cents;
+      const totalCents = effectiveTotalCents();
 
       const res = await fetch("/api/bookings/create", {
         method: "POST",
@@ -285,7 +333,7 @@ export default function CustomerInfoPage() {
           businessId: business.id,
           serviceId: service.id,
           serviceName: service.name,
-          priceCents: discountedPriceCents,
+          priceCents: totalCents,
           customerName: name,
           customerPhone: cleanPhone,
           customerEmail: email || "",
@@ -298,6 +346,7 @@ export default function CustomerInfoPage() {
           defaultBookingStatus,
           staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
           referredByCode: referredByCode || undefined,
+          ...carwashPayload,
         }),
       });
 
@@ -324,6 +373,10 @@ export default function CustomerInfoPage() {
       return;
     }
     if (!business || !service) return;
+    if (isMobileService && !customerAddress.trim()) {
+      alert("Please enter your address for the mobile service");
+      return;
+    }
 
     if (paymentChoice === "cash") {
       await handlePayAtAppointment();
@@ -345,15 +398,18 @@ export default function CustomerInfoPage() {
     );
   }
 
+  const displayTotal = effectiveTotalCents();
+  const displayDiscounted = memberDiscountPct > 0
+    ? Math.round(effectiveServicePriceCents() * (1 - memberDiscountPct / 100)) + travelFeeCents
+    : null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div
         className="p-6 text-white"
         style={{
-          background: `linear-gradient(135deg, ${
-            business?.primary_color || "#3B82F6"
-          } 0%, ${business?.primary_color || "#3B82F6"}DD 100%)`,
+          background: `linear-gradient(135deg, ${business?.primary_color || "#3B82F6"} 0%, ${business?.primary_color || "#3B82F6"}DD 100%)`,
         }}
       >
         <Link
@@ -373,23 +429,38 @@ export default function CustomerInfoPage() {
             Your Appointment
           </p>
           <p className="text-xl font-bold text-white">{service?.name}</p>
+          {vehicleType && (
+            <p className="text-green-100 text-sm mt-1">
+              🚗 {vehicleType}{vehicleCondition ? ` · ${vehicleCondition}` : ""}
+            </p>
+          )}
+          {customerAddress && (
+            <p className="text-green-100 text-sm mt-1">📍 {customerAddress}</p>
+          )}
           <div className="mt-3 pt-3 border-t border-green-500 space-y-1">
             <p className="text-white">{formatDate(bookingDate)}</p>
             <p className="text-white">{formatTime(bookingTime)}</p>
-            {memberDiscountPct > 0 && service ? (
+            {displayDiscounted !== null ? (
               <>
                 <p className="text-lg text-green-200 line-through mt-2">
-                  ${(service.price_cents / 100).toFixed(2)}
+                  ${(effectiveServicePriceCents() / 100).toFixed(2)}
                 </p>
                 <p className="text-2xl font-bold text-white">
-                  ${(Math.round(service.price_cents * (1 - memberDiscountPct / 100)) / 100).toFixed(2)}
+                  ${(displayDiscounted / 100).toFixed(2)}
                 </p>
                 <p className="text-xs text-green-200">⭐ Elite Member price ({memberDiscountPct}% off)</p>
               </>
             ) : (
-              <p className="text-2xl font-bold text-white mt-2">
-                ${service ? (service.price_cents / 100).toFixed(2) : "0.00"}
-              </p>
+              <>
+                <p className="text-2xl font-bold text-white mt-2">
+                  ${(displayTotal / 100).toFixed(2)}
+                </p>
+                {travelFeeCents > 0 && (
+                  <p className="text-xs text-green-200">
+                    Includes ${(travelFeeCents / 100).toFixed(2)} travel fee
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -407,9 +478,7 @@ export default function CustomerInfoPage() {
         {/* Customer Info Form */}
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
             <input
               type="text"
               value={name}
@@ -420,9 +489,7 @@ export default function CustomerInfoPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
             <input
               type="tel"
               value={phone}
@@ -434,9 +501,7 @@ export default function CustomerInfoPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email (Optional)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
             <input
               type="email"
               value={email}
@@ -446,10 +511,24 @@ export default function CustomerInfoPage() {
             />
           </div>
 
+          {/* Address field for mobile car wash */}
+          {isMobileService && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Service Address * <span className="text-gray-500 font-normal">(where should we come?)</span>
+              </label>
+              <input
+                type="text"
+                value={customerAddress}
+                onChange={(e) => setCustomerAddress(e.target.value)}
+                placeholder="123 Main St, City, State"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              />
+            </div>
+          )}
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes (Optional)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -463,36 +542,28 @@ export default function CustomerInfoPage() {
         {/* Payment Choice */}
         {service && (
           <div className="mt-6">
-            <p className="text-sm font-semibold text-gray-700 mb-3">
-              How would you like to pay?
-            </p>
+            <p className="text-sm font-semibold text-gray-700 mb-3">How would you like to pay?</p>
             <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => setPaymentChoice("full")}
                 className={`w-full p-4 rounded-xl border-2 text-left transition ${
-                  paymentChoice === "full"
-                    ? "border-blue-600 bg-blue-50"
-                    : "border-gray-200 bg-white"
+                  paymentChoice === "full" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900">
-                      💳 Pay Full Amount Now
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Secure payment via card
-                    </p>
+                    <p className="font-semibold text-gray-900">💳 Pay Full Amount Now</p>
+                    <p className="text-sm text-gray-500">Secure payment via card</p>
                   </div>
                   <div className="text-right">
-                    {memberDiscountPct > 0 ? (
+                    {displayDiscounted !== null ? (
                       <>
-                        <p className="text-sm text-gray-400 line-through">${(service.price_cents / 100).toFixed(2)}</p>
-                        <p className="font-bold text-gray-900">${(Math.round(service.price_cents * (1 - memberDiscountPct / 100)) / 100).toFixed(2)}</p>
+                        <p className="text-sm text-gray-400 line-through">${(effectiveServicePriceCents() / 100).toFixed(2)}</p>
+                        <p className="font-bold text-gray-900">${(displayDiscounted / 100).toFixed(2)}</p>
                       </>
                     ) : (
-                      <p className="font-bold text-gray-900">${(service.price_cents / 100).toFixed(2)}</p>
+                      <p className="font-bold text-gray-900">${(displayTotal / 100).toFixed(2)}</p>
                     )}
                   </div>
                 </div>
@@ -503,25 +574,17 @@ export default function CustomerInfoPage() {
                   type="button"
                   onClick={() => setPaymentChoice("deposit")}
                   className={`w-full p-4 rounded-xl border-2 text-left transition ${
-                    paymentChoice === "deposit"
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200 bg-white"
+                    paymentChoice === "deposit" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-gray-900">
-                        💳 Pay Deposit Now
-                      </p>
+                      <p className="font-semibold text-gray-900">💳 Pay Deposit Now</p>
                       <p className="text-sm text-gray-500">
-                        {service && memberDiscountPct > 0
-                          ? `$${((Math.round(service.price_cents * (1 - memberDiscountPct / 100)) - getDepositCents()) / 100).toFixed(2)} remaining at appointment`
-                          : "Remainder due at appointment"}
+                        ${((displayTotal - getDepositCents()) / 100).toFixed(2)} remaining at appointment
                       </p>
                     </div>
-                    <p className="font-bold text-gray-900">
-                      ${(getDepositCents() / 100).toFixed(2)}
-                    </p>
+                    <p className="font-bold text-gray-900">${(getDepositCents() / 100).toFixed(2)}</p>
                   </div>
                 </button>
               )}
@@ -531,18 +594,12 @@ export default function CustomerInfoPage() {
                   type="button"
                   onClick={() => setPaymentChoice("cash")}
                   className={`w-full p-4 rounded-xl border-2 text-left transition ${
-                    paymentChoice === "cash"
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200 bg-white"
+                    paymentChoice === "cash" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"
                   }`}
                 >
                   <div>
-                    <p className="font-semibold text-gray-900">
-                      💵 Pay at Appointment
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Cash or card in person
-                    </p>
+                    <p className="font-semibold text-gray-900">💵 Pay at Appointment</p>
+                    <p className="text-sm text-gray-500">Cash or card in person</p>
                   </div>
                 </button>
               )}
@@ -567,9 +624,9 @@ export default function CustomerInfoPage() {
               ? "Book Appointment →"
               : paymentChoice === "deposit"
                 ? `Pay Deposit $${(getDepositCents() / 100).toFixed(2)} →`
-                : memberDiscountPct > 0 && service
-              ? `Pay $${(Math.round(service.price_cents * (1 - memberDiscountPct / 100)) / 100).toFixed(2)} →`
-              : `Pay $${service ? (service.price_cents / 100).toFixed(2) : "0.00"} →`}
+                : displayDiscounted !== null
+                  ? `Pay $${(displayDiscounted / 100).toFixed(2)} →`
+                  : `Pay $${(displayTotal / 100).toFixed(2)} →`}
         </button>
       </div>
     </div>

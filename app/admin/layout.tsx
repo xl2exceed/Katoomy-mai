@@ -42,10 +42,11 @@ export default async function AdminLayout({
   let plan = "free";
   let status: string | null = null;
   let businessId = "";
+  let niche = "barber"; // default niche
 
   const { data: biz } = await supabase
     .from("businesses")
-    .select("id, subscription_plan, subscription_status")
+    .select("id, subscription_plan, subscription_status, features")
     .eq("owner_user_id", user.id)
     .maybeSingle();
 
@@ -53,6 +54,8 @@ export default async function AdminLayout({
     businessId = biz.id;
     plan = biz.subscription_plan ?? "free";
     status = biz.subscription_status ?? null;
+    const features = biz.features as Record<string, unknown> | null;
+    niche = (features?.niche as string) ?? "barber";
   }
 
   // Mobile routes render without the desktop sidebar
@@ -62,7 +65,7 @@ export default async function AdminLayout({
 
   return (
     <div className="h-screen flex overflow-hidden">
-      <Sidebar businessId={businessId} plan={plan} status={status} />
+      <Sidebar businessId={businessId} plan={plan} status={status} niche={niche} />
       <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
   );

@@ -30,6 +30,12 @@ export async function POST(req: NextRequest) {
       slug,
       staffId,
       referredByCode,
+      // Car wash fields
+      vehicleType,
+      vehicleCondition,
+      addonIds,
+      customerAddress,
+      travelFeeCents,
     } = await req.json();
 
     if (!businessId || !serviceId || !priceCents || !slug) {
@@ -139,6 +145,11 @@ export async function POST(req: NextRequest) {
           slug,
           staffId: staffId || "",
           referredByCode: referredByCode || "",
+          vehicleType: vehicleType || "",
+          vehicleCondition: vehicleCondition || "",
+          addonIds: addonIds ? JSON.stringify(addonIds) : "",
+          customerAddress: customerAddress || "",
+          travelFeeCents: String(travelFeeCents || 0),
         },
       },
       {

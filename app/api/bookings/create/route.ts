@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
       defaultBookingStatus,
       staffId,
       referredByCode,
+      // Car wash fields
+      vehicleType,
+      vehicleCondition,
+      addonIds,
+      customerAddress,
+      travelFeeCents,
     } = await req.json();
 
     if (
@@ -118,6 +124,12 @@ export async function POST(req: NextRequest) {
         customer_notes: notes || null,
         payment_status: "unpaid",
         staff_id: staffId || null,
+        // Car wash fields (null for non-carwash bookings)
+        vehicle_type: vehicleType || null,
+        vehicle_condition: vehicleCondition || null,
+        addon_ids: addonIds && addonIds.length > 0 ? addonIds : null,
+        customer_address: customerAddress || null,
+        travel_fee_cents: travelFeeCents || null,
       })
       .select()
       .single();

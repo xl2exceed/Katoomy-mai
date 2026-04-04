@@ -94,7 +94,13 @@ export async function POST(req: NextRequest) {
       staffId,
       existingBookingId,
       referredByCode,
+      vehicleType,
+      vehicleCondition,
+      addonIds: addonIdsRaw,
+      customerAddress,
+      travelFeeCents,
     } = meta;
+    const addonIds = addonIdsRaw ? JSON.parse(addonIdsRaw) : null;
 
     // Upsert customer
     const cleanPhone = customerPhone.replace(/\D/g, "");
@@ -231,6 +237,11 @@ export async function POST(req: NextRequest) {
           payment_status:
             meta.paymentType === "deposit" ? "deposit_paid" : "paid",
           staff_id: staffId || null,
+          vehicle_type: vehicleType || null,
+          vehicle_condition: vehicleCondition || null,
+          addon_ids: addonIds && addonIds.length > 0 ? addonIds : null,
+          customer_address: customerAddress || null,
+          travel_fee_cents: travelFeeCents ? Number(travelFeeCents) : null,
         })
         .select()
         .single();
