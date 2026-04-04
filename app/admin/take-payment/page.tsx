@@ -216,6 +216,12 @@ export default function AdminTakePaymentPage() {
       const data = await res.json();
       if (!res.ok) { setCustomError(data.error || "Something went wrong."); setCustomBusy(false); return; }
       setCustomSuccess("Payment recorded successfully.");
+      // Broadcast to all open tabs (schedule pages) to reload bookings immediately
+      try {
+        const bc = new BroadcastChannel("katoomy-booking-update");
+        bc.postMessage({ type: "custom_payment_recorded", bookingId: linkedBookingId });
+        bc.close();
+      } catch { /* BroadcastChannel not supported */ }
       setCustomServiceName("");
       setCustomAmount("");
       setCustomTip("");

@@ -48,11 +48,12 @@ export async function GET(req: NextRequest) {
   const bookingIds = (bookings || []).map((b) => b.id);
   const tipsMap = new Map<string, number>();
 
+  // Include ALL ledger entries — both standalone custom payments (booking_id IS NULL)
+  // and custom payments linked to a booking (booking_id IS NOT NULL, i.e. custom-status bookings)
   let customPaymentsQuery = supabaseAdmin
     .from("alternative_payment_ledger")
-    .select("id, appointment_ts, service_amount_cents, tip_cents, service_name, customer_name, payment_method, marked_paid_by")
-    .eq("business_id", business.id)
-    .is("booking_id", null);
+    .select("id, appointment_ts, service_amount_cents, tip_cents, service_name, customer_name, payment_method, marked_paid_by, booking_id")
+    .eq("business_id", business.id);
   if (startDate) customPaymentsQuery = customPaymentsQuery.gte("appointment_ts", startDate.toISOString());
 
   const [tipsResult, ledgerTipsResult, { data: customPayments }] = await Promise.all([

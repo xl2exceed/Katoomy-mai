@@ -30,6 +30,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-red-100 text-red-700",
   no_show: "bg-red-100 text-red-700",
   incomplete: "bg-orange-100 text-orange-700",
+  custom: "bg-purple-100 text-purple-800",
 };
 
 export default function StaffSchedulePage() {
@@ -104,7 +105,16 @@ export default function StaffSchedulePage() {
         loadBookings();
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // BroadcastChannel: reload instantly when a custom payment is recorded from the Take Payment page
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("katoomy-booking-update");
+      bc.onmessage = () => { loadBookings(); };
+    } catch { /* not supported */ }
+    return () => {
+      supabase.removeChannel(channel);
+      bc?.close();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffId, selectedDate, view]);
 
@@ -150,7 +160,7 @@ export default function StaffSchedulePage() {
   // Route all booking updates through the server-side admin API to avoid RLS issues
   const updateBooking = async (bookingId: string, updates: { status?: string; payment_status?: string }) => {
     const { data: { session } } = await supabase.auth.getSession();
-    await fetch("/api/staff/update-booking", {
+    const res = await fetch("/api/staff/update-booking", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -158,6 +168,14 @@ export default function StaffSchedulePage() {
       },
       body: JSON.stringify({ bookingId, staffId, ...updates }),
     });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error("[updateBooking] failed:", res.status, errData);
+      // Revert optimistic update on failure
+      loadBookings();
+      return false;
+    }
+    return true;
   };
 
   const handleComplete = async (bookingId: string) => {
@@ -199,8 +217,16 @@ export default function StaffSchedulePage() {
     }
     if (newStatus === "completed") { await handleComplete(bookingId); return; }
     // Optimistic update so the card changes instantly
+    const prevBookings = bookings;
     setBookings((prev) => prev.map((b) => b.id === bookingId ? { ...b, status: newStatus } : b));
-    await updateBooking(bookingId, { status: newStatus });
+    const ok = await updateBooking(bookingId, { status: newStatus });
+    if (!ok) {
+      // Revert optimistic update if the API call failed
+      setBookings(prevBookings);
+      alert("Status update failed. Please try again.");
+    } else {
+      loadBookings(); // Refresh to sync with DB and trigger real-time update
+    }
   };
 
   const handleCancelConfirm = async () => {

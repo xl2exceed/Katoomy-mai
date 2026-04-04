@@ -110,7 +110,16 @@ export default function DashboardPage() {
         () => { reloadBookings(cid); }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // BroadcastChannel: reload instantly when a custom payment is recorded from the Take Payment page
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("katoomy-booking-update");
+      bc.onmessage = () => { reloadBookings(cid); };
+    } catch { /* not supported */ }
+    return () => {
+      supabase.removeChannel(channel);
+      bc?.close();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer?.id]);
 
