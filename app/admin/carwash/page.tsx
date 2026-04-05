@@ -149,7 +149,7 @@ export default function CarwashSettingsPage() {
     await fetch("/api/carwash/addons", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: addon.id, ...addon, active: !addon.active }),
+      body: JSON.stringify({ ...addon, active: !addon.active }),
     });
     loadData();
   };
