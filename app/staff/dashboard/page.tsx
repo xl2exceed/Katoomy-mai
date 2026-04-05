@@ -15,19 +15,10 @@ interface StaffRecord {
   business_id: string;
 }
 
-const tiles = [
-  { title: "Schedule", icon: "📅", href: "/staff/schedule", description: "Your appointments" },
-  { title: "Notifications", icon: "🔔", href: "/staff/notifications", description: "New requests & activity" },
-  { title: "Customers", icon: "👥", href: "/staff/customers", description: "Clients you've served" },
-  { title: "Revenue", icon: "💰", href: "/staff/revenue", description: "Your earnings" },
-  { title: "Take Payment", icon: "💳", href: "/staff/payment", description: "Walk-in QR payment" },
-  { title: "QR Code", icon: "📲", href: "/staff/qr-code", description: "Show booking QR code" },
-  { title: "Services", icon: "✂️", href: "/staff/services", description: "View service prices" },
-];
-
 export default function StaffDashboardPage() {
   const router = useRouter();
   const [staff, setStaff] = useState<StaffRecord | null>(null);
+  const [niche, setNiche] = useState("barber");
   const [loading, setLoading] = useState(true);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -53,6 +44,18 @@ export default function StaffDashboardPage() {
 
       if (!staffRecord) { router.push("/staff/login"); return; }
       setStaff(staffRecord);
+
+      // Fetch business niche for icon
+      const { data: bizData } = await supabase
+        .from("businesses")
+        .select("features")
+        .eq("id", staffRecord.business_id)
+        .single();
+      if (bizData) {
+        const features = (bizData as typeof bizData & { features?: Record<string, string> }).features || {};
+        setNiche(features.niche || "barber");
+      }
+
       setLoading(false);
     })();
   }, [router]);
@@ -122,7 +125,15 @@ export default function StaffDashboardPage() {
 
       {/* Tile Grid */}
       <div className="max-w-2xl mx-auto grid grid-cols-2 gap-4 pb-4">
-        {tiles.map((tile) => (
+        {[
+          { title: "Schedule", icon: "📅", href: "/staff/schedule", description: "Your appointments" },
+          { title: "Notifications", icon: "🔔", href: "/staff/notifications", description: "New requests & activity" },
+          { title: "Customers", icon: "👥", href: "/staff/customers", description: "Clients you've served" },
+          { title: "Revenue", icon: "💰", href: "/staff/revenue", description: "Your earnings" },
+          { title: "Take Payment", icon: "💳", href: "/staff/payment", description: "Walk-in QR payment" },
+          { title: "QR Code", icon: "📲", href: "/staff/qr-code", description: "Show booking QR code" },
+          { title: "Services", icon: niche === "carwash" ? "🚗" : "✂️", href: "/staff/services", description: "View service prices" },
+        ].map((tile) => (
           <Link
             key={tile.href}
             href={tile.href}

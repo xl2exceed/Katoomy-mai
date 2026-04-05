@@ -12,6 +12,7 @@ import AdminPushPermissionPrompt from "@/components/AdminPushPermissionPrompt";
 export default function MobileMenuPage() {
   const [businessName, setBusinessName] = useState("");
   const [businessId, setBusinessId] = useState("");
+  const [niche, setNiche] = useState("barber");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
@@ -34,13 +35,15 @@ export default function MobileMenuPage() {
 
     const { data: business } = await supabase
       .from("businesses")
-      .select("name, id")
+      .select("name, id, features")
       .eq("owner_user_id", user.id)
       .single();
 
     if (business) {
       setBusinessName(business.name);
       setBusinessId(business.id);
+      const features = (business as typeof business & { features?: Record<string, string> }).features || {};
+      setNiche(features.niche || "barber");
     }
 
     setLoading(false);
@@ -142,7 +145,7 @@ export default function MobileMenuPage() {
     },
     {
       title: "Services",
-      icon: "✂️",
+      icon: niche === "carwash" ? "🚗" : "✂️",
       href: "/admin/mobile/services",
       description: "View service prices",
     },
