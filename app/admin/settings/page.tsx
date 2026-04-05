@@ -38,6 +38,12 @@ export default function SettingsPage() {
   const [referrerRewardPoints, setReferrerRewardPoints] = useState(15);
   const [depositEnabled, setDepositEnabled] = useState(false);
 
+  // Niche / business type state
+  const [niche, setNiche] = useState("barber");
+  const [serviceMode, setServiceMode] = useState("in_shop");
+  const [nicheSaving, setNicheSaving] = useState(false);
+  const [nicheMsg, setNicheMsg] = useState("");
+
   // SMS template state
   const [smsTemplates, setSmsTemplates] = useState({
     reminder:        "Hi {{customer_name}}! Reminder: your {{service_name}} appointment is tomorrow at {{appt_time}}. Reply STOP to opt out.",
@@ -75,7 +81,7 @@ export default function SettingsPage() {
 
     const { data: business } = await supabase
       .from("businesses")
-      .select("id, default_booking_status")
+      .select("id, default_booking_status, features")
       .eq("owner_user_id", user.id)
       .single();
 
@@ -85,6 +91,9 @@ export default function SettingsPage() {
         default_booking_status?: string;
       };
       setDefaultBookingStatus(biz.default_booking_status || "confirmed");
+      const features = (biz as typeof biz & { features?: Record<string, string> }).features || {};
+      setNiche(features.niche || "barber");
+      setServiceMode(features.service_mode || "in_shop");
       const { data: settingsData } = await supabase
         .from("loyalty_settings")
         .select("*")
@@ -173,6 +182,25 @@ export default function SettingsPage() {
       setSaveMessage("✅ Settings saved successfully!");
       console.log("✅ Settings saved to database");
       setTimeout(() => setSaveMessage(""), 3000);
+    }
+  };
+
+  const handleSaveNiche = async () => {
+    setNicheSaving(true);
+    setNicheMsg("");
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const res = await fetch("/api/admin/niche-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ niche, service_mode: serviceMode }),
+    });
+    setNicheSaving(false);
+    if (res.ok) {
+      setNicheMsg("✅ Business type saved! Reload the page to see updated navigation.");
+      setTimeout(() => setNicheMsg(""), 5000);
+    } else {
+      setNicheMsg("❌ Failed to save business type.");
     }
   };
 
@@ -646,6 +674,82 @@ export default function SettingsPage() {
               className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 text-sm"
             >
               {smsTemplateSaving ? "Saving…" : "Save SMS Templates"}
+            </button>
+          </div>
+        </div>
+
+        {/* Business Type / Niche Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-1">Business Type</h2>
+          <p className="text-sm text-gray-600 mb-6">Select your business niche to unlock the right features for your industry</p>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <button
+              type="button"
+              onClick={() => setNiche("barber")}
+              className={`p-4 rounded-xl border-2 text-left transition ${
+                niche === "barber"
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <div className="text-2xl mb-2">✂️</div>
+              <div className="font-semibold text-gray-900">Barber Shop</div>
+              <div className="text-xs text-gray-500 mt-1">Staff-based scheduling, haircuts, grooming services</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNiche("carwash")}
+              className={`p-4 rounded-xl border-2 text-left transition ${
+                niche === "carwash"
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <div className="text-2xl mb-2">🚗</div>
+              <div className="font-semibold text-gray-900">Car Wash / Mobile Detailer</div>
+              <div className="text-xs text-gray-500 mt-1">Vehicle-based pricing, add-ons, mobile or in-shop service</div>
+            </button>
+          </div>
+
+          {niche === "carwash" && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">Service Mode</label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: "in_shop", label: "In Shop", icon: "🏪", desc: "Customers come to you" },
+                  { value: "mobile", label: "Mobile", icon: "🚐", desc: "You go to the customer" },
+                  { value: "hybrid", label: "Hybrid", icon: "🔄", desc: "Both options available" },
+                ].map(({ value, label, icon, desc }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setServiceMode(value)}
+                    className={`p-3 rounded-lg border-2 text-center transition ${
+                      serviceMode === value
+                        ? "border-blue-600 bg-blue-50"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="text-xl mb-1">{icon}</div>
+                    <div className="text-sm font-semibold text-gray-900">{label}</div>
+                    <div className="text-xs text-gray-500">{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <p className={`text-sm font-medium ${
+              nicheMsg.startsWith("✅") ? "text-green-600" : "text-red-600"
+            }`}>{nicheMsg}</p>
+            <button
+              onClick={handleSaveNiche}
+              disabled={nicheSaving}
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 text-sm"
+            >
+              {nicheSaving ? "Saving…" : "Save Business Type"}
             </button>
           </div>
         </div>
