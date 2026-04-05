@@ -77,6 +77,12 @@ export default function MobileSettingsPage() {
   const [autoConfirm, setAutoConfirm] = useState(true);
   const [depositEnabled, setDepositEnabled] = useState(false);
 
+  // Niche / business type state
+  const [niche, setNiche] = useState("barber");
+  const [serviceMode, setServiceMode] = useState("in_shop");
+  const [nicheSaving, setNicheSaving] = useState(false);
+  const [nicheMsg, setNicheMsg] = useState("");
+
   useEffect(() => {
     loadSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,13 +99,16 @@ export default function MobileSettingsPage() {
 
     const { data: businessData } = await supabase
       .from("businesses")
-      .select("id, default_booking_status")
+      .select("id, default_booking_status, features")
       .eq("owner_user_id", user.id)
       .single();
 
     if (businessData) {
       setBusiness(businessData);
       setAutoConfirm(businessData.default_booking_status !== "requested");
+      const features = (businessData as typeof businessData & { features?: Record<string, string> }).features || {};
+      setNiche(features.niche || "barber");
+      setServiceMode(features.service_mode || "in_shop");
 
       const { data: settingsData } = await supabase
         .from("loyalty_settings")
@@ -165,6 +174,25 @@ export default function MobileSettingsPage() {
     } else {
       setSaveMessage("✅ Saved!");
       setTimeout(() => setSaveMessage(""), 3000);
+    }
+  };
+
+  const handleSaveNiche = async () => {
+    setNicheSaving(true);
+    setNicheMsg("");
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const res = await fetch("/api/admin/niche-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ niche, service_mode: serviceMode }),
+    });
+    setNicheSaving(false);
+    if (res.ok) {
+      setNicheMsg("✅ Saved! Reload to update navigation.");
+      setTimeout(() => setNicheMsg(""), 5000);
+    } else {
+      setNicheMsg("❌ Failed to save.");
     }
   };
 
@@ -337,6 +365,81 @@ export default function MobileSettingsPage() {
               Recommended: 10-25 points
             </p>
           </div>
+        </div>
+
+        {/* Business Type Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Business Type</h2>
+          <p className="text-sm text-gray-600 mb-4">Select your niche to unlock the right features</p>
+
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setNiche("barber")}
+              className={`p-3 rounded-xl border-2 text-left transition ${
+                niche === "barber"
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="text-xl mb-1">✂️</div>
+              <div className="text-sm font-semibold text-gray-900">Barber Shop</div>
+              <div className="text-xs text-gray-500 mt-0.5">Staff-based scheduling</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNiche("carwash")}
+              className={`p-3 rounded-xl border-2 text-left transition ${
+                niche === "carwash"
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="text-xl mb-1">🚗</div>
+              <div className="text-sm font-semibold text-gray-900">Car Wash</div>
+              <div className="text-xs text-gray-500 mt-0.5">Vehicle-based pricing</div>
+            </button>
+          </div>
+
+          {niche === "carwash" && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Service Mode</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "in_shop", label: "In Shop", icon: "🏪" },
+                  { value: "mobile", label: "Mobile", icon: "🚐" },
+                  { value: "hybrid", label: "Hybrid", icon: "🔄" },
+                ].map(({ value, label, icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setServiceMode(value)}
+                    className={`p-2 rounded-lg border-2 text-center transition ${
+                      serviceMode === value
+                        ? "border-blue-600 bg-blue-50"
+                        : "border-gray-200 bg-white"
+                    }`}
+                  >
+                    <div className="text-lg">{icon}</div>
+                    <div className="text-xs font-semibold text-gray-900">{label}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {nicheMsg && (
+            <p className={`text-xs font-medium mb-3 ${
+              nicheMsg.startsWith("✅") ? "text-green-600" : "text-red-600"
+            }`}>{nicheMsg}</p>
+          )}
+          <button
+            onClick={handleSaveNiche}
+            disabled={nicheSaving}
+            className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 text-sm"
+          >
+            {nicheSaving ? "Saving…" : "Save Business Type"}
+          </button>
         </div>
 
         {/* Info Box */}
