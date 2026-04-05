@@ -19,6 +19,7 @@ export default function ServicesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [niche, setNiche] = useState("barber");
 
   const supabase = createClient();
 
@@ -35,12 +36,14 @@ export default function ServicesPage() {
 
     const { data: business } = await supabase
       .from("businesses")
-      .select("id")
+      .select("id, features")
       .eq("owner_user_id", user.id)
       .single();
 
     if (business) {
       setBusinessId(business.id);
+      const features = (business as typeof business & { features?: Record<string, string> }).features || {};
+      setNiche(features.niche || "barber");
 
       const { data } = await supabase
         .from("services")
@@ -103,7 +106,7 @@ export default function ServicesPage() {
             </div>
           ) : services.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-              <div className="text-6xl mb-4">✂️</div>
+              <div className="text-6xl mb-4">{niche === "carwash" ? "🚗" : "✂️"}</div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
                 No services yet
               </h3>
