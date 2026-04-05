@@ -110,11 +110,29 @@ export default function MobileSettingsPage() {
       setNiche(features.niche || "barber");
       setServiceMode(features.service_mode || "in_shop");
 
-      const { data: settingsData } = await supabase
+      let { data: settingsData } = await supabase
         .from("loyalty_settings")
         .select("*")
         .eq("business_id", businessData.id)
-        .single();
+        .maybeSingle();
+
+      // Auto-create defaults for new businesses that have no loyalty_settings row yet
+      if (!settingsData) {
+        const defaults = {
+          business_id: businessData.id,
+          enabled: true,
+          points_per_event: 10,
+          earn_on_completion: true,
+          referral_enabled: true,
+          referrer_reward_points: 15,
+        };
+        const { data: created } = await supabase
+          .from("loyalty_settings")
+          .upsert(defaults, { onConflict: "business_id" })
+          .select()
+          .single();
+        settingsData = created;
+      }
 
       if (settingsData) {
         setSettings(settingsData);
@@ -145,13 +163,14 @@ export default function MobileSettingsPage() {
     // Save loyalty settings
     const { error: loyaltyError } = await supabase
       .from("loyalty_settings")
-      .update({
+      .upsert({
+        business_id: business.id,
         enabled: loyaltyEnabled,
         points_per_event: pointsPerAppointment,
+        earn_on_completion: true,
         referral_enabled: referralEnabled,
         referrer_reward_points: referrerRewardPoints,
-      })
-      .eq("business_id", settings.business_id);
+      }, { onConflict: "business_id" });
 
     // Save deposit settings
     await supabase
@@ -196,7 +215,7 @@ export default function MobileSettingsPage() {
     }
   };
 
-  if (loading || !settings) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
