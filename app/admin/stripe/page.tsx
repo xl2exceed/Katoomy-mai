@@ -117,28 +117,22 @@ export default function StripePage() {
     setConnecting(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stripe-connect-start`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            business_id: businessId,
-            refresh_url: `${window.location.origin}/connect/refresh?businessId=${businessId}`,
-            return_url: `${window.location.origin}/connect/return?businessId=${businessId}`,
-          }),
-        },
-      );
+      const response = await fetch("/api/stripe/connect/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        console.error("[stripe/connect/start] error:", data);
+        alert(data.error || "Failed to connect Stripe. Please try again.");
+        return;
+      }
 
       if (data.url) {
         window.location.href = data.url;
       } else {
-        console.error("Stripe connect start response missing url:", data);
         alert("Stripe setup failed (missing URL). Please try again.");
       }
     } catch (error) {
