@@ -19,9 +19,21 @@ interface Booking {
   total_price_cents: number;
   deposit_amount_cents: number | null;
   customer_notes: string | null;
+  vehicle_type: string | null;
+  vehicle_condition: string | null;
+  customer_address: string | null;
+  addon_ids: string[] | null;
   customers: { full_name: string | null; phone: string };
   services: { name: string } | null;
 }
+
+const VEHICLE_LABELS: Record<string, string> = {
+  sedan: "Sedan / Coupe",
+  suv: "SUV / Crossover",
+  truck: "Truck / Pickup",
+  van: "Van / Minivan",
+  other: "Other Vehicle",
+};
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: "bg-green-100 text-green-800",
@@ -43,6 +55,8 @@ export default function StaffSchedulePage() {
   const [businessSlug, setBusinessSlug] = useState("");
   const [businessId, setBusinessId] = useState("");
   const [authToken, setAuthToken] = useState("");
+  const [niche, setNiche] = useState("barber");
+  const [addonsMap, setAddonsMap] = useState<Record<string, string>>({});
   const [view, setView] = useState<"day" | "week">("day");
   const [selectedDate, setSelectedDate] = useState(() => {
     if (typeof window !== "undefined") {
@@ -135,6 +149,28 @@ export default function StaffSchedulePage() {
     setStaffId(s.id);
     setBusinessId(s.business_id);
     setAuthToken(session?.access_token || "");
+
+    // Fetch business niche and add-on names for carwash display
+    const { data: bizData } = await supabase
+      .from("businesses")
+      .select("features")
+      .eq("id", s.business_id)
+      .maybeSingle();
+    const features = (bizData as { features?: Record<string, string> } | null)?.features || {};
+    const detectedNiche = features.niche || "barber";
+    setNiche(detectedNiche);
+
+    if (detectedNiche === "carwash") {
+      const { data: addons } = await supabase
+        .from("service_addons")
+        .select("id, name")
+        .eq("business_id", s.business_id);
+      if (addons) {
+        const map: Record<string, string> = {};
+        (addons as { id: string; name: string }[]).forEach((a) => { map[a.id] = a.name; });
+        setAddonsMap(map);
+      }
+    }
   }
 
   async function loadBookings() {
@@ -147,7 +183,7 @@ export default function StaffSchedulePage() {
 
     const { data } = await supabase
       .from("bookings")
-      .select("id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customer_notes, customers(full_name, phone), services(name)")
+      .select("id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customer_notes, vehicle_type, vehicle_condition, customer_address, addon_ids, customers(full_name, phone), services(name)")
       .eq("staff_id", staffId)
       .gte("start_ts", start.toISOString())
       .lt("start_ts", end.toISOString())
@@ -378,6 +414,26 @@ export default function StaffSchedulePage() {
                 <p className="text-sm text-gray-600">{formatPhone(booking.customers.phone)}</p>
                 {booking.services?.name && (
                   <p className="text-sm text-gray-700 mt-0.5">{booking.services.name}</p>
+                )}
+                {niche === "carwash" && booking.vehicle_type && (
+                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
+                    <p className="text-xs font-semibold text-blue-700">
+                      🚗 {VEHICLE_LABELS[booking.vehicle_type] || booking.vehicle_type}
+                      {booking.vehicle_condition && (
+                        <span className="ml-2 font-normal text-blue-600">
+                          — {booking.vehicle_condition === "heavy" ? "Heavily Soiled" : "Lightly Soiled"}
+                        </span>
+                      )}
+                    </p>
+                    {booking.customer_address && (
+                      <p className="text-xs text-blue-700">📍 {booking.customer_address}</p>
+                    )}
+                    {booking.addon_ids && booking.addon_ids.length > 0 && (
+                      <p className="text-xs text-blue-700">
+                        ✅ {booking.addon_ids.map((id) => addonsMap[id] || "Add-on").join(", ")}
+                      </p>
+                    )}
+                  </div>
                 )}
                 {booking.customer_notes && (
                   <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">

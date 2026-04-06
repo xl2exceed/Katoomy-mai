@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
   const { data: business } = await supabaseAdmin
     .from("businesses")
-    .select("id, slug")
+    .select("id, slug, features")
     .eq("owner_user_id", user.id)
     .single();
 
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { data: bookings, error } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customer_notes, customers(full_name, phone), staff(full_name), services(name)")
+    .select("id, customer_id, business_id, start_ts, status, payment_status, total_price_cents, deposit_amount_cents, customer_notes, vehicle_type, vehicle_condition, customer_address, addon_ids, customers(full_name, phone), staff(full_name), services(name)")
     .eq("business_id", business.id)
     .gte("start_ts", startDate)
     .lt("start_ts", endDate)
@@ -33,5 +33,20 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ bookings: bookings || [], slug: business.slug, businessId: business.id });
+  const features = (business as typeof business & { features?: Record<string, string> }).features || {};
+  const niche = features.niche || "barber";
+
+  // For carwash businesses, also return add-on names for display
+  let addonsMap: Record<string, string> = {};
+  if (niche === "carwash") {
+    const { data: addons } = await supabaseAdmin
+      .from("service_addons")
+      .select("id, name")
+      .eq("business_id", business.id);
+    if (addons) {
+      (addons as { id: string; name: string }[]).forEach((a) => { addonsMap[a.id] = a.name; });
+    }
+  }
+
+  return NextResponse.json({ bookings: bookings || [], slug: business.slug, businessId: business.id, niche, addonsMap });
 }

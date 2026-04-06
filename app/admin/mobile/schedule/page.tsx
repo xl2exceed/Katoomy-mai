@@ -18,6 +18,10 @@ interface Booking {
   total_price_cents: number;
   deposit_amount_cents: number | null;
   customer_notes: string | null;
+  vehicle_type: string | null;
+  vehicle_condition: string | null;
+  customer_address: string | null;
+  addon_ids: string[] | null;
   customers: {
     full_name: string | null;
     phone: string;
@@ -26,8 +30,18 @@ interface Booking {
   services: { name: string } | null;
 }
 
+const VEHICLE_LABELS: Record<string, string> = {
+  sedan: "Sedan / Coupe",
+  suv: "SUV / Crossover",
+  truck: "Truck / Pickup",
+  van: "Van / Minivan",
+  other: "Other Vehicle",
+};
+
 export default function MobileSchedulePage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [niche, setNiche] = useState("barber");
+  const [addonsMap, setAddonsMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"day" | "week">("day");
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -124,6 +138,8 @@ export default function MobileSchedulePage() {
       setBookings(data.bookings || []);
       setBusinessSlug(data.slug || "");
       setBusinessId(data.businessId || "");
+      if (data.niche) setNiche(data.niche);
+      if (data.addonsMap) setAddonsMap(data.addonsMap);
     }
     setLoading(false);
   };
@@ -430,6 +446,26 @@ export default function MobileSchedulePage() {
                   <p className="text-sm text-gray-500 mt-0.5">
                     With: {booking.staff?.full_name || "No Preference"}
                   </p>
+                  {niche === "carwash" && booking.vehicle_type && (
+                    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
+                      <p className="text-xs font-semibold text-blue-700">
+                        🚗 {VEHICLE_LABELS[booking.vehicle_type] || booking.vehicle_type}
+                        {booking.vehicle_condition && (
+                          <span className="ml-2 font-normal text-blue-600">
+                            — {booking.vehicle_condition === "heavy" ? "Heavily Soiled" : "Lightly Soiled"}
+                          </span>
+                        )}
+                      </p>
+                      {booking.customer_address && (
+                        <p className="text-xs text-blue-700">📍 {booking.customer_address}</p>
+                      )}
+                      {booking.addon_ids && booking.addon_ids.length > 0 && (
+                        <p className="text-xs text-blue-700">
+                          ✅ {booking.addon_ids.map((id) => addonsMap[id] || "Add-on").join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {booking.customer_notes && (
                     <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
                       <p className="text-xs font-semibold text-yellow-700 mb-0.5">Customer Note</p>

@@ -10,7 +10,18 @@ interface Service {
   name: string;
   price_cents: number;
   duration_minutes: number;
+  pricing_type?: "flat" | "vehicle_based";
+  vehicle_pricing?: Record<string, { light?: number; heavy?: number }> | null;
+  active: boolean;
 }
+
+const VEHICLE_TYPES = [
+  { value: "sedan", label: "Sedan" },
+  { value: "suv", label: "SUV" },
+  { value: "truck", label: "Truck" },
+  { value: "van", label: "Van" },
+  { value: "other", label: "Other" },
+] as const;
 
 export default function AdminMobileServicesPage() {
   const router = useRouter();
@@ -18,6 +29,7 @@ export default function AdminMobileServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [niche, setNiche] = useState("barber");
 
   useEffect(() => {
     (async () => {
@@ -26,17 +38,23 @@ export default function AdminMobileServicesPage() {
 
       const { data: business } = await supabase
         .from("businesses")
-        .select("id")
+        .select("id, features")
         .eq("owner_user_id", user.id)
         .single();
 
       if (!business?.id) { router.push("/admin/mobile/login"); return; }
 
-      const res = await fetch(`/api/businesses/${business.id}/services`);
-      if (res.ok) {
-        const data = await res.json();
-        setServices(data.services || []);
-      }
+      const features = (business as typeof business & { features?: Record<string, string> }).features || {};
+      setNiche(features.niche || "barber");
+
+      const { data: servicesData } = await supabase
+        .from("services")
+        .select("id, name, price_cents, duration_minutes, pricing_type, vehicle_pricing, active")
+        .eq("business_id", business.id)
+        .eq("active", true)
+        .order("name");
+
+      setServices((servicesData as Service[]) || []);
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,7 +77,9 @@ export default function AdminMobileServicesPage() {
       <Link href="/admin/mobile/menu" className="text-blue-600 font-medium mb-4 block">
         ← Back to Menu
       </Link>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Services & Prices</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">
+        {niche === "carwash" ? "🚗 Services & Pricing" : "✂️ Services & Prices"}
+      </h1>
       <p className="text-sm text-gray-500 mb-5">View-only reference — edit services from the desktop.</p>
 
       <input
@@ -75,16 +95,52 @@ export default function AdminMobileServicesPage() {
           {services.length === 0 ? "No services found." : "No services match your search."}
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filtered.map((service) => (
-            <div key={service.id} className="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4 flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-gray-900 text-base">{service.name}</p>
-                <p className="text-sm text-gray-500 mt-0.5">{service.duration_minutes} min</p>
+            <div key={service.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-900 text-base">{service.name}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{service.duration_minutes} min</p>
+                </div>
+                {service.pricing_type === "vehicle_based" ? (
+                  <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                    By vehicle
+                  </span>
+                ) : (
+                  <span className="text-xl font-bold text-blue-700">
+                    ${(service.price_cents / 100).toFixed(2)}
+                  </span>
+                )}
               </div>
-              <span className="text-xl font-bold text-blue-700">
-                ${(service.price_cents / 100).toFixed(2)}
-              </span>
+
+              {/* Vehicle pricing grid for carwash */}
+              {niche === "carwash" && service.pricing_type === "vehicle_based" && service.vehicle_pricing && (
+                <div className="border-t border-gray-100 px-5 pb-4">
+                  <div className="grid grid-cols-3 gap-1 mt-3">
+                    <div className="text-xs font-semibold text-gray-500 py-1">Vehicle</div>
+                    <div className="text-xs font-semibold text-center text-gray-500 py-1">Light</div>
+                    <div className="text-xs font-semibold text-center text-gray-500 py-1">Heavy</div>
+                    {VEHICLE_TYPES.map((v) => {
+                      const vp = service.vehicle_pricing?.[v.value];
+                      if (!vp) return null;
+                      return (
+                        <>
+                          <div key={v.value + "-label"} className="text-sm text-gray-700 py-1.5 border-t border-gray-50">
+                            {v.label}
+                          </div>
+                          <div key={v.value + "-light"} className="text-sm font-semibold text-center text-gray-900 py-1.5 border-t border-gray-50">
+                            {vp.light != null ? `$${(vp.light / 100).toFixed(0)}` : "—"}
+                          </div>
+                          <div key={v.value + "-heavy"} className="text-sm font-semibold text-center text-gray-900 py-1.5 border-t border-gray-50">
+                            {vp.heavy != null ? `$${(vp.heavy / 100).toFixed(0)}` : "—"}
+                          </div>
+                        </>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
