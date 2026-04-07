@@ -58,6 +58,7 @@ export default function CustomerInfoPage() {
   const [vehicleType, setVehicleType] = useState("");
   const [vehicleCondition, setVehicleCondition] = useState("");
   const [addonIds, setAddonIds] = useState<string[]>([]);
+  const [addonTotalCents, setAddonTotalCents] = useState(0);
   const [customerAddress, setCustomerAddress] = useState("");
   const [travelFeeCents, setTravelFeeCents] = useState(0);
   const [vehicleBasedPriceCents, setVehicleBasedPriceCents] = useState<number | null>(null);
@@ -102,12 +103,14 @@ export default function CustomerInfoPage() {
     const vCondition = sessionStorage.getItem("selectedVehicleCondition") || "";
     const addonIdsRaw = sessionStorage.getItem("selectedAddonIds");
     const parsedAddonIds: string[] = addonIdsRaw ? JSON.parse(addonIdsRaw) : [];
+    const savedAddonTotal = parseInt(sessionStorage.getItem("addonTotalCents") || "0", 10);
     const savedAddress = sessionStorage.getItem("customerAddress") || "";
     const savedTravelFee = parseInt(sessionStorage.getItem("travelFeeCents") || "0", 10);
     const savedVehiclePrice = sessionStorage.getItem("vehicleBasedPriceCents");
     setVehicleType(vType);
     setVehicleCondition(vCondition);
     setAddonIds(parsedAddonIds);
+    setAddonTotalCents(savedAddonTotal);
     setCustomerAddress(savedAddress);
     setTravelFeeCents(savedTravelFee);
     if (savedVehiclePrice) setVehicleBasedPriceCents(parseInt(savedVehiclePrice, 10));
@@ -216,7 +219,7 @@ export default function CustomerInfoPage() {
     const discounted = memberDiscountPct > 0
       ? Math.round(base * (1 - memberDiscountPct / 100))
       : base;
-    return discounted + travelFeeCents;
+    return discounted + addonTotalCents + travelFeeCents;
   };
 
   const formatDate = (dateString: string) => {
@@ -400,7 +403,7 @@ export default function CustomerInfoPage() {
 
   const displayTotal = effectiveTotalCents();
   const displayDiscounted = memberDiscountPct > 0
-    ? Math.round(effectiveServicePriceCents() * (1 - memberDiscountPct / 100)) + travelFeeCents
+    ? Math.round(effectiveServicePriceCents() * (1 - memberDiscountPct / 100)) + addonTotalCents + travelFeeCents
     : null;
 
   return (

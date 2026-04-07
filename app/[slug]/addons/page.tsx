@@ -97,6 +97,7 @@ export default function AddonsPage() {
 
   const handleContinue = () => {
     sessionStorage.setItem("selectedAddonIds", JSON.stringify([...selectedAddonIds]));
+    sessionStorage.setItem("addonTotalCents", String(addonTotal));
     router.push(`/${slug}/book`);
   };
 

@@ -49,6 +49,8 @@ export default function BookPage() {
   const [memberDiscountPercent, setMemberDiscountPercent] = useState<number | null>(null);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string>("any");
+  const [vehicleBasedPriceCents, setVehicleBasedPriceCents] = useState<number | null>(null);
+  const [addonTotalCents, setAddonTotalCents] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -71,6 +73,12 @@ export default function BookPage() {
       router.push(`/${slug}/services`);
       return;
     }
+
+    // Carwash pricing overrides
+    const savedVehiclePrice = sessionStorage.getItem("vehicleBasedPriceCents");
+    if (savedVehiclePrice) setVehicleBasedPriceCents(parseInt(savedVehiclePrice, 10));
+    const savedAddonTotal = parseInt(sessionStorage.getItem("addonTotalCents") || "0", 10);
+    setAddonTotalCents(savedAddonTotal);
 
     // Get business
     const { data: businessData } = await supabase
@@ -374,21 +382,21 @@ export default function BookPage() {
           </p>
           <p className="text-xl font-bold text-white mt-2">{service?.name}</p>
           <div className="mt-3 pt-3 border-t border-green-500">
-            {memberDiscountPercent && service ? (
-              <>
-                <p className="text-lg text-green-200 line-through">
-                  ${(service.price_cents / 100).toFixed(2)}
-                </p>
-                <p className="text-3xl font-bold text-white">
-                  ${(Math.round(service.price_cents * (1 - memberDiscountPercent / 100)) / 100).toFixed(2)}
-                </p>
-                <p className="text-xs text-green-200 mt-1">⭐ Elite Member price ({memberDiscountPercent}% off)</p>
-              </>
-            ) : (
-              <p className="text-3xl font-bold text-white">
-                ${service ? (service.price_cents / 100).toFixed(2) : "0.00"}
-              </p>
-            )}
+            {(() => {
+              const basePrice = vehicleBasedPriceCents ?? (service?.price_cents ?? 0);
+              const total = basePrice + addonTotalCents;
+              if (memberDiscountPercent && service) {
+                const discounted = Math.round(basePrice * (1 - memberDiscountPercent / 100)) + addonTotalCents;
+                return (
+                  <>
+                    <p className="text-lg text-green-200 line-through">${(total / 100).toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-white">${(discounted / 100).toFixed(2)}</p>
+                    <p className="text-xs text-green-200 mt-1">⭐ Elite Member price ({memberDiscountPercent}% off)</p>
+                  </>
+                );
+              }
+              return <p className="text-3xl font-bold text-white">${(total / 100).toFixed(2)}</p>;
+            })()}
           </div>
         </div>
       </div>
