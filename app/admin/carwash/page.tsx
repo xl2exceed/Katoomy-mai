@@ -14,6 +14,7 @@ interface CarwashSettings {
   travel_fee_flat_cents: number;
   travel_fee_per_mile_cents: number;
   bay_labels: string[];
+  vehicle_surcharges: Record<string, number>;
 }
 
 interface Addon {
@@ -26,6 +27,16 @@ interface Addon {
   sort_order: number;
 }
 
+const VEHICLE_TYPES = [
+  { value: "sedan", label: "Sedan / Coupe", icon: "🚗" },
+  { value: "suv",   label: "SUV / Crossover", icon: "🚙" },
+  { value: "truck", label: "Truck / Pickup",  icon: "🛻" },
+  { value: "van",   label: "Van / Minivan",   icon: "🚐" },
+  { value: "other", label: "Other",           icon: "🚘" },
+];
+
+const DEFAULT_SURCHARGES = { sedan: 0, suv: 0, truck: 0, van: 0, other: 0 };
+
 const DEFAULT_SETTINGS: CarwashSettings = {
   service_mode: "in_shop",
   max_concurrent_jobs: 1,
@@ -35,6 +46,7 @@ const DEFAULT_SETTINGS: CarwashSettings = {
   travel_fee_flat_cents: 0,
   travel_fee_per_mile_cents: 0,
   bay_labels: [],
+  vehicle_surcharges: DEFAULT_SURCHARGES,
 };
 
 export default function CarwashSettingsPage() {
@@ -44,7 +56,7 @@ export default function CarwashSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"mode" | "addons" | "bays">("mode");
+  const [activeTab, setActiveTab] = useState<"mode" | "pricing" | "addons" | "bays">("mode");
 
   // Add-on modal state
   const [addonModal, setAddonModal] = useState<{ open: boolean; editing: Addon | null }>({ open: false, editing: null });
@@ -182,7 +194,7 @@ export default function CarwashSettingsPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-gray-200">
-          {(["mode", "addons", "bays"] as const).map((tab) => (
+          {(["mode", "pricing", "addons", "bays"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -192,7 +204,7 @@ export default function CarwashSettingsPage() {
                   : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
             >
-              {tab === "mode" ? "Service Mode" : tab === "addons" ? "Add-ons" : "Bay Management"}
+              {tab === "mode" ? "Service Mode" : tab === "pricing" ? "Vehicle Pricing" : tab === "addons" ? "Add-ons" : "Bay Management"}
             </button>
           ))}
         </div>
@@ -322,6 +334,63 @@ export default function CarwashSettingsPage() {
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
               >
                 {saving ? "Saving..." : "Save Settings"}
+              </button>
+              {saveMsg && <p className={`text-sm font-medium ${saveMsg.includes("Error") ? "text-red-600" : "text-green-600"}`}>{saveMsg}</p>}
+            </div>
+          </div>
+        )}
+
+        {/* ── Vehicle Pricing Tab ── */}
+        {activeTab === "pricing" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900 mb-1">Vehicle Size Surcharges</h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Set the extra amount to add on top of the service base price for each vehicle size.
+                  Sedans are typically the base — leave them at $0 and charge more for larger vehicles.
+                </p>
+                <div className="space-y-3">
+                  {VEHICLE_TYPES.map((v) => {
+                    const surcharge = settings.vehicle_surcharges?.[v.value] ?? 0;
+                    return (
+                      <div key={v.value} className="flex items-center gap-4">
+                        <span className="text-2xl w-8">{v.icon}</span>
+                        <span className="flex-1 text-sm font-medium text-gray-800">{v.label}</span>
+                        <div className="relative w-36">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">+$</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={(surcharge / 100).toFixed(2)}
+                            onChange={(e) => {
+                              const cents = Math.round(parseFloat(e.target.value || "0") * 100);
+                              setSettings((s) => ({
+                                ...s,
+                                vehicle_surcharges: { ...DEFAULT_SURCHARGES, ...(s.vehicle_surcharges ?? {}), [v.value]: cents },
+                              }));
+                            }}
+                            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-4">
+                  Example: base price $30, SUV surcharge +$10 → customer with SUV sees $40.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={saveSettings}
+                disabled={saving}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
+              >
+                {saving ? "Saving..." : "Save Pricing"}
               </button>
               {saveMsg && <p className={`text-sm font-medium ${saveMsg.includes("Error") ? "text-red-600" : "text-green-600"}`}>{saveMsg}</p>}
             </div>

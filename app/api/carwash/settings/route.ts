@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     travel_fee_flat_cents = 0,
     travel_fee_per_mile_cents = 0,
     bay_labels = [],
+    vehicle_surcharges = { sedan: 0, suv: 0, truck: 0, van: 0, other: 0 },
   } = body;
 
   // Upsert carwash_settings
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
         travel_fee_flat_cents,
         travel_fee_per_mile_cents,
         bay_labels,
+        vehicle_surcharges,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "business_id" }

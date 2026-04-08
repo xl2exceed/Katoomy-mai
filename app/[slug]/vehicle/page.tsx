@@ -57,6 +57,7 @@ export default function VehiclePage() {
   const [selectedCondition, setSelectedCondition] = useState<string>("light");
   const [loading, setLoading] = useState(true);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
+  const [surcharges, setSurcharges] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadData();
@@ -64,7 +65,8 @@ export default function VehiclePage() {
   }, [slug]);
 
   useEffect(() => {
-    if (service?.pricing_type === "vehicle_based" && selectedVehicle && service.vehicle_pricing) {
+    if (!service) return;
+    if (service.pricing_type === "vehicle_based" && selectedVehicle && service.vehicle_pricing) {
       const vp = service.vehicle_pricing;
       const typeData = vp[selectedVehicle];
       if (typeData) {
@@ -73,10 +75,12 @@ export default function VehiclePage() {
       } else {
         setCalculatedPrice(service.price_cents);
       }
-    } else if (service) {
-      setCalculatedPrice(service.price_cents);
+    } else {
+      // flat pricing — apply per-vehicle surcharge if set
+      const surcharge = selectedVehicle ? (surcharges[selectedVehicle] ?? 0) : 0;
+      setCalculatedPrice(service.price_cents + surcharge);
     }
-  }, [selectedVehicle, selectedCondition, service]);
+  }, [selectedVehicle, selectedCondition, service, surcharges]);
 
   const loadData = async () => {
     const supabase = createClient();
@@ -94,6 +98,15 @@ export default function VehiclePage() {
 
     if (!businessData) { router.push(`/${slug}/services`); return; }
     setBusiness(businessData);
+
+    // Fetch carwash surcharges
+    try {
+      const res = await fetch(`/api/carwash/settings?businessId=${businessData.id}`);
+      if (res.ok) {
+        const cs = await res.json();
+        if (cs?.vehicle_surcharges) setSurcharges(cs.vehicle_surcharges);
+      }
+    } catch { /* ignore */ }
 
     const { data: serviceData } = await supabase
       .from("services")
@@ -116,6 +129,10 @@ export default function VehiclePage() {
     if (!selectedVehicle) return;
     sessionStorage.setItem("selectedVehicleType", selectedVehicle);
     sessionStorage.setItem("selectedVehicleCondition", selectedCondition);
+    // Save final price (base + surcharge) so customer-info uses the correct amount
+    if (calculatedPrice !== null) {
+      sessionStorage.setItem("vehicleBasedPriceCents", String(calculatedPrice));
+    }
 
     // Check if this business has add-ons enabled
     if (business) {
@@ -168,7 +185,7 @@ export default function VehiclePage() {
             {calculatedPrice !== null && (
               <p className="text-lg font-bold mt-1" style={{ color }}>
                 ${(calculatedPrice / 100).toFixed(2)}
-                {service.pricing_type === "vehicle_based" && selectedVehicle && (
+                {selectedVehicle && (service.pricing_type === "vehicle_based" || (surcharges[selectedVehicle] ?? 0) > 0) && (
                   <span className="text-sm font-normal text-gray-500 ml-2">
                     (based on your vehicle)
                   </span>
@@ -184,7 +201,7 @@ export default function VehiclePage() {
           <div className="space-y-3">
             {VEHICLE_TYPES.map((v) => {
               const isSelected = selectedVehicle === v.value;
-              // Show price for this vehicle type if vehicle_based
+              // Show price for this vehicle type
               let priceLabel = "";
               if (service?.pricing_type === "vehicle_based" && service.vehicle_pricing) {
                 const typeData = service.vehicle_pricing[v.value];
@@ -192,6 +209,10 @@ export default function VehiclePage() {
                   const price = typeData[selectedCondition as "light" | "heavy"] ?? typeData["light"];
                   if (typeof price === "number") priceLabel = `$${(price / 100).toFixed(2)}`;
                 }
+              } else if (service) {
+                const surcharge = surcharges[v.value] ?? 0;
+                const total = service.price_cents + surcharge;
+                priceLabel = `$${(total / 100).toFixed(2)}`;
               }
               return (
                 <button
