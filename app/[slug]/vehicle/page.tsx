@@ -1,7 +1,8 @@
 "use client";
 // file: app/[slug]/vehicle/page.tsx
-// Step in the car wash booking flow: customer selects vehicle type + condition
-// After this page → /[slug]/addons (if addons enabled) → /[slug]/book (date/time)
+// FIRST step in the car wash booking flow: customer picks vehicle type + condition
+// No pricing shown here — prices are shown on the services page with surcharge baked in
+// After this page → /[slug]/services
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -11,16 +12,6 @@ interface Business {
   id: string;
   name: string;
   primary_color: string;
-  features: Record<string, unknown>;
-}
-
-interface Service {
-  id: string;
-  name: string;
-  price_cents: number;
-  duration_minutes: number;
-  pricing_type: "flat" | "vehicle_based";
-  vehicle_pricing: Record<string, { light?: number; heavy?: number }> | null;
 }
 
 const VEHICLE_TYPES = [
@@ -52,104 +43,45 @@ export default function VehiclePage() {
   const slug = params.slug as string;
 
   const [business, setBusiness] = useState<Business | null>(null);
-  const [service, setService] = useState<Service | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<string>("");
   const [selectedCondition, setSelectedCondition] = useState<string>("light");
   const [loading, setLoading] = useState(true);
-  const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
-  const [surcharges, setSurcharges] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    const loadData = async () => {
+      const supabase = createClient();
+
+      const { data: businessData } = await supabase
+        .from("businesses")
+        .select("id, name, primary_color")
+        .eq("slug", slug)
+        .single();
+
+      if (!businessData) { router.push(`/${slug}`); return; }
+      setBusiness(businessData);
+
+      // Restore previously selected vehicle if user navigated back
+      const savedVehicle = sessionStorage.getItem("selectedVehicleType") || "";
+      const savedCondition = sessionStorage.getItem("selectedVehicleCondition") || "light";
+      setSelectedVehicle(savedVehicle);
+      setSelectedCondition(savedCondition);
+
+      setLoading(false);
+    };
+
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  useEffect(() => {
-    if (!service) return;
-    if (service.pricing_type === "vehicle_based" && selectedVehicle && service.vehicle_pricing) {
-      const vp = service.vehicle_pricing;
-      const typeData = vp[selectedVehicle];
-      if (typeData) {
-        const price = typeData[selectedCondition as "light" | "heavy"] ?? typeData["light"] ?? service.price_cents;
-        setCalculatedPrice(price);
-      } else {
-        setCalculatedPrice(service.price_cents);
-      }
-    } else {
-      // flat pricing — apply per-vehicle surcharge if set
-      const surcharge = selectedVehicle ? (surcharges[selectedVehicle] ?? 0) : 0;
-      setCalculatedPrice(service.price_cents + surcharge);
-    }
-  }, [selectedVehicle, selectedCondition, service, surcharges]);
-
-  const loadData = async () => {
-    const supabase = createClient();
-    const serviceId = sessionStorage.getItem("selectedServiceId");
-    if (!serviceId) {
-      router.push(`/${slug}/services`);
-      return;
-    }
-
-    const { data: businessData } = await supabase
-      .from("businesses")
-      .select("id, name, primary_color, features")
-      .eq("slug", slug)
-      .single();
-
-    if (!businessData) { router.push(`/${slug}/services`); return; }
-    setBusiness(businessData);
-
-    // Fetch carwash surcharges
-    try {
-      const res = await fetch(`/api/carwash/settings?businessId=${businessData.id}`);
-      if (res.ok) {
-        const cs = await res.json();
-        if (cs?.vehicle_surcharges) setSurcharges(cs.vehicle_surcharges);
-      }
-    } catch { /* ignore */ }
-
-    const { data: serviceData } = await supabase
-      .from("services")
-      .select("id, name, price_cents, duration_minutes, pricing_type, vehicle_pricing")
-      .eq("id", serviceId)
-      .single();
-
-    if (serviceData) setService(serviceData as Service);
-
-    // Restore previously selected vehicle if user navigated back
-    const savedVehicle = sessionStorage.getItem("selectedVehicleType") || "";
-    const savedCondition = sessionStorage.getItem("selectedVehicleCondition") || "light";
-    setSelectedVehicle(savedVehicle);
-    setSelectedCondition(savedCondition);
-
-    setLoading(false);
-  };
-
-  const handleContinue = async () => {
+  const handleContinue = () => {
     if (!selectedVehicle) return;
     sessionStorage.setItem("selectedVehicleType", selectedVehicle);
     sessionStorage.setItem("selectedVehicleCondition", selectedCondition);
-    // Save final price (base + surcharge) so customer-info uses the correct amount
-    if (calculatedPrice !== null) {
-      sessionStorage.setItem("vehicleBasedPriceCents", String(calculatedPrice));
-    }
-
-    // Check if this business has add-ons enabled
-    if (business) {
-      const supabase = createClient();
-      const { data: addons } = await supabase
-        .from("service_addons")
-        .select("id")
-        .eq("business_id", business.id)
-        .eq("active", true)
-        .limit(1);
-
-      if (addons && addons.length > 0) {
-        router.push(`/${slug}/addons`);
-      } else {
-        router.push(`/${slug}/book`);
-      }
-    }
+    // Clear any stale service/addon selections from a previous booking
+    sessionStorage.removeItem("selectedServiceId");
+    sessionStorage.removeItem("selectedAddonIds");
+    sessionStorage.removeItem("vehicleBasedPriceCents");
+    router.push(`/${slug}/services`);
   };
 
   const color = business?.primary_color || "#3B82F6";
@@ -169,7 +101,7 @@ export default function VehiclePage() {
         className="p-6 text-white"
         style={{ background: `linear-gradient(135deg, ${color} 0%, ${color}DD 100%)` }}
       >
-        <Link href={`/${slug}/services`} className="text-white/80 hover:text-white text-sm mb-2 block">
+        <Link href={`/${slug}`} className="text-white/80 hover:text-white text-sm mb-2 block">
           ← Back
         </Link>
         <h1 className="text-2xl font-bold">{business?.name}</h1>
@@ -177,43 +109,12 @@ export default function VehiclePage() {
       </div>
 
       <div className="p-6 space-y-6 max-w-lg mx-auto">
-        {/* Service summary */}
-        {service && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <p className="text-sm text-gray-500">Selected service</p>
-            <p className="font-semibold text-gray-900">{service.name}</p>
-            {calculatedPrice !== null && (
-              <p className="text-lg font-bold mt-1" style={{ color }}>
-                ${(calculatedPrice / 100).toFixed(2)}
-                {selectedVehicle && (service.pricing_type === "vehicle_based" || (surcharges[selectedVehicle] ?? 0) > 0) && (
-                  <span className="text-sm font-normal text-gray-500 ml-2">
-                    (based on your vehicle)
-                  </span>
-                )}
-              </p>
-            )}
-          </div>
-        )}
-
         {/* Vehicle type selection */}
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-3">Vehicle Type</h2>
           <div className="space-y-3">
             {VEHICLE_TYPES.map((v) => {
               const isSelected = selectedVehicle === v.value;
-              // Show price for this vehicle type
-              let priceLabel = "";
-              if (service?.pricing_type === "vehicle_based" && service.vehicle_pricing) {
-                const typeData = service.vehicle_pricing[v.value];
-                if (typeData) {
-                  const price = typeData[selectedCondition as "light" | "heavy"] ?? typeData["light"];
-                  if (typeof price === "number") priceLabel = `$${(price / 100).toFixed(2)}`;
-                }
-              } else if (service) {
-                const surcharge = surcharges[v.value] ?? 0;
-                const total = service.price_cents + surcharge;
-                priceLabel = `$${(total / 100).toFixed(2)}`;
-              }
               return (
                 <button
                   key={v.value}
@@ -230,9 +131,6 @@ export default function VehiclePage() {
                     <p className="font-semibold text-gray-900">{v.label}</p>
                     <p className="text-sm text-gray-500">{v.desc}</p>
                   </div>
-                  {priceLabel && (
-                    <span className="font-bold text-gray-900">{priceLabel}</span>
-                  )}
                   {isSelected && (
                     <span className="text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold" style={{ backgroundColor: color }}>
                       ✓
@@ -277,7 +175,7 @@ export default function VehiclePage() {
           className="w-full py-4 rounded-xl font-semibold text-white text-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ backgroundColor: selectedVehicle ? color : undefined }}
         >
-          Continue →
+          Select a Service →
         </button>
       </div>
     </div>
