@@ -64,6 +64,8 @@ export default function CustomerInfoPage() {
   const [vehicleBasedPriceCents, setVehicleBasedPriceCents] = useState<number | null>(null);
   const [isCarwash, setIsCarwash] = useState(false);
   const [isMobileService, setIsMobileService] = useState(false);
+  const [isHybrid, setIsHybrid] = useState(false);
+  const [serviceLocation, setServiceLocation] = useState<"shop" | "mobile" | "">("");
 
   // Form fields
   const [name, setName] = useState("");
@@ -146,8 +148,10 @@ export default function CustomerInfoPage() {
           .select("service_mode")
           .eq("business_id", businessData.id)
           .maybeSingle();
-        if (cwSettings?.service_mode === "mobile" || cwSettings?.service_mode === "hybrid") {
+        if (cwSettings?.service_mode === "mobile") {
           setIsMobileService(true);
+        } else if (cwSettings?.service_mode === "hybrid") {
+          setIsHybrid(true);
         }
       }
 
@@ -260,12 +264,13 @@ export default function CustomerInfoPage() {
   };
 
   // Build the shared extra fields for car wash bookings
+  const isInShop = isHybrid && serviceLocation === "shop";
   const carwashPayload = isCarwash ? {
     vehicleType: vehicleType || undefined,
     vehicleCondition: vehicleCondition || undefined,
     addonIds: addonIds.length > 0 ? addonIds : undefined,
-    customerAddress: customerAddress || undefined,
-    travelFeeCents: travelFeeCents > 0 ? travelFeeCents : undefined,
+    customerAddress: isInShop ? undefined : (customerAddress || undefined),
+    travelFeeCents: isInShop ? undefined : (travelFeeCents > 0 ? travelFeeCents : undefined),
   } : {};
 
   const handlePayWithStripe = async (type: "full" | "deposit") => {
@@ -376,9 +381,19 @@ export default function CustomerInfoPage() {
       return;
     }
     if (!business || !service) return;
-    if (isMobileService && !customerAddress.trim()) {
+    if (isHybrid && !serviceLocation) {
+      alert("Please select whether you want in-shop or mobile service");
+      return;
+    }
+    const needsAddress = isMobileService || (isHybrid && serviceLocation === "mobile");
+    if (needsAddress && !customerAddress.trim()) {
       alert("Please enter your address for the mobile service");
       return;
+    }
+    // For hybrid in-shop, clear address and travel fee
+    if (isHybrid && serviceLocation === "shop") {
+      setCustomerAddress("");
+      setTravelFeeCents(0);
     }
 
     if (paymentChoice === "cash") {
@@ -437,7 +452,7 @@ export default function CustomerInfoPage() {
               🚗 {vehicleType}{vehicleCondition ? ` · ${vehicleCondition}` : ""}
             </p>
           )}
-          {customerAddress && (
+          {customerAddress && !isInShop && (
             <p className="text-green-100 text-sm mt-1">📍 {customerAddress}</p>
           )}
           <div className="mt-3 pt-3 border-t border-green-500 space-y-1">
@@ -514,8 +529,41 @@ export default function CustomerInfoPage() {
             />
           </div>
 
+          {/* Hybrid: ask in-shop vs mobile first */}
+          {isHybrid && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Where would you like to be served? *
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setServiceLocation("shop")}
+                  className={`p-4 rounded-xl border-2 text-center transition ${
+                    serviceLocation === "shop" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🏪</div>
+                  <p className="font-semibold text-gray-900 text-sm">In-Shop</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Come to us</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setServiceLocation("mobile")}
+                  className={`p-4 rounded-xl border-2 text-center transition ${
+                    serviceLocation === "mobile" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🚗</div>
+                  <p className="font-semibold text-gray-900 text-sm">Mobile</p>
+                  <p className="text-xs text-gray-500 mt-0.5">We come to you</p>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Address field for mobile car wash */}
-          {isMobileService && (
+          {(isMobileService || (isHybrid && serviceLocation === "mobile")) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Service Address * <span className="text-gray-500 font-normal">(where should we come?)</span>
