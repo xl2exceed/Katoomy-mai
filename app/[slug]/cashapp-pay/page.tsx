@@ -69,7 +69,7 @@ export default function ExternalPayPage() {
 
   const handleCashAppTap = () => {
     setSelectedMethod("cash_app");
-    if (cashAppLink) window.open(cashAppLink, "_blank");
+    if (cashAppLink) window.location.href = cashAppLink;
   };
 
   const handleZelleTap = () => {
