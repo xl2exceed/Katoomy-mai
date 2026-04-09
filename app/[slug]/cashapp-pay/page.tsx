@@ -76,7 +76,6 @@ export default function ExternalPayPage() {
 
   const handleCashAppTap = () => {
     setSelectedMethod("cash_app");
-    // Save so "I've Paid" still works after returning from Cash App
     sessionStorage.setItem("cashapp-pay:method", "cash_app");
   };
 
@@ -158,11 +157,11 @@ export default function ExternalPayPage() {
         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Step 1 — Send payment</p>
         <div className="space-y-2 mb-5">
 
-          {/* Cash App */}
+          {/* Cash App — native <a> tag opens Cash App with amount pre-filled on first tap */}
           {settings?.cashappEnabled && cashAppLink && (
             <div>
-              {/* Step 1: Select Cash App */}
-              <button
+              <a
+                href={cashAppLink}
                 onClick={handleCashAppTap}
                 className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition active:scale-95 ${
                   selectedMethod === "cash_app"
@@ -180,28 +179,9 @@ export default function ExternalPayPage() {
                   <p className="text-xs text-gray-500">Send ${totalDollars} to ${cashtag.replace(/^\$/, "")}</p>
                 </div>
                 {selectedMethod === "cash_app" && <span className="text-green-500 text-lg">✓</span>}
-              </button>
-              {/* Step 2: After selecting, show the open link + QR */}
+              </a>
               {selectedMethod === "cash_app" && (
-                <div className="mt-2 bg-green-50 border border-green-100 rounded-xl p-4 flex flex-col items-center gap-3">
-                  {/* Native <a> tag — most reliable way to trigger the Cash App universal link */}
-                  <a
-                    href={cashAppLink}
-                    className="w-full py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl text-center active:scale-95 transition block"
-                    onClick={() => sessionStorage.setItem("cashapp-pay:method", "cash_app")}
-                  >
-                    Open Cash App — Send ${totalDollars}
-                  </a>
-                  <p className="text-xs text-gray-500">Or scan this QR code if Cash App is on another device</p>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(cashAppLink)}`}
-                    alt="Cash App QR code"
-                    width={160}
-                    height={160}
-                    className="rounded-lg"
-                  />
-                  <p className="text-xs text-green-700 font-medium">After sending, scroll down and tap &quot;I&apos;ve Paid&quot;</p>
-                </div>
+                <p className="text-xs text-green-700 font-medium mt-2 text-center">Cash App opened — come back and tap &quot;I&apos;ve Paid&quot; after sending</p>
               )}
             </div>
           )}
