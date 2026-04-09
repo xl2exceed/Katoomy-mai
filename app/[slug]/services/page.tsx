@@ -54,12 +54,16 @@ export default function ServicesPage() {
         setIsCarwash(carwash);
 
         if (carwash) {
-          // Car wash: vehicle must be selected first
-          const savedVehicle = sessionStorage.getItem("selectedVehicleType") || "";
-          if (!savedVehicle) {
+          // Car wash: vehicle must be selected first on every booking.
+          // vehicleJustSelected is a one-time flag set by the vehicle page on continue.
+          const justSelected = sessionStorage.getItem("vehicleJustSelected");
+          if (!justSelected) {
             router.replace(`/${slug}/vehicle`);
             return;
           }
+          // Consume the flag so the next booking starts at vehicle page again
+          sessionStorage.removeItem("vehicleJustSelected");
+          const savedVehicle = sessionStorage.getItem("selectedVehicleType") || "";
           setVehicleType(savedVehicle);
 
           // Fetch surcharges

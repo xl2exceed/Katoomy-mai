@@ -77,6 +77,8 @@ export default function VehiclePage() {
     if (!selectedVehicle) return;
     sessionStorage.setItem("selectedVehicleType", selectedVehicle);
     sessionStorage.setItem("selectedVehicleCondition", selectedCondition);
+    // Flag that vehicle was just selected — services page consumes this once
+    sessionStorage.setItem("vehicleJustSelected", "1");
     // Clear any stale service/addon selections from a previous booking
     sessionStorage.removeItem("selectedServiceId");
     sessionStorage.removeItem("selectedAddonIds");
