@@ -74,13 +74,7 @@ export default function ExternalPayPage() {
 
   const handleZelleTap = () => {
     setSelectedMethod("zelle");
-    // Build Zelle deep link with amount and recipient pre-populated
-    const recipient = settings?.zellePhone || settings?.zelleEmail || "";
-    const zelleLink = recipient
-      ? `zelleapp://send?amount=${totalDollars}&recipient=${encodeURIComponent(recipient)}`
-      : `zelleapp://send?amount=${totalDollars}`;
-    window.location.href = zelleLink;
-    setTimeout(() => setZelleOpened(true), 800);
+    setZelleOpened(true);
   };
 
   const handleSubmit = async () => {
@@ -210,19 +204,17 @@ export default function ExternalPayPage() {
                   <span className="text-white font-bold text-sm">Z</span>
                 </div>
                 <div className="text-left flex-1">
-                  <p className="font-bold text-gray-900 text-sm">Open Zelle</p>
-                  <p className="text-xs text-gray-500">
-                    Send ${totalDollars} to {settings.zellePhone || settings.zelleEmail}
-                  </p>
+                  <p className="font-bold text-gray-900 text-sm">Pay with Zelle</p>
+                  <p className="text-xs text-gray-500">Send ${totalDollars} via your bank&apos;s app</p>
                 </div>
                 {selectedMethod === "zelle" && <span className="text-purple-500 text-lg">✓</span>}
               </button>
               {zelleOpened && (settings.zellePhone || settings.zelleEmail) && (
-                <div className="mt-2 bg-purple-50 border border-purple-100 rounded-xl p-3 text-sm text-purple-800">
-                  <p className="font-semibold mb-1">If Zelle didn&apos;t open, send manually:</p>
-                  {settings.zellePhone && <p>Phone: <strong>{settings.zellePhone}</strong></p>}
-                  {settings.zelleEmail && <p>Email: <strong>{settings.zelleEmail}</strong></p>}
-                  <p className="mt-1">Amount: <strong>${totalDollars}</strong></p>
+                <div className="mt-2 bg-purple-50 border border-purple-100 rounded-xl p-3 text-sm text-purple-800 space-y-1">
+                  <p className="font-semibold">Open Zelle in your banking app and send to:</p>
+                  {settings.zellePhone && <p>📱 Phone: <strong>{settings.zellePhone}</strong></p>}
+                  {settings.zelleEmail && <p>✉️ Email: <strong>{settings.zelleEmail}</strong></p>}
+                  <p className="pt-1 border-t border-purple-200">💰 Amount: <strong>${totalDollars}</strong></p>
                 </div>
               )}
             </div>
