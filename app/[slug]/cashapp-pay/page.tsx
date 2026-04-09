@@ -33,6 +33,13 @@ export default function ExternalPayPage() {
   const [zelleOpened, setZelleOpened] = useState(false);
 
   useEffect(() => {
+    // Restore selected method if user returned after navigating to Cash App
+    const saved = sessionStorage.getItem("cashapp-pay:method") as PayMethod;
+    if (saved) {
+      setSelectedMethod(saved);
+      if (saved === "zelle") setZelleOpened(true);
+      sessionStorage.removeItem("cashapp-pay:method");
+    }
     fetch(`/api/cashapp/public-settings?slug=${slug}`)
       .then((r) => r.json())
       .then((d) => { setSettings(d); setLoading(false); })
@@ -69,7 +76,8 @@ export default function ExternalPayPage() {
 
   const handleCashAppTap = () => {
     setSelectedMethod("cash_app");
-    if (cashAppLink) window.location.href = cashAppLink;
+    // Save so "I've Paid" still works after returning from Cash App
+    sessionStorage.setItem("cashapp-pay:method", "cash_app");
   };
 
   const handleZelleTap = () => {
@@ -153,6 +161,7 @@ export default function ExternalPayPage() {
           {/* Cash App */}
           {settings?.cashappEnabled && cashAppLink && (
             <div>
+              {/* Step 1: Select Cash App */}
               <button
                 onClick={handleCashAppTap}
                 className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition active:scale-95 ${
@@ -167,15 +176,23 @@ export default function ExternalPayPage() {
                   </svg>
                 </div>
                 <div className="text-left flex-1">
-                  <p className="font-bold text-gray-900 text-sm">Open Cash App</p>
-                  <p className="text-xs text-gray-500">Sends ${totalDollars} to ${cashtag}</p>
+                  <p className="font-bold text-gray-900 text-sm">Pay with Cash App</p>
+                  <p className="text-xs text-gray-500">Send ${totalDollars} to ${cashtag.replace(/^\$/, "")}</p>
                 </div>
                 {selectedMethod === "cash_app" && <span className="text-green-500 text-lg">✓</span>}
               </button>
-              {/* QR only shows after Cash App is selected — scan to open with amount pre-filled */}
+              {/* Step 2: After selecting, show the open link + QR */}
               {selectedMethod === "cash_app" && (
-                <div className="mt-2 flex flex-col items-center bg-green-50 border border-green-100 rounded-xl p-3">
-                  <p className="text-xs text-gray-500 mb-2">Can&apos;t open Cash App? Scan this QR code instead</p>
+                <div className="mt-2 bg-green-50 border border-green-100 rounded-xl p-4 flex flex-col items-center gap-3">
+                  {/* Native <a> tag — most reliable way to trigger the Cash App universal link */}
+                  <a
+                    href={cashAppLink}
+                    className="w-full py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl text-center active:scale-95 transition block"
+                    onClick={() => sessionStorage.setItem("cashapp-pay:method", "cash_app")}
+                  >
+                    Open Cash App — Send ${totalDollars}
+                  </a>
+                  <p className="text-xs text-gray-500">Or scan this QR code if Cash App is on another device</p>
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(cashAppLink)}`}
                     alt="Cash App QR code"
@@ -183,7 +200,7 @@ export default function ExternalPayPage() {
                     height={160}
                     className="rounded-lg"
                   />
-                  <p className="text-xs text-green-700 mt-2 font-medium">After paying, scroll down and tap &quot;I&apos;ve Paid&quot;</p>
+                  <p className="text-xs text-green-700 font-medium">After sending, scroll down and tap &quot;I&apos;ve Paid&quot;</p>
                 </div>
               )}
             </div>
