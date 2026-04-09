@@ -35,12 +35,12 @@ export default function MembershipPage() {
   const supabase = createClient();
 
   const [businessId, setBusinessId] = useState("");
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [loading, setLoading] = useState(true);
-  const [joining, setJoining] = useState(false);
+  const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
 
@@ -70,9 +70,9 @@ export default function MembershipPage() {
       .select("id, name, description, price_cents, discount_percent, is_active")
       .eq("business_id", biz.id)
       .eq("is_active", true)
-      .single();
+      .order("price_cents", { ascending: true });
 
-    setPlan(planData || null);
+    setPlans(planData || []);
 
     const savedPhone = localStorage.getItem(PHONE_STORAGE_KEY);
     if (!savedPhone) {
@@ -134,7 +134,6 @@ export default function MembershipPage() {
     setShowPhonePrompt(false);
     setPhoneLooking(false);
 
-    // Load subscription
     const { data: sub } = await supabase
       .from("member_subscriptions")
       .select("id, stripe_subscription_id, status, current_period_end, membership_plans(name, price_cents, discount_percent)")
@@ -146,15 +145,15 @@ export default function MembershipPage() {
     setSubscription((sub as unknown as Subscription) || null);
   };
 
-  const handleJoin = async () => {
-    if (!plan || !customerId || !businessId) return;
-    setJoining(true);
+  const handleJoin = async (planId: string) => {
+    if (!customerId || !businessId) return;
+    setJoiningPlanId(planId);
 
     const res = await fetch("/api/memberships/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        planId: plan.id,
+        planId,
         businessId,
         customerId,
         slug,
@@ -167,7 +166,7 @@ export default function MembershipPage() {
       window.location.href = data.url;
     } else {
       alert(data.error || "Something went wrong. Please try again.");
-      setJoining(false);
+      setJoiningPlanId(null);
     }
   };
 
@@ -210,7 +209,7 @@ export default function MembershipPage() {
           ← Back
         </Link>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Elite Membership</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Membership Plans</h1>
 
         {/* Phone Prompt */}
         {showPhonePrompt && (
@@ -263,7 +262,7 @@ export default function MembershipPage() {
                 Your member discount is automatically applied every time you book.
               </p>
               <Link
-                href={`/${slug}/book`}
+                href={`/${slug}/services`}
                 className="block w-full py-3 bg-blue-600 text-white rounded-xl font-semibold"
               >
                 Book an Appointment
@@ -304,49 +303,50 @@ export default function MembershipPage() {
           </div>
         )}
 
-        {/* Non-member — show plan */}
-        {!showPhonePrompt && !subscription && plan && (
+        {/* Non-member — show all active plans */}
+        {!showPhonePrompt && !subscription && plans.length > 0 && (
           <div className="space-y-4">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white">
-              <div className="text-4xl mb-3 text-center">⭐</div>
-              <h2 className="text-2xl font-bold text-center">{plan.name}</h2>
-              {plan.description && (
-                <p className="text-blue-100 text-sm text-center mt-2">{plan.description}</p>
-              )}
+            {plans.map((plan) => (
+              <div key={plan.id} className="space-y-3">
+                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white">
+                  <div className="text-3xl mb-2 text-center">⭐</div>
+                  <h2 className="text-xl font-bold text-center">{plan.name}</h2>
+                  {plan.description && (
+                    <p className="text-blue-100 text-sm text-center mt-1">{plan.description}</p>
+                  )}
+                  <div className="mt-4 bg-white/10 rounded-xl p-3 text-center">
+                    <p className="text-3xl font-bold">${(plan.price_cents / 100).toFixed(2)}</p>
+                    <p className="text-blue-200 text-sm">per month</p>
+                  </div>
+                  <div className="mt-3 bg-white/10 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold">{plan.discount_percent}% OFF</p>
+                    <p className="text-sm text-blue-100">every service, every visit</p>
+                  </div>
+                </div>
 
-              <div className="mt-5 bg-white/10 rounded-xl p-4 text-center">
-                <p className="text-4xl font-bold">${(plan.price_cents / 100).toFixed(2)}</p>
-                <p className="text-blue-200 text-sm">per month</p>
+                <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                  <ul className="space-y-2 text-sm text-gray-700 mb-4">
+                    <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> {plan.discount_percent}% off all services</li>
+                    <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Cancel anytime</li>
+                    <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Billed monthly via Stripe</li>
+                  </ul>
+                  {customerId && (
+                    <button
+                      onClick={() => handleJoin(plan.id)}
+                      disabled={joiningPlanId !== null}
+                      className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg disabled:opacity-50 active:scale-95 transition"
+                    >
+                      {joiningPlanId === plan.id ? "Redirecting to payment..." : `Join for $${(plan.price_cents / 100).toFixed(2)}/mo`}
+                    </button>
+                  )}
+                </div>
               </div>
-
-              <div className="mt-4 bg-white/10 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold">{plan.discount_percent}% OFF</p>
-                <p className="text-sm text-blue-100">every service, every visit</p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-200 p-4">
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> {plan.discount_percent}% off all services</li>
-                <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Cancel anytime</li>
-                <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Billed monthly via Stripe</li>
-              </ul>
-            </div>
-
-            {customerId ? (
-              <button
-                onClick={handleJoin}
-                disabled={joining}
-                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg disabled:opacity-50 active:scale-95 transition"
-              >
-                {joining ? "Redirecting to payment..." : `Join for $${(plan.price_cents / 100).toFixed(2)}/mo`}
-              </button>
-            ) : null}
+            ))}
           </div>
         )}
 
-        {/* No plan configured */}
-        {!showPhonePrompt && !plan && (
+        {/* No plans configured */}
+        {!showPhonePrompt && plans.length === 0 && (
           <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
             <p className="text-gray-500">Membership coming soon!</p>
           </div>
