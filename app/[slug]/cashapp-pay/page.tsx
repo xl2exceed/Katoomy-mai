@@ -73,9 +73,14 @@ export default function ExternalPayPage() {
   };
 
   const handleZelleTap = () => {
-    window.location.href = "zelleapp://";
-    setTimeout(() => setZelleOpened(true), 800);
     setSelectedMethod("zelle");
+    // Build Zelle deep link with amount and recipient pre-populated
+    const recipient = settings?.zellePhone || settings?.zelleEmail || "";
+    const zelleLink = recipient
+      ? `zelleapp://send?amount=${totalDollars}&recipient=${encodeURIComponent(recipient)}`
+      : `zelleapp://send?amount=${totalDollars}`;
+    window.location.href = zelleLink;
+    setTimeout(() => setZelleOpened(true), 800);
   };
 
   const handleSubmit = async () => {
