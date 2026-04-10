@@ -50,18 +50,23 @@ export default function AddonsPage() {
     if (!businessData) { router.push(`/${slug}/services`); return; }
     setBusiness(businessData);
 
-    // Get base price from price calculator
-    const vehicleType = sessionStorage.getItem("selectedVehicleType") || "sedan";
-    const vehicleCondition = sessionStorage.getItem("selectedVehicleCondition") || "light";
-
-    const priceRes = await fetch("/api/carwash/price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ businessId: businessData.id, serviceId, vehicleType, vehicleCondition }),
-    });
-    if (priceRes.ok) {
-      const priceData = await priceRes.json();
-      setBasePrice(priceData.basePriceCents ?? 0);
+    // Use the vehicle-surcharge-adjusted price already calculated by services page
+    const savedVehiclePrice = sessionStorage.getItem("vehicleBasedPriceCents");
+    if (savedVehiclePrice) {
+      setBasePrice(parseInt(savedVehiclePrice, 10));
+    } else {
+      // Fallback: fetch from API (no surcharge data available)
+      const vehicleType = sessionStorage.getItem("selectedVehicleType") || "sedan";
+      const vehicleCondition = sessionStorage.getItem("selectedVehicleCondition") || "light";
+      const priceRes = await fetch("/api/carwash/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId: businessData.id, serviceId, vehicleType, vehicleCondition }),
+      });
+      if (priceRes.ok) {
+        const priceData = await priceRes.json();
+        setBasePrice(priceData.basePriceCents ?? 0);
+      }
     }
 
     // Get add-ons
