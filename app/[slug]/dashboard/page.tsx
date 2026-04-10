@@ -905,13 +905,10 @@ export default function DashboardPage() {
                 Cancel
               </button>
               <button
-                onClick={async () => {
-                  const supabase = createClient();
-                  await supabase
-                    .from("bookings")
-                    .update({ status: "cancelled" })
-                    .eq("id", selectedBooking.id);
-                  window.location.href = `/${slug}/services`;
+                onClick={() => {
+                  // Store the service so book page can load it without going through services
+                  // We navigate to book with rescheduleBookingId so it updates instead of creating
+                  window.location.href = `/${slug}/book?rescheduleBookingId=${selectedBooking.id}`;
                 }}
                 className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
               >

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -30,7 +30,9 @@ interface StaffMember {
 export default function BookPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const rescheduleBookingId = searchParams.get("rescheduleBookingId");
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [service, setService] = useState<Service | null>(null);
@@ -67,8 +69,19 @@ export default function BookPage() {
   const loadData = async () => {
     const supabase = createClient();
 
-    // Get selected service from sessionStorage
-    const serviceId = sessionStorage.getItem("selectedServiceId");
+    // For reschedule: load service from the existing booking
+    // For new booking: load from sessionStorage
+    let serviceId: string | null = null;
+    if (rescheduleBookingId) {
+      const { data: existingBooking } = await supabase
+        .from("bookings")
+        .select("service_id")
+        .eq("id", rescheduleBookingId)
+        .single();
+      serviceId = existingBooking?.service_id ?? null;
+    } else {
+      serviceId = sessionStorage.getItem("selectedServiceId");
+    }
     if (!serviceId) {
       router.push(`/${slug}/services`);
       return;
@@ -241,13 +254,20 @@ export default function BookPage() {
     startOfDay.setHours(startOfDay.getHours() - 12);
     endOfDay.setHours(endOfDay.getHours() + 12);
 
-    const { data: existingBookings } = await supabase
+    let bookingQuery = supabase
       .from("bookings")
       .select("start_ts, end_ts, staff_id")
       .eq("business_id", business.id)
       .gte("start_ts", startOfDay.toISOString())
       .lt("start_ts", endOfDay.toISOString())
       .neq("status", "cancelled");
+
+    // Exclude the booking being rescheduled so its old slot doesn't block the picker
+    if (rescheduleBookingId) {
+      bookingQuery = bookingQuery.neq("id", rescheduleBookingId);
+    }
+
+    const { data: existingBookings } = await bookingQuery;
 
     // Filter bookings to only those that actually fall on the selected date in local time
     const bookingsOnSelectedDate =
@@ -305,13 +325,37 @@ export default function BookPage() {
     setAvailableTimes(allSlots);
   };
 
-  const handleContinue = () => {
-    if (!selectedDate || !selectedTime) {
+  const handleContinue = async () => {
+    if (!selectedDate || !selectedTime || !service) {
       alert("Please select a date and time");
       return;
     }
 
-    // Store booking details
+    if (rescheduleBookingId) {
+      // Reschedule: update the existing booking's time, don't create a new one
+      const supabase = createClient();
+      const startDateTime = new Date(`${selectedDate}T${selectedTime}:00`);
+      const endDateTime = new Date(startDateTime.getTime() + service.duration_minutes * 60000);
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          start_ts: startDateTime.toISOString(),
+          end_ts: endDateTime.toISOString(),
+          status: "confirmed",
+        })
+        .eq("id", rescheduleBookingId);
+
+      if (error) {
+        alert("Failed to reschedule. Please try again.");
+        return;
+      }
+
+      router.push(`/${slug}/dashboard`);
+      return;
+    }
+
+    // New booking: store details and go to customer-info
     sessionStorage.setItem("bookingDate", selectedDate);
     sessionStorage.setItem("bookingTime", selectedTime);
     sessionStorage.setItem("selectedStaffId", selectedStaffId);
@@ -574,7 +618,7 @@ export default function BookPage() {
                 className="w-full text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition"
                 style={{ backgroundColor: business?.primary_color || "#2563EB" }}
               >
-                Continue &rarr;
+                {rescheduleBookingId ? "Confirm Reschedule →" : "Continue →"}
               </button>
             </div>
           )}
