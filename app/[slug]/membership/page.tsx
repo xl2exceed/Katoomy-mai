@@ -306,42 +306,51 @@ export default function MembershipPage() {
         {/* Non-member — show all active plans */}
         {!showPhonePrompt && !subscription && plans.length > 0 && (
           <div className="space-y-4">
-            {plans.map((plan) => (
-              <div key={plan.id} className="space-y-3">
-                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white">
-                  <div className="text-3xl mb-2 text-center">⭐</div>
-                  <h2 className="text-xl font-bold text-center">{plan.name}</h2>
-                  {plan.description && (
-                    <p className="text-blue-100 text-sm text-center mt-1">{plan.description}</p>
-                  )}
-                  <div className="mt-4 bg-white/10 rounded-xl p-3 text-center">
-                    <p className="text-3xl font-bold">${(plan.price_cents / 100).toFixed(2)}</p>
-                    <p className="text-blue-200 text-sm">per month</p>
+            {plans.map((plan, i) => {
+              const isBlue = i % 2 === 0;
+              const cardGradient = isBlue
+                ? "bg-gradient-to-br from-blue-600 to-indigo-700"
+                : "bg-gradient-to-br from-emerald-600 to-teal-700";
+              const subText = isBlue ? "text-blue-100" : "text-emerald-100";
+              const priceText = isBlue ? "text-blue-200" : "text-emerald-200";
+              const btnColor = isBlue ? "bg-blue-600" : "bg-emerald-600";
+              return (
+                <div key={plan.id} className="space-y-3">
+                  <div className={`${cardGradient} rounded-2xl p-6 text-white`}>
+                    <div className="text-3xl mb-2 text-center">⭐</div>
+                    <h2 className="text-xl font-bold text-center">{plan.name}</h2>
+                    {plan.description && (
+                      <p className={`${subText} text-sm text-center mt-1`}>{plan.description}</p>
+                    )}
+                    <div className="mt-4 bg-white/10 rounded-xl p-3 text-center">
+                      <p className="text-3xl font-bold">${(plan.price_cents / 100).toFixed(2)}</p>
+                      <p className={`${priceText} text-sm`}>per month</p>
+                    </div>
+                    <div className="mt-3 bg-white/10 rounded-xl p-3 text-center">
+                      <p className="text-2xl font-bold">{plan.discount_percent}% OFF</p>
+                      <p className={`text-sm ${subText}`}>every service, every visit</p>
+                    </div>
                   </div>
-                  <div className="mt-3 bg-white/10 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold">{plan.discount_percent}% OFF</p>
-                    <p className="text-sm text-blue-100">every service, every visit</p>
-                  </div>
-                </div>
 
-                <div className="bg-white rounded-2xl border border-gray-200 p-4">
-                  <ul className="space-y-2 text-sm text-gray-700 mb-4">
-                    <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> {plan.discount_percent}% off all services</li>
-                    <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Cancel anytime</li>
-                    <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Billed monthly via Stripe</li>
-                  </ul>
-                  {customerId && (
-                    <button
-                      onClick={() => handleJoin(plan.id)}
-                      disabled={joiningPlanId !== null}
-                      className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg disabled:opacity-50 active:scale-95 transition"
-                    >
-                      {joiningPlanId === plan.id ? "Redirecting to payment..." : `Join for $${(plan.price_cents / 100).toFixed(2)}/mo`}
-                    </button>
-                  )}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                    <ul className="space-y-2 text-sm text-gray-700 mb-4">
+                      <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> {plan.discount_percent}% off all services</li>
+                      <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Cancel anytime</li>
+                      <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Billed monthly via Stripe</li>
+                    </ul>
+                    {customerId && (
+                      <button
+                        onClick={() => handleJoin(plan.id)}
+                        disabled={joiningPlanId !== null}
+                        className={`w-full py-4 ${btnColor} text-white rounded-2xl font-bold text-lg shadow-lg disabled:opacity-50 active:scale-95 transition`}
+                      >
+                        {joiningPlanId === plan.id ? "Redirecting to payment..." : `Join for $${(plan.price_cents / 100).toFixed(2)}/mo`}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
