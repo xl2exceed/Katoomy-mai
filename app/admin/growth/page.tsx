@@ -68,20 +68,6 @@ export default function GrowthHubPage() {
           </div>
         ))}
       </div>
-
-      {/* Cron Setup Reminder */}
-      <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-        <p className="text-sm font-semibold text-amber-800 mb-1">⏰ Cron Job Setup Required</p>
-        <p className="text-xs text-amber-700">
-          For automatic campaigns to run daily, add this URL to your cronjobs.org schedule (daily at 9 AM):
-        </p>
-        <code className="block mt-2 text-xs bg-white border border-amber-200 rounded px-3 py-2 text-gray-700 break-all">
-          GET {typeof window !== "undefined" ? window.location.origin : "https://your-domain.com"}/api/cron/growth-hub
-        </code>
-        <p className="text-xs text-amber-600 mt-1">
-          Set the Authorization header to: <code className="font-mono">Bearer YOUR_CRON_SECRET</code>
-        </p>
-      </div>
     </div>
   );
 }
