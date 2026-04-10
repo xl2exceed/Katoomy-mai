@@ -90,6 +90,14 @@ export default function AnalyticsPage() {
   const [customEnd, setCustomEnd] = useState("");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [appInstalls, setAppInstalls] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/app-installs")
+      .then(r => r.json())
+      .then(d => setAppInstalls(d.count ?? 0))
+      .catch(() => setAppInstalls(0));
+  }, []);
 
   // Default custom dates to last 30 days when switching to custom
   const today = new Date().toISOString().split("T")[0];
@@ -187,13 +195,13 @@ export default function AnalyticsPage() {
       ) : !data ? (
         <div className="text-gray-500">Could not load analytics.</div>
       ) : (
-        <AnalyticsContent data={data} />
+        <AnalyticsContent data={data} appInstalls={appInstalls ?? 0} />
       )}
     </div>
   );
 }
 
-function AnalyticsContent({ data }: { data: AnalyticsData }) {
+function AnalyticsContent({ data, appInstalls }: { data: AnalyticsData; appInstalls: number }) {
   const {
     currentPeriodLabel, previousPeriodLabel,
     current, previous, trend,
@@ -247,6 +255,16 @@ function AnalyticsContent({ data }: { data: AnalyticsData }) {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* App Installs */}
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">App Installs (All Time)</p>
+          <p className="text-4xl font-bold text-gray-900">{appInstalls}</p>
+          <p className="text-xs text-gray-500 mt-1">Customers who installed your app to their home screen</p>
+        </div>
+        <span className="text-5xl">📲</span>
       </div>
 
       {/* Money Intelligence */}
