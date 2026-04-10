@@ -23,6 +23,31 @@ interface InstallGateProps {
 
 const SKIP_KEY = "katoomy:installSkipped";
 const LAST_BUSINESS_KEY = "katoomy:lastBusiness";
+const BUSINESSES_KEY = "katoomy:businesses";
+
+// Save slug to BOTH localStorage and a cookie so iOS PWA can read it
+// (iOS PWA and Safari have separate localStorage, but share cookies)
+function saveLastBusiness(slug: string) {
+  try {
+    localStorage.setItem(LAST_BUSINESS_KEY, slug);
+  } catch {}
+  const expires = new Date();
+  expires.setFullYear(expires.getFullYear() + 1);
+  document.cookie = `katoomy_lastBusiness=${encodeURIComponent(slug)}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+}
+
+function getBusinessSlugs(): string[] {
+  try { return JSON.parse(localStorage.getItem(BUSINESSES_KEY) || "[]"); } catch { return []; }
+}
+
+function addBusinessSlug(slug: string): string[] {
+  const list = getBusinessSlugs();
+  if (!list.includes(slug)) {
+    list.push(slug);
+    localStorage.setItem(BUSINESSES_KEY, JSON.stringify(list));
+  }
+  return list;
+}
 
 function recordInstall(slug: string) {
   const flagKey = `katoomy:installRecorded:${slug}`;
@@ -33,18 +58,6 @@ function recordInstall(slug: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ slug }),
   }).catch(() => {/* best-effort */});
-}
-
-// Save slug to BOTH localStorage and a cookie so iOS PWA can read it
-// (iOS PWA and Safari have separate localStorage, but share cookies)
-function saveLastBusiness(slug: string) {
-  try {
-    localStorage.setItem(LAST_BUSINESS_KEY, slug);
-  } catch {}
-  // Cookie accessible to the PWA on same origin - 1 year expiry
-  const expires = new Date();
-  expires.setFullYear(expires.getFullYear() + 1);
-  document.cookie = `katoomy_lastBusiness=${encodeURIComponent(slug)}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
 }
 
 export default function InstallGate({
@@ -58,6 +71,8 @@ export default function InstallGate({
   const [installed, setInstalled] = useState(false);
   const [showIosSteps, setShowIosSteps] = useState(false);
   const [showFloatingInstall, setShowFloatingInstall] = useState(false);
+  // True once the hub-redirect check in useEffect has run
+  const [hubCheckDone, setHubCheckDone] = useState(false);
 
   const [isStandalone] = useState(
     () =>
@@ -68,9 +83,19 @@ export default function InstallGate({
         )),
   );
 
+  // Has this customer visited any OTHER Katoomy businesses before this one?
+  // (Checked before we add the current slug, so we know if this is "new".)
+  const [hasOtherBusinesses] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const existing = getBusinessSlugs();
+    return existing.filter(s => s !== slug).length > 0;
+  });
+
+  // Auto-skip the install gate for 2nd+ businesses — they already have the app
   const [skipped, setSkipped] = useState(
     () =>
-      typeof window !== "undefined" && localStorage.getItem(SKIP_KEY) === "1",
+      typeof window !== "undefined" &&
+      (localStorage.getItem(SKIP_KEY) === "1" || hasOtherBusinesses),
   );
 
   const isIos = useMemo(() => {
@@ -80,19 +105,35 @@ export default function InstallGate({
   }, []);
 
   useEffect(() => {
-    // ✅ Save slug to both localStorage AND cookie
-    // Cookie survives the iOS Safari → PWA context switch
     saveLastBusiness(slug);
 
-    // iOS: detect first-ever open in standalone mode (Add to Home Screen)
+    // Add this business to the customer's list
+    const allBusinesses = addBusinessSlug(slug);
+
     const isStandaloneNow =
       window.matchMedia("(display-mode: standalone)").matches ||
       Boolean((window.navigator as unknown as { standalone?: boolean }).standalone);
+
     if (isStandaloneNow) {
+      // Record install (de-duped per device)
       recordInstall(slug);
+
+      // Multi-business hub redirect:
+      // If they have 2+ businesses and are NOT navigating here from the hub,
+      // send them to the hub home screen instead of this business's page.
+      if (allBusinesses.length >= 2) {
+        const fromHub = sessionStorage.getItem("katoomy:fromHub");
+        sessionStorage.removeItem("katoomy:fromHub");
+        if (!fromHub) {
+          window.location.replace("/hub");
+          return; // stop — don't set hubCheckDone, page is being replaced
+        }
+      }
     }
 
-    // Android / Chrome: browser fires this after the user accepts the install prompt
+    setHubCheckDone(true);
+
+    // Android / Chrome: fires after user accepts install prompt
     const onInstalled = () => recordInstall(slug);
     window.addEventListener("appinstalled", onInstalled);
 
@@ -131,8 +172,13 @@ export default function InstallGate({
 
   const primaryColor = business.primary_color || "#3B82F6";
 
-  if (isStandalone) return <>{children}</>;
+  // Standalone mode: wait for hub check before rendering anything
+  if (isStandalone) {
+    if (!hubCheckDone) return null;
+    return <>{children}</>;
+  }
 
+  // Browser mode, already past the gate (skipped or 2nd+ business)
   if (skipped) {
     return (
       <>
@@ -160,11 +206,7 @@ export default function InstallGate({
               </div>
               <ol className="space-y-2">
                 {[
-                  {
-                    step: "1",
-                    text: "Tap the Share button at the bottom of Safari",
-                    icon: "⬆️",
-                  },
+                  { step: "1", text: "Tap the Share button at the bottom of Safari", icon: "⬆️" },
                   { step: "2", text: 'Tap "Add to Home Screen"', icon: "➕" },
                   { step: "3", text: 'Tap "Add" in the top right', icon: "✅" },
                 ].map(({ step, text, icon }) => (
@@ -175,9 +217,7 @@ export default function InstallGate({
                     >
                       {step}
                     </span>
-                    <span className="text-gray-700 text-sm">
-                      {icon} {text}
-                    </span>
+                    <span className="text-gray-700 text-sm">{icon} {text}</span>
                   </li>
                 ))}
               </ol>
@@ -188,6 +228,7 @@ export default function InstallGate({
     );
   }
 
+  // Install gate — shown only for the first Katoomy business
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-between px-6 py-16"
@@ -223,9 +264,7 @@ export default function InstallGate({
           {installed ? (
             <div className="bg-white rounded-2xl p-6 text-center shadow-2xl">
               <div className="text-4xl mb-3">✅</div>
-              <p className="font-bold text-gray-900 text-lg mb-1">
-                App Installed!
-              </p>
+              <p className="font-bold text-gray-900 text-lg mb-1">App Installed!</p>
               <p className="text-gray-600 text-sm">
                 Open the app from your home screen to continue.
               </p>
@@ -246,21 +285,9 @@ export default function InstallGate({
               ) : (
                 <ol className="space-y-3">
                   {[
-                    {
-                      step: "1",
-                      text: "Tap the Share button at the bottom of Safari",
-                      icon: "⬆️",
-                    },
-                    {
-                      step: "2",
-                      text: 'Scroll down and tap "Add to Home Screen"',
-                      icon: "➕",
-                    },
-                    {
-                      step: "3",
-                      text: 'Tap "Add" in the top right corner',
-                      icon: "✅",
-                    },
+                    { step: "1", text: "Tap the Share button at the bottom of Safari", icon: "⬆️" },
+                    { step: "2", text: 'Scroll down and tap "Add to Home Screen"', icon: "➕" },
+                    { step: "3", text: 'Tap "Add" in the top right corner', icon: "✅" },
                   ].map(({ step, text, icon }) => (
                     <li key={step} className="flex items-start gap-3">
                       <span
@@ -269,9 +296,7 @@ export default function InstallGate({
                       >
                         {step}
                       </span>
-                      <span className="text-gray-700 text-sm flex-1">
-                        {icon} {text}
-                      </span>
+                      <span className="text-gray-700 text-sm flex-1">{icon} {text}</span>
                     </li>
                   ))}
                 </ol>
