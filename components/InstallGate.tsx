@@ -24,6 +24,17 @@ interface InstallGateProps {
 const SKIP_KEY = "katoomy:installSkipped";
 const LAST_BUSINESS_KEY = "katoomy:lastBusiness";
 
+function recordInstall(slug: string) {
+  const flagKey = `katoomy:installRecorded:${slug}`;
+  if (localStorage.getItem(flagKey)) return; // already recorded
+  localStorage.setItem(flagKey, "1");
+  fetch("/api/pwa/installed", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ slug }),
+  }).catch(() => {/* best-effort */});
+}
+
 // Save slug to BOTH localStorage and a cookie so iOS PWA can read it
 // (iOS PWA and Safari have separate localStorage, but share cookies)
 function saveLastBusiness(slug: string) {
@@ -73,6 +84,18 @@ export default function InstallGate({
     // Cookie survives the iOS Safari → PWA context switch
     saveLastBusiness(slug);
 
+    // iOS: detect first-ever open in standalone mode (Add to Home Screen)
+    const isStandaloneNow =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      Boolean((window.navigator as unknown as { standalone?: boolean }).standalone);
+    if (isStandaloneNow) {
+      recordInstall(slug);
+    }
+
+    // Android / Chrome: browser fires this after the user accepts the install prompt
+    const onInstalled = () => recordInstall(slug);
+    window.addEventListener("appinstalled", onInstalled);
+
     const handler = (e: Event) => {
       e.preventDefault();
       deferredPromptRef.current = e as BeforeInstallPromptEvent;
@@ -80,7 +103,10 @@ export default function InstallGate({
       setShowFloatingInstall(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, [slug]);
 
   const handleInstall = async () => {

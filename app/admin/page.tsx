@@ -87,6 +87,11 @@ export default async function AdminDashboard() {
   const totalRevenue =
     completedBookings?.reduce((sum, b) => sum + b.total_price_cents, 0) || 0;
 
+  const { count: appInstalls } = await supabase
+    .from("pwa_installs")
+    .select("*", { count: "exact", head: true })
+    .eq("business_id", business.id);
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -186,7 +191,7 @@ export default async function AdminDashboard() {
           </div>
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -231,6 +236,22 @@ export default async function AdminDashboard() {
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                   <span className="text-2xl">💰</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 font-medium">
+                    App Installs
+                  </p>
+                  <p className="text-4xl font-bold text-gray-900 mt-2">
+                    {appInstalls || 0}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <span className="text-2xl">📲</span>
                 </div>
               </div>
             </div>
