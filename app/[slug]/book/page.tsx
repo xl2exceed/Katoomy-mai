@@ -332,21 +332,21 @@ export default function BookPage() {
     }
 
     if (rescheduleBookingId) {
-      // Reschedule: update the existing booking's time, don't create a new one
-      const supabase = createClient();
+      // Reschedule: update existing booking via API (uses supabaseAdmin to bypass RLS)
       const startDateTime = new Date(`${selectedDate}T${selectedTime}:00`);
       const endDateTime = new Date(startDateTime.getTime() + service.duration_minutes * 60000);
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          start_ts: startDateTime.toISOString(),
-          end_ts: endDateTime.toISOString(),
-          status: "confirmed",
-        })
-        .eq("id", rescheduleBookingId);
+      const res = await fetch("/api/bookings/reschedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: rescheduleBookingId,
+          startISO: startDateTime.toISOString(),
+          endISO: endDateTime.toISOString(),
+        }),
+      });
 
-      if (error) {
+      if (!res.ok) {
         alert("Failed to reschedule. Please try again.");
         return;
       }
