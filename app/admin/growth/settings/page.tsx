@@ -4,27 +4,9 @@ import Link from "next/link";
 
 interface Settings {
   id: string;
-  winback_enabled: boolean;
-  winback_mode: string;
-  winback_inactive_days: number;
-  winback_template: string;
-  winback_cooldown_days: number;
-  referral_enabled: boolean;
-  referral_mode: string;
-  referral_delay_days: number;
-  referral_template: string;
-  referral_cooldown_days: number;
-  social_enabled: boolean;
-  social_mode: string;
-  social_post_frequency_days: number;
   insights_enabled: boolean;
   insights_refresh_hours: number;
 }
-
-const DEFAULT_WINBACK_TEMPLATE =
-  "Hey {{customer_name}}! We miss you at {{business_name}}. It's been a while — come back and book your next appointment: {{booking_link}}";
-const DEFAULT_REFERRAL_TEMPLATE =
-  "Hi {{customer_name}}! Thanks for visiting {{business_name}}. Know someone who'd love our services? Share this link and you both get a discount: {{referral_link}}";
 
 export default function GrowthSettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -118,135 +100,6 @@ export default function GrowthSettingsPage() {
       )}
 
       <div className="space-y-6">
-        {/* ── Win-Back ── */}
-        <SettingsSection
-          icon="💌"
-          title="Win-Back Campaigns"
-          description="Sends a text to customers who haven't booked in a while."
-        >
-          <ToggleRow
-            label="Enable Win-Back"
-            value={settings.winback_enabled}
-            onChange={(v) => update("winback_enabled", v)}
-          />
-          {settings.winback_enabled && (
-            <>
-              <ModeRow
-                label="Mode"
-                value={settings.winback_mode}
-                onChange={(v) => update("winback_mode", v)}
-                autoLabel="Send automatically every day"
-                manualLabel="Show list for manual review"
-              />
-              <NumberRow
-                label="Inactive threshold"
-                value={settings.winback_inactive_days}
-                onChange={(v) => update("winback_inactive_days", v)}
-                unit="days"
-                min={7}
-                max={365}
-                hint="Customers inactive longer than this will be targeted"
-              />
-              <NumberRow
-                label="Cooldown between texts"
-                value={settings.winback_cooldown_days}
-                onChange={(v) => update("winback_cooldown_days", v)}
-                unit="days"
-                min={7}
-                max={180}
-                hint="Minimum gap before re-sending to the same customer"
-              />
-              <TemplateRow
-                label="Message template"
-                value={settings.winback_template ?? DEFAULT_WINBACK_TEMPLATE}
-                onChange={(v) => update("winback_template", v)}
-                variables={["{{customer_name}}", "{{business_name}}", "{{booking_link}}"]}
-              />
-            </>
-          )}
-        </SettingsSection>
-
-        {/* ── Referral Reminders ── */}
-        <SettingsSection
-          icon="🎁"
-          title="Referral Reminders"
-          description="Asks recent customers to refer a friend after their visit."
-        >
-          <ToggleRow
-            label="Enable Referral Reminders"
-            value={settings.referral_enabled}
-            onChange={(v) => update("referral_enabled", v)}
-          />
-          {settings.referral_enabled && (
-            <>
-              <ModeRow
-                label="Mode"
-                value={settings.referral_mode}
-                onChange={(v) => update("referral_mode", v)}
-                autoLabel="Send automatically every day"
-                manualLabel="Show list for manual review"
-              />
-              <NumberRow
-                label="Send after visit"
-                value={settings.referral_delay_days}
-                onChange={(v) => update("referral_delay_days", v)}
-                unit="days"
-                min={1}
-                max={30}
-                hint="How many days after a visit to send the referral ask"
-              />
-              <NumberRow
-                label="Cooldown between asks"
-                value={settings.referral_cooldown_days}
-                onChange={(v) => update("referral_cooldown_days", v)}
-                unit="days"
-                min={30}
-                max={365}
-                hint="Minimum gap before asking the same customer again"
-              />
-              <TemplateRow
-                label="Message template"
-                value={settings.referral_template ?? DEFAULT_REFERRAL_TEMPLATE}
-                onChange={(v) => update("referral_template", v)}
-                variables={["{{customer_name}}", "{{business_name}}", "{{referral_link}}"]}
-              />
-            </>
-          )}
-        </SettingsSection>
-
-        {/* ── Social Media ── */}
-        <SettingsSection
-          icon="📱"
-          title="Social Media Posts"
-          description="AI generates social posts based on your business analytics."
-        >
-          <ToggleRow
-            label="Enable Social Media Generation"
-            value={settings.social_enabled}
-            onChange={(v) => update("social_enabled", v)}
-          />
-          {settings.social_enabled && (
-            <>
-              <ModeRow
-                label="Mode"
-                value={settings.social_mode}
-                onChange={(v) => update("social_mode", v)}
-                autoLabel="Auto-generate and queue for approval"
-                manualLabel="Only generate when I click the button"
-              />
-              <NumberRow
-                label="Auto-generate frequency"
-                value={settings.social_post_frequency_days}
-                onChange={(v) => update("social_post_frequency_days", v)}
-                unit="days"
-                min={1}
-                max={30}
-                hint="How often to auto-generate new posts"
-              />
-            </>
-          )}
-        </SettingsSection>
-
         {/* ── AI Insights ── */}
         <SettingsSection
           icon="🧠"
@@ -325,41 +178,6 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
   );
 }
 
-function ModeRow({
-  label, value, onChange, autoLabel, manualLabel,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  autoLabel: string;
-  manualLabel: string;
-}) {
-  return (
-    <div>
-      <p className="text-sm font-medium text-gray-700 mb-2">{label}</p>
-      <div className="flex gap-3">
-        {[
-          { val: "automatic", text: autoLabel },
-          { val: "manual", text: manualLabel },
-        ].map((opt) => (
-          <button
-            key={opt.val}
-            onClick={() => onChange(opt.val)}
-            className={`flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition ${
-              value === opt.val
-                ? "bg-purple-600 text-white border-purple-600"
-                : "bg-white text-gray-600 border-gray-200 hover:border-purple-300"
-            }`}
-          >
-            {opt.val === "automatic" ? "🤖 " : "👤 "}
-            {opt.text}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function NumberRow({
   label, value, onChange, unit, min, max, hint,
 }: {
@@ -390,29 +208,3 @@ function NumberRow({
   );
 }
 
-function TemplateRow({
-  label, value, onChange, variables,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  variables: string[];
-}) {
-  return (
-    <div>
-      <p className="text-sm font-medium text-gray-700 mb-1">{label}</p>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={3}
-        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-purple-300"
-      />
-      <p className="text-xs text-gray-400 mt-1">
-        Available variables:{" "}
-        {variables.map((v) => (
-          <code key={v} className="bg-gray-100 px-1 rounded text-xs mr-1">{v}</code>
-        ))}
-      </p>
-    </div>
-  );
-}
