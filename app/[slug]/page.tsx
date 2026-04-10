@@ -21,7 +21,7 @@ export default async function CustomerLandingPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, app_name, logo_url, primary_color, welcome_message")
+    .select("id, name, app_name, logo_url, primary_color, welcome_message, address")
     .eq("slug", slug)
     .single();
 
@@ -49,7 +49,7 @@ export default async function CustomerLandingPage({
       <div className="min-h-screen bg-gray-50">
         {/* Header with Brand Color */}
         <div
-          className="pb-24 pt-12"
+          className="pb-24 pt-8"
           style={{
             background: `linear-gradient(to bottom, ${business.primary_color}, ${business.primary_color}ee)`,
           }}
@@ -73,6 +73,11 @@ export default async function CustomerLandingPage({
             <h1 className="text-4xl font-bold text-white drop-shadow-lg">
               {business.app_name}
             </h1>
+            {business.address && (
+              <p className="text-white/80 text-sm mt-2 truncate">
+                📍 {business.address}
+              </p>
+            )}
           </div>
         </div>
 
