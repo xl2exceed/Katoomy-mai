@@ -74,7 +74,7 @@ export default async function CustomerLandingPage({
               {business.app_name}
             </h1>
             {business.address && (
-              <p className="text-white/80 text-sm mt-2 truncate">
+              <p className="text-white text-base mt-2 truncate">
                 📍 {business.address}
               </p>
             )}
