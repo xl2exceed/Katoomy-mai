@@ -160,14 +160,18 @@ export default function BrandingPage() {
   };
 
   const colorPresets = [
-    { name: "Blue", value: "#3B82F6" },
-    { name: "Purple", value: "#8B5CF6" },
-    { name: "Pink", value: "#EC4899" },
-    { name: "Red", value: "#EF4444" },
-    { name: "Orange", value: "#F97316" },
-    { name: "Green", value: "#10B981" },
-    { name: "Teal", value: "#14B8A6" },
-    { name: "Indigo", value: "#6366F1" },
+    { name: "Ocean",   value: "#3B82F6", to: "#1D4ED8" },
+    { name: "Violet",  value: "#8B5CF6", to: "#6D28D9" },
+    { name: "Rose",    value: "#F43F5E", to: "#BE123C" },
+    { name: "Coral",   value: "#F97316", to: "#C2410C" },
+    { name: "Emerald", value: "#10B981", to: "#065F46" },
+    { name: "Teal",    value: "#14B8A6", to: "#0F766E" },
+    { name: "Indigo",  value: "#6366F1", to: "#3730A3" },
+    { name: "Pink",    value: "#EC4899", to: "#9D174D" },
+    { name: "Gold",    value: "#F59E0B", to: "#B45309" },
+    { name: "Crimson", value: "#EF4444", to: "#991B1B" },
+    { name: "Sky",     value: "#06B6D4", to: "#0E7490" },
+    { name: "Slate",   value: "#475569", to: "#1E293B" },
   ];
 
   return (
@@ -504,16 +508,16 @@ export default function BrandingPage() {
                           <button
                             key={preset.value}
                             onClick={() => setPrimaryColor(preset.value)}
-                            className={`p-4 rounded-lg border-2 transition ${
+                            className={`p-3 rounded-xl border-2 transition ${
                               primaryColor === preset.value
                                 ? "border-gray-900 ring-2 ring-gray-900"
                                 : "border-gray-200 hover:border-gray-300"
                             }`}
                           >
                             <div
-                              className="w-full h-8 rounded mb-2"
-                              style={{ backgroundColor: preset.value }}
-                            ></div>
+                              className="w-full h-10 rounded-lg mb-2"
+                              style={{ background: `linear-gradient(135deg, ${preset.value} 0%, ${preset.to} 100%)` }}
+                            />
                             <p className="text-xs font-medium text-gray-700">
                               {preset.name}
                             </p>
@@ -625,7 +629,14 @@ export default function BrandingPage() {
 
                           <button
                             className="w-full py-3 rounded-lg font-semibold text-white transition"
-                            style={{ backgroundColor: primaryColor }}
+                            style={{
+                              background: (() => {
+                                const match = colorPresets.find(p => p.value === primaryColor);
+                                return match
+                                  ? `linear-gradient(135deg, ${match.value} 0%, ${match.to} 100%)`
+                                  : primaryColor;
+                              })()
+                            }}
                           >
                             Book Appointment
                           </button>
