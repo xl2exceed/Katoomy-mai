@@ -32,9 +32,9 @@ export default function HubBackButton() {
   return (
     <button
       onClick={() => router.push("/hub")}
-      className="fixed top-4 right-4 z-50 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/30 backdrop-blur-sm text-white text-xs font-semibold shadow-lg active:scale-95 transition"
+      className="fixed top-4 right-4 z-50 px-3 py-2 rounded-full bg-black/30 backdrop-blur-sm text-white text-xs font-semibold shadow-lg active:scale-95 transition leading-tight text-center"
     >
-      {mode === "hub" ? "⊞ My Businesses" : "＋ Add Business"}
+      {mode === "hub" ? <>Business<br />Hub</> : <>Add<br />Business</>}
     </button>
   );
 }
