@@ -19,16 +19,6 @@ function getSlugs(): string[] {
   try { return JSON.parse(localStorage.getItem(BUSINESSES_KEY) || "[]"); } catch { return []; }
 }
 
-function parseSlug(input: string): string {
-  const trimmed = input.trim().toLowerCase().replace(/\/+$/, "");
-  try {
-    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
-    const parts = url.pathname.split("/").filter(Boolean);
-    if (parts.length > 0) return parts[parts.length - 1];
-  } catch {}
-  return trimmed;
-}
-
 // Returns { slug, ref } — ref is null if no referral code in the URL
 function parseBusinessUrl(input: string): { slug: string; ref: string | null } {
   const trimmed = input.trim().replace(/\/+$/, "");
@@ -73,9 +63,19 @@ function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; on
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const code = jsQR(imageData.data, imageData.width, imageData.height);
-      if (code && code.data.includes("katoomy.com/")) {
-        const slug = parseSlug(code.data);
-        if (slug) { active = false; stop(); onDetect(slug); return; }
+      if (code) {
+        const raw = code.data;
+        // Accept any katoomy domain so referral QR codes generated on
+        // vercel preview URLs also work
+        const isKatoomyUrl =
+          raw.includes("katoomy.com/") ||
+          raw.includes("katoomy-mai.vercel.app/") ||
+          raw.includes("katoomy-new.vercel.app/") ||
+          raw.includes("localhost:");
+        if (isKatoomyUrl) {
+          const { slug } = parseBusinessUrl(raw);
+          if (slug) { active = false; stop(); onDetect(raw); return; }
+        }
       }
       if (active) rafRef.current = requestAnimationFrame(scan);
     }
