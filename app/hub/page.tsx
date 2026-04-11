@@ -140,6 +140,9 @@ export default function HubPage() {
   const [addInput, setAddInput] = useState("");
   const [addError, setAddError] = useState("");
   const [adding, setAdding] = useState(false);
+  const [devMode, setDevMode] = useState(false);
+  const devTapCount = useRef(0);
+  const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function loadBusinesses(openAddPanel = false) {
     const slugs = getSlugs();
@@ -214,7 +217,18 @@ export default function HubPage() {
         {/* Header */}
         <div className="px-6 pt-14 pb-6 flex items-end justify-between">
           <div>
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-1">Katoomy</p>
+            <p
+              className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-1 select-none"
+              onClick={() => {
+                devTapCount.current += 1;
+                if (devTapTimer.current) clearTimeout(devTapTimer.current);
+                devTapTimer.current = setTimeout(() => { devTapCount.current = 0; }, 2000);
+                if (devTapCount.current >= 7) {
+                  devTapCount.current = 0;
+                  setDevMode(v => !v);
+                }
+              }}
+            >Katoomy</p>
             <h1 className="text-3xl font-bold text-white">My Businesses</h1>
           </div>
           {businesses.length > 0 && (
@@ -270,24 +284,37 @@ export default function HubPage() {
               const color = b.primary_color || "#3B82F6";
               const displayName = b.app_name || b.name;
               return (
-                <button
-                  key={b.slug}
-                  onClick={() => openBusiness(b.slug)}
-                  className="flex flex-col items-center justify-center p-6 rounded-3xl text-white active:scale-95 transition-transform shadow-2xl min-h-[160px]"
-                  style={{ background: `linear-gradient(145deg, ${color} 0%, ${color}bb 100%)` }}
-                >
-                  {b.logo_url ? (
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/20 mb-3 shadow-lg flex-shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={b.logo_url} alt={displayName} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-3xl mb-3 shadow-lg flex-shrink-0">
-                      🏢
-                    </div>
+                <div key={b.slug} className="relative">
+                  <button
+                    onClick={() => openBusiness(b.slug)}
+                    className="w-full flex flex-col items-center justify-center p-6 rounded-3xl text-white active:scale-95 transition-transform shadow-2xl min-h-[160px]"
+                    style={{ background: `linear-gradient(145deg, ${color} 0%, ${color}bb 100%)` }}
+                  >
+                    {b.logo_url ? (
+                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/20 mb-3 shadow-lg flex-shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={b.logo_url} alt={displayName} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-3xl mb-3 shadow-lg flex-shrink-0">
+                        🏢
+                      </div>
+                    )}
+                    <p className="font-bold text-center text-sm leading-tight drop-shadow">{displayName}</p>
+                  </button>
+                  {devMode && (
+                    <button
+                      onClick={() => {
+                        const updated = getSlugs().filter(s => s !== b.slug);
+                        localStorage.setItem(BUSINESSES_KEY, JSON.stringify(updated));
+                        setBusinesses(prev => prev.filter(x => x.slug !== b.slug));
+                      }}
+                      className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 rounded-full text-white text-base font-bold flex items-center justify-center shadow-lg"
+                    >
+                      ×
+                    </button>
                   )}
-                  <p className="font-bold text-center text-sm leading-tight drop-shadow">{displayName}</p>
-                </button>
+                </div>
               );
             })}
           </div>
