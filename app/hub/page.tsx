@@ -29,6 +29,19 @@ function parseSlug(input: string): string {
   return trimmed;
 }
 
+// Returns { slug, ref } — ref is null if no referral code in the URL
+function parseBusinessUrl(input: string): { slug: string; ref: string | null } {
+  const trimmed = input.trim().replace(/\/+$/, "");
+  try {
+    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const slug = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : trimmed.toLowerCase();
+    const ref = url.searchParams.get("ref");
+    return { slug, ref };
+  } catch {}
+  return { slug: trimmed.toLowerCase(), ref: null };
+}
+
 // ── QR Scanner ───────────────────────────────────────────────────────────────
 function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -188,24 +201,27 @@ export default function HubPage() {
     router.push(`/${slug}`);
   };
 
-  const handleDetected = async (slug: string) => {
+  const handleDetected = async (rawUrl: string) => {
     setScanning(false);
     setAdding(true);
+    const { slug, ref } = parseBusinessUrl(rawUrl);
     const res = await fetch(`/api/public/businesses?slugs=${slug}`);
     const data: BusinessInfo[] = await res.json();
     if (!data || data.length === 0) { setAddError("Business not found."); setAdding(false); return; }
-    openBusiness(slug);
+    sessionStorage.setItem("katoomy:fromHub", "1");
+    router.push(`/${slug}${ref ? `?ref=${ref}` : ""}`);
   };
 
   const handleManualAdd = async () => {
     setAddError("");
-    const slug = parseSlug(addInput);
+    const { slug, ref } = parseBusinessUrl(addInput);
     if (!slug) { setAddError("Enter a business URL."); return; }
     setAdding(true);
     const res = await fetch(`/api/public/businesses?slugs=${slug}`);
     const data: BusinessInfo[] = await res.json();
     if (!data || data.length === 0) { setAddError("Business not found. Check the URL and try again."); setAdding(false); return; }
-    openBusiness(slug);
+    sessionStorage.setItem("katoomy:fromHub", "1");
+    router.push(`/${slug}${ref ? `?ref=${ref}` : ""}`);
   };
 
   const filtered = businesses.filter(b =>
