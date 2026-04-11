@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import jsQR from "jsqr";
 
 interface BusinessInfo {
   slug: string;
@@ -28,19 +29,43 @@ function parseSlug(input: string): string {
   return trimmed;
 }
 
-function hasBarcodeDetector(): boolean {
-  return typeof window !== "undefined" && "BarcodeDetector" in window;
-}
-
-// ── QR Scanner using BarcodeDetector (Android Chrome) ──────────────────────
+// ── QR Scanner using jsQR (works on iOS and Android) ───────────────────────
 function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
+
+    function stop() {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    }
+
+    function scan() {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!active || !video || !canvas) return;
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+        rafRef.current = requestAnimationFrame(scan);
+        return;
+      }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data.includes("katoomy.com/")) {
+        const slug = parseSlug(code.data);
+        if (slug) { active = false; stop(); onDetect(slug); return; }
+      }
+      if (active) rafRef.current = requestAnimationFrame(scan);
+    }
 
     async function start() {
       try {
@@ -50,37 +75,12 @@ function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; on
         streamRef.current = stream;
         if (videoRef.current && active) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play();
+          await videoRef.current.play();
+          scan();
         }
-
-        // @ts-expect-error BarcodeDetector is not in TS lib yet
-        const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-
-        async function scan() {
-          if (!active || !videoRef.current) return;
-          try {
-            const barcodes = await detector.detect(videoRef.current);
-            for (const barcode of barcodes) {
-              const raw: string = barcode.rawValue;
-              // Only act on katoomy URLs
-              if (raw.includes("katoomy.com/")) {
-                const slug = parseSlug(raw);
-                if (slug) { active = false; stop(); onDetect(slug); return; }
-              }
-            }
-          } catch {}
-          if (active) rafRef.current = requestAnimationFrame(scan);
-        }
-
-        videoRef.current?.addEventListener("playing", () => { if (active) scan(); }, { once: true });
       } catch {
         setError("Camera access denied. Grant camera permission and try again.");
       }
-    }
-
-    function stop() {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      streamRef.current?.getTracks().forEach(t => t.stop());
     }
 
     start();
@@ -101,6 +101,7 @@ function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; on
           playsInline
           muted
         />
+        <canvas ref={canvasRef} className="hidden" />
         {/* Viewfinder overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-64 h-64 relative">
@@ -139,7 +140,6 @@ export default function HubPage() {
   const [addInput, setAddInput] = useState("");
   const [addError, setAddError] = useState("");
   const [adding, setAdding] = useState(false);
-  const canScan = hasBarcodeDetector();
 
   function loadBusinesses(openAddPanel = false) {
     const slugs = getSlugs();
@@ -232,26 +232,17 @@ export default function HubPage() {
           <div className="mx-4 mb-6 bg-white/10 rounded-2xl p-5 space-y-3">
             <p className="text-white font-bold text-sm">Add a Business</p>
 
-            {/* Scan button — Android only */}
-            {canScan && (
-              <button
-                onClick={() => setScanning(true)}
-                className="w-full py-4 bg-white text-gray-900 font-bold rounded-xl text-base flex items-center justify-center gap-2 active:scale-95 transition"
-              >
-                📷 Scan QR Code
-              </button>
-            )}
+            {/* Scan button — works on iOS and Android via jsQR */}
+            <button
+              onClick={() => setScanning(true)}
+              className="w-full py-4 bg-white text-gray-900 font-bold rounded-xl text-base flex items-center justify-center gap-2 active:scale-95 transition"
+            >
+              📷 Scan QR Code
+            </button>
 
             {/* Manual URL input */}
             <div>
-              {canScan && (
-                <p className="text-gray-400 text-xs text-center mb-3">or enter the URL manually</p>
-              )}
-              {!canScan && (
-                <p className="text-gray-400 text-xs mb-3">
-                  Paste the business URL (e.g. katoomy.com/business-name)
-                </p>
-              )}
+              <p className="text-gray-400 text-xs text-center mb-3">or enter the URL manually</p>
               <input
                 type="text"
                 value={addInput}
