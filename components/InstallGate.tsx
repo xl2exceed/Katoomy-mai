@@ -25,12 +25,8 @@ const SKIP_KEY = "katoomy:installSkipped";
 const LAST_BUSINESS_KEY = "katoomy:lastBusiness";
 const BUSINESSES_KEY = "katoomy:businesses";
 
-// Save slug to BOTH localStorage and a cookie so iOS PWA can read it
-// (iOS PWA and Safari have separate localStorage, but share cookies)
 function saveLastBusiness(slug: string) {
-  try {
-    localStorage.setItem(LAST_BUSINESS_KEY, slug);
-  } catch {}
+  try { localStorage.setItem(LAST_BUSINESS_KEY, slug); } catch {}
   const expires = new Date();
   expires.setFullYear(expires.getFullYear() + 1);
   document.cookie = `katoomy_lastBusiness=${encodeURIComponent(slug)}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
@@ -51,52 +47,29 @@ function addBusinessSlug(slug: string): string[] {
 
 function recordInstall(slug: string) {
   const flagKey = `katoomy:installRecorded:${slug}`;
-  if (localStorage.getItem(flagKey)) return; // already recorded
+  if (localStorage.getItem(flagKey)) return;
   localStorage.setItem(flagKey, "1");
   fetch("/api/pwa/installed", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ slug }),
-  }).catch(() => {/* best-effort */});
+  }).catch(() => {});
 }
 
-export default function InstallGate({
-  business,
-  slug,
-  children,
-}: InstallGateProps) {
+export default function InstallGate({ business, slug, children }: InstallGateProps) {
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
   const [canInstall, setCanInstall] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installed, setInstalled] = useState(false);
   const [showIosSteps, setShowIosSteps] = useState(false);
   const [showFloatingInstall, setShowFloatingInstall] = useState(false);
-  // True once the hub-redirect check in useEffect has run
-  const [hubCheckDone, setHubCheckDone] = useState(false);
 
-  const [isStandalone] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      (window.matchMedia("(display-mode: standalone)").matches ||
-        Boolean(
-          (window.navigator as unknown as { standalone?: boolean }).standalone,
-        )),
-  );
-
-  // Has this customer visited any OTHER Katoomy businesses before this one?
-  // (Checked before we add the current slug, so we know if this is "new".)
-  const [hasOtherBusinesses] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const existing = getBusinessSlugs();
-    return existing.filter(s => s !== slug).length > 0;
-  });
-
-  // Auto-skip the install gate for 2nd+ businesses — they already have the app
-  const [skipped, setSkipped] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      (localStorage.getItem(SKIP_KEY) === "1" || hasOtherBusinesses),
-  );
+  // All browser-API-dependent state starts as null/false.
+  // useEffect sets the real values. We render nothing until ready
+  // to avoid SSR hydration mismatches causing doubled content.
+  const [ready, setReady] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [skipped, setSkipped] = useState(false);
 
   const isIos = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -107,31 +80,32 @@ export default function InstallGate({
   useEffect(() => {
     saveLastBusiness(slug);
 
-    // Add this business to the customer's list
-    const allBusinesses = addBusinessSlug(slug);
-
-    const isStandaloneNow =
+    const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       Boolean((window.navigator as unknown as { standalone?: boolean }).standalone);
 
-    if (isStandaloneNow) {
-      // Record install (de-duped per device)
+    setIsStandalone(standalone);
+
+    const allBusinesses = addBusinessSlug(slug);
+    const hasOtherBusinesses = allBusinesses.filter(s => s !== slug).length > 0;
+    const shouldSkip = localStorage.getItem(SKIP_KEY) === "1" || hasOtherBusinesses;
+    setSkipped(shouldSkip);
+
+    if (standalone) {
       recordInstall(slug);
 
-      // Multi-business hub redirect:
-      // If they have 2+ businesses and are NOT navigating here from the hub,
-      // send them to the hub home screen instead of this business's page.
+      // Hub redirect: 2+ businesses and not navigating here from the hub
       if (allBusinesses.length >= 2) {
         const fromHub = sessionStorage.getItem("katoomy:fromHub");
         sessionStorage.removeItem("katoomy:fromHub");
         if (!fromHub) {
           window.location.replace("/hub");
-          return; // stop — don't set hubCheckDone, page is being replaced
+          return; // don't set ready — page is being replaced
         }
       }
     }
 
-    setHubCheckDone(true);
+    setReady(true);
 
     // Android / Chrome: fires after user accepts install prompt
     const onInstalled = () => recordInstall(slug);
@@ -144,6 +118,7 @@ export default function InstallGate({
       setShowFloatingInstall(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
+
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
       window.removeEventListener("appinstalled", onInstalled);
@@ -172,18 +147,15 @@ export default function InstallGate({
 
   const primaryColor = business.primary_color || "#3B82F6";
 
-  // Standalone mode: wait for hub check before rendering anything
-  if (isStandalone) {
-    if (!hubCheckDone) return null;
-    return <>{children}</>;
-  }
+  // Render nothing until useEffect has run — prevents SSR/client mismatch
+  if (!ready) return null;
 
-  // Browser mode, already past the gate (skipped or 2nd+ business)
-  if (skipped) {
+  // Standalone (PWA) or already past the gate
+  if (isStandalone || skipped) {
     return (
       <>
         {children}
-        {canInstall && (
+        {!isStandalone && canInstall && (
           <button
             onClick={handleInstall}
             className="fixed bottom-6 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl text-white text-sm font-semibold shadow-xl"
@@ -192,17 +164,12 @@ export default function InstallGate({
             📲 Install App
           </button>
         )}
-        {isIos && showFloatingInstall && (
+        {!isStandalone && isIos && showFloatingInstall && (
           <div className="fixed bottom-0 inset-x-0 z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl p-5 max-w-md mx-auto border border-gray-100">
               <div className="flex justify-between items-center mb-3">
                 <p className="font-bold text-gray-900">Install on iPhone</p>
-                <button
-                  onClick={() => setShowFloatingInstall(false)}
-                  className="text-gray-400 text-xl"
-                >
-                  ×
-                </button>
+                <button onClick={() => setShowFloatingInstall(false)} className="text-gray-400 text-xl">×</button>
               </div>
               <ol className="space-y-2">
                 {[
@@ -228,7 +195,7 @@ export default function InstallGate({
     );
   }
 
-  // Install gate — shown only for the first Katoomy business
+  // Install gate — shown only for the first Katoomy business in browser
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-between px-6 py-16"
@@ -238,11 +205,7 @@ export default function InstallGate({
         {business.logo_url ? (
           <div className="w-32 h-32 rounded-3xl overflow-hidden bg-white shadow-2xl mb-6">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={business.logo_url}
-              alt={business.app_name}
-              className="w-full h-full object-cover"
-            />
+            <img src={business.logo_url} alt={business.app_name} className="w-full h-full object-cover" />
           </div>
         ) : (
           <div className="w-32 h-32 rounded-3xl bg-white/20 flex items-center justify-center text-7xl shadow-2xl mb-6">
@@ -255,9 +218,7 @@ export default function InstallGate({
         </h1>
 
         {business.welcome_message && (
-          <p className="text-white/80 text-base max-w-xs mt-2">
-            {business.welcome_message}
-          </p>
+          <p className="text-white/80 text-base max-w-xs mt-2">{business.welcome_message}</p>
         )}
 
         <div className="mt-12 w-full max-w-xs">
@@ -265,15 +226,11 @@ export default function InstallGate({
             <div className="bg-white rounded-2xl p-6 text-center shadow-2xl">
               <div className="text-4xl mb-3">✅</div>
               <p className="font-bold text-gray-900 text-lg mb-1">App Installed!</p>
-              <p className="text-gray-600 text-sm">
-                Open the app from your home screen to continue.
-              </p>
+              <p className="text-gray-600 text-sm">Open the app from your home screen to continue.</p>
             </div>
           ) : isIos ? (
             <div className="bg-white rounded-3xl p-6 shadow-2xl">
-              <p className="text-gray-900 font-bold text-lg text-center mb-4">
-                Install on your iPhone
-              </p>
+              <p className="text-gray-900 font-bold text-lg text-center mb-4">Install on your iPhone</p>
               {!showIosSteps ? (
                 <button
                   onClick={() => setShowIosSteps(true)}
@@ -312,10 +269,7 @@ export default function InstallGate({
               {installing ? "Installing..." : "📲 Install App"}
             </button>
           ) : (
-            <button
-              disabled
-              className="w-full py-5 bg-white/30 rounded-2xl font-bold text-xl text-white/70"
-            >
+            <button disabled className="w-full py-5 bg-white/30 rounded-2xl font-bold text-xl text-white/70">
               📲 Install App
             </button>
           )}
@@ -323,10 +277,7 @@ export default function InstallGate({
       </div>
 
       {!installed && (
-        <button
-          onClick={handleSkip}
-          className="mt-8 py-2 text-white/50 text-sm text-center"
-        >
+        <button onClick={handleSkip} className="mt-8 py-2 text-white/50 text-sm text-center">
           Continue in browser instead
         </button>
       )}
