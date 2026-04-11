@@ -44,10 +44,17 @@ export default function HubPage() {
     const slugs = getSlugs();
     if (slugs.length === 0) { setLoading(false); return; }
 
-    // Single business — go straight to it
+    // Single business — show hub with add panel so they can add a second
+    // (don't auto-redirect, they came here intentionally via the button)
     if (slugs.length === 1) {
-      sessionStorage.setItem("katoomy:fromHub", "1");
-      router.replace(`/${slugs[0]}`);
+      fetch(`/api/public/businesses?slugs=${slugs[0]}`)
+        .then(r => r.json())
+        .then((data: BusinessInfo[]) => {
+          setBusinesses(data);
+          setShowAdd(true); // open add panel automatically
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
       return;
     }
 

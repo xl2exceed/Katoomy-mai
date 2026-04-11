@@ -1,7 +1,7 @@
 "use client";
-// Shows a floating "My Businesses" button when the app is running as a PWA
-// and the customer has more than one Katoomy business saved.
-// Tapping it navigates to /hub.
+// Shows a floating button in standalone (PWA) mode:
+// - 1 business saved → "＋ Add Business" → goes to /hub (which shows the add panel)
+// - 2+ businesses saved → "⊞ My Businesses" → goes to /hub (which shows the tile grid)
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,7 @@ const BUSINESSES_KEY = "katoomy:businesses";
 
 export default function HubBackButton() {
   const router = useRouter();
-  const [show, setShow] = useState(false);
+  const [mode, setMode] = useState<"add" | "hub" | null>(null);
 
   useEffect(() => {
     const standalone =
@@ -21,18 +21,20 @@ export default function HubBackButton() {
 
     try {
       const slugs: string[] = JSON.parse(localStorage.getItem(BUSINESSES_KEY) || "[]");
-      if (slugs.length >= 2) setShow(true);
-    } catch {}
+      setMode(slugs.length >= 2 ? "hub" : "add");
+    } catch {
+      setMode("add");
+    }
   }, []);
 
-  if (!show) return null;
+  if (!mode) return null;
 
   return (
     <button
       onClick={() => router.push("/hub")}
-      className="fixed top-4 left-4 z-50 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/30 backdrop-blur-sm text-white text-xs font-semibold shadow-lg"
+      className="fixed top-4 right-4 z-50 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/30 backdrop-blur-sm text-white text-xs font-semibold shadow-lg active:scale-95 transition"
     >
-      ← My Businesses
+      {mode === "hub" ? "⊞ My Businesses" : "＋ Add Business"}
     </button>
   );
 }
