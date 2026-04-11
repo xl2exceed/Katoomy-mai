@@ -282,35 +282,31 @@ export default function HubPage() {
             </div>
           )}
 
-          {/* Search bar — only shown when there are businesses */}
-          {businesses.length > 0 && (
-            <div className="px-4 mb-4">
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2.5 border border-white/10">
-                <span className="text-gray-400 text-sm">🔍</span>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search businesses..."
-                  className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
-                />
-                {search && (
-                  <button onClick={() => setSearch("")} className="text-gray-500 text-lg leading-none">×</button>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Promo Banner */}
           {!showAdd && businesses.length > 0 && <PromoBanner />}
         </div>
 
-        {/* My Businesses label bar */}
+        {/* My Businesses label bar + search below it */}
         {businesses.length > 0 && !showAdd && (
-          <div className="mx-4 mt-3 mb-0 bg-white/10 rounded-xl px-4 py-2 flex items-center gap-2">
-            <span className="text-white text-xs font-bold uppercase tracking-widest">My Businesses</span>
-            <div className="flex-1 h-px bg-white/20" />
-            <span className="text-white/40 text-xs">{businesses.length}</span>
+          <div className="mx-4 mt-3 space-y-2">
+            <div className="bg-white/10 rounded-xl px-4 py-2 flex items-center gap-2">
+              <span className="text-white text-xs font-bold uppercase tracking-widest">My Businesses</span>
+              <div className="flex-1 h-px bg-white/20" />
+              <span className="text-white/40 text-xs">{businesses.length}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 shadow-sm">
+              <span className="text-gray-400 text-sm">🔍</span>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search businesses..."
+                className="flex-1 bg-transparent text-gray-800 placeholder-gray-400 text-sm outline-none"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="text-gray-400 text-lg leading-none">×</button>
+              )}
+            </div>
           </div>
         )}
 
