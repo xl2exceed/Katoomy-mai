@@ -4,6 +4,7 @@ import ReferralCapture from "./components/ReferralCapture";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import InstallGate from "@/components/InstallGate";
+import HubBackButton from "@/components/HubBackButton";
 
 export default async function CustomerLandingPage({
   params,
@@ -43,6 +44,7 @@ export default async function CustomerLandingPage({
     // ✅ slug is passed so InstallGate can save katoomy:lastBusiness
     // even before children render
     <InstallGate business={business} slug={slug}>
+      <HubBackButton />
       {/* Capture lastBusiness + pending referral (runs when gate is skipped/installed) */}
       <ReferralCapture businessSlug={slug} referralCode={referralCode} />
 
