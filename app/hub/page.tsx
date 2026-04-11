@@ -120,26 +120,26 @@ function PromoBanner() {
     <div className="mx-4 rounded-2xl overflow-hidden shadow-2xl"
       style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)" }}
     >
-      <div className="p-5 flex flex-col justify-between h-full">
-        <div className="flex items-start justify-between mb-4">
+      <div className="p-4 flex flex-col justify-between h-full">
+        <div className="flex items-start justify-between mb-2">
           <div className="bg-yellow-400 text-gray-900 text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
             Featured
           </div>
           <div className="text-white/40 text-xs">Sponsored</div>
         </div>
-        <div className="mb-4">
+        <div className="mb-3">
           <p className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-1">Now on Katoomy</p>
-          <h2 className="text-white text-2xl font-black leading-tight mb-2">
+          <h2 className="text-white text-xl font-black leading-tight mb-1.5">
             Discover Top Local<br />Businesses Near You
           </h2>
-          <p className="text-white/60 text-sm leading-relaxed">
+          <p className="text-white/60 text-xs leading-relaxed">
             Book appointments, earn rewards, and support your community — all in one place.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex -space-x-2">
             {["#e74c3c", "#3498db", "#2ecc71", "#f39c12"].map((c, i) => (
-              <div key={i} className="w-7 h-7 rounded-full border-2 border-gray-900 flex items-center justify-center text-xs" style={{ backgroundColor: c }}>
+              <div key={i} className="w-6 h-6 rounded-full border-2 border-gray-900 flex items-center justify-center text-xs" style={{ backgroundColor: c }}>
                 {["✂️", "🚗", "💅", "🏋️"][i]}
               </div>
             ))}
@@ -305,8 +305,17 @@ export default function HubPage() {
           {!showAdd && businesses.length > 0 && <PromoBanner />}
         </div>
 
+        {/* My Businesses label bar */}
+        {businesses.length > 0 && !showAdd && (
+          <div className="mx-4 mt-3 mb-0 bg-white/10 rounded-xl px-4 py-2 flex items-center gap-2">
+            <span className="text-white text-xs font-bold uppercase tracking-widest">My Businesses</span>
+            <div className="flex-1 h-px bg-white/20" />
+            <span className="text-white/40 text-xs">{businesses.length}</span>
+          </div>
+        )}
+
         {/* ── BOTTOM HALF: Business Tiles ── */}
-        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-8">
+        <div className="flex-1 overflow-y-auto px-4 pt-3 pb-8">
           {businesses.length === 0 && !showAdd && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <div className="text-5xl mb-4">📱</div>
