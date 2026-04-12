@@ -99,14 +99,16 @@ export async function POST(req: NextRequest) {
       addonIds: addonIdsRaw,
       customerAddress,
       travelFeeCents,
+      smsConsent: smsConsentRaw,
     } = meta;
     const addonIds = addonIdsRaw ? JSON.parse(addonIdsRaw) : null;
+    const smsConsent = smsConsentRaw === "true";
 
     // Upsert customer
     const cleanPhone = customerPhone.replace(/\D/g, "");
     const { data: existingCustomer } = await supabaseAdmin
       .from("customers")
-      .select("id")
+      .select("id, sms_consent")
       .eq("business_id", businessId)
       .eq("phone", cleanPhone)
       .maybeSingle();
@@ -115,10 +117,12 @@ export async function POST(req: NextRequest) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
-      await supabaseAdmin
-        .from("customers")
-        .update({ full_name: customerName, email: customerEmail || null })
-        .eq("id", customerId);
+      const updatePayload: Record<string, unknown> = { full_name: customerName, email: customerEmail || null };
+      if (smsConsent && !existingCustomer.sms_consent) {
+        updatePayload.sms_consent = true;
+        updatePayload.sms_consent_at = new Date().toISOString();
+      }
+      await supabaseAdmin.from("customers").update(updatePayload).eq("id", customerId);
     } else {
       const referralCode = await ensureUniqueReferralCode(
         supabaseAdmin,
@@ -134,6 +138,8 @@ export async function POST(req: NextRequest) {
           phone: cleanPhone,
           email: customerEmail || null,
           referral_code: referralCode,
+          sms_consent: smsConsent ? true : false,
+          sms_consent_at: smsConsent ? new Date().toISOString() : null,
         })
         .select()
         .single();

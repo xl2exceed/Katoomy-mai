@@ -72,6 +72,9 @@ export default function CustomerInfoPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
+  const [agreedToSms, setAgreedToSms] = useState(false);
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
+  const [alreadyConsented, setAlreadyConsented] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -182,7 +185,7 @@ export default function CustomerInfoPage() {
       if (savedPhone) {
         const { data: existingCustomer } = await supabase
           .from("customers")
-          .select("full_name, phone, email")
+          .select("full_name, phone, email, sms_consent")
           .eq("business_id", businessData.id)
           .eq("phone", savedPhone)
           .single();
@@ -192,6 +195,11 @@ export default function CustomerInfoPage() {
           setPhone(formatPhone(existingCustomer.phone || ""));
           setEmail(existingCustomer.email || "");
           setPrefilled(true);
+          if (existingCustomer.sms_consent) {
+            setAlreadyConsented(true);
+            setAgreedToSms(true);
+            setAgreedToPrivacy(true);
+          }
         }
 
         try {
@@ -308,6 +316,7 @@ export default function CustomerInfoPage() {
         slug,
         staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
         referredByCode: referredByCode || undefined,
+        smsConsent: true,
         ...carwashPayload,
       }),
     });
@@ -354,6 +363,7 @@ export default function CustomerInfoPage() {
           defaultBookingStatus,
           staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
           referredByCode: referredByCode || undefined,
+          smsConsent: true,
           ...carwashPayload,
         }),
       });
@@ -378,6 +388,10 @@ export default function CustomerInfoPage() {
   const handleSubmit = async () => {
     if (!name.trim() || !phone.trim()) {
       alert("Please enter your name and phone number");
+      return;
+    }
+    if (!alreadyConsented && (!agreedToSms || !agreedToPrivacy)) {
+      alert("Please check both consent boxes to continue.");
       return;
     }
     if (!business || !service) return;
@@ -517,6 +531,36 @@ export default function CustomerInfoPage() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             />
           </div>
+
+          {/* SMS + Privacy consent — only shown if not already consented */}
+          {!alreadyConsented && (
+            <div className="space-y-3 py-1">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToSms}
+                  onChange={e => setAgreedToSms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
+                />
+                <span className="text-xs text-gray-600 leading-relaxed">
+                  I agree to receive SMS text messages from [Business Name] including appointment reminders, booking confirmations, and promotional offers. Message and data rates may apply. Message frequency varies. Reply STOP to opt out at any time. Reply HELP for help.{" "}
+                  <a href="/sms-terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">View our SMS Terms &amp; Conditions.</a>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToPrivacy}
+                  onChange={e => setAgreedToPrivacy(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
+                />
+                <span className="text-xs text-gray-600">
+                  I have read and agree to the{" "}
+                  <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>.
+                </span>
+              </label>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
@@ -666,7 +710,7 @@ export default function CustomerInfoPage() {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
         <button
           onClick={handleSubmit}
-          disabled={submitting || !name.trim() || !phone.trim()}
+          disabled={submitting || !name.trim() || !phone.trim() || (!alreadyConsented && (!agreedToSms || !agreedToPrivacy))}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting

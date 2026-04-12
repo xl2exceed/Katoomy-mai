@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       addonIds,
       customerAddress,
       travelFeeCents,
+      smsConsent,
     } = await req.json();
 
     if (!businessId || !serviceId || !priceCents || !slug) {
@@ -150,6 +151,7 @@ export async function POST(req: NextRequest) {
           addonIds: addonIds ? JSON.stringify(addonIds) : "",
           customerAddress: customerAddress || "",
           travelFeeCents: String(travelFeeCents || 0),
+          smsConsent: smsConsent ? "true" : "false",
         },
       },
       {
