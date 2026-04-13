@@ -101,10 +101,13 @@ export default function ServicesPage() {
     sessionStorage.setItem("selectedServiceId", serviceId);
     sessionStorage.removeItem("selectedAddonIds");
 
-    // Quick Book edit: save the new service and return
+    // Quick Book edit: save the new service details and return
     if (fromQuickBook) {
+      const selected = services.find(s => s.id === serviceId);
       sessionStorage.setItem("qbEdit_serviceId", serviceId);
       sessionStorage.setItem("qbEdit_servicePriceCents", String(adjustedPriceCents));
+      sessionStorage.setItem("qbEdit_serviceName", selected?.name ?? "");
+      sessionStorage.setItem("qbEdit_serviceDuration", String(selected?.duration_minutes ?? 0));
       sessionStorage.removeItem("quickBookReturn");
       router.push(`/${slug}/quick-book`);
       return;

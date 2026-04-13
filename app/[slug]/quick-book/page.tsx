@@ -66,15 +66,20 @@ interface QuickBookDefaults {
 
 // Pending edits stored in sessionStorage when user returns from an edit step
 const EDIT_KEYS = {
-  staffId:          "qbEdit_staffId",
-  time:             "qbEdit_time",
-  dayOfWeek:        "qbEdit_dayOfWeek",
-  serviceId:        "qbEdit_serviceId",
-  servicePriceCents:"qbEdit_servicePriceCents",
-  addonIds:         "qbEdit_addonIds",
-  vehicleType:      "qbEdit_vehicleType",
-  vehicleCondition: "qbEdit_vehicleCondition",
+  staffId:           "qbEdit_staffId",
+  time:              "qbEdit_time",
+  dayOfWeek:         "qbEdit_dayOfWeek",
+  serviceId:         "qbEdit_serviceId",
+  servicePriceCents: "qbEdit_servicePriceCents",
+  serviceName:       "qbEdit_serviceName",
+  serviceDuration:   "qbEdit_serviceDuration",
+  addonIds:          "qbEdit_addonIds",
+  vehicleType:       "qbEdit_vehicleType",
+  vehicleCondition:  "qbEdit_vehicleCondition",
 } as const;
+
+// Persists the working (possibly one-time-edited) state across navigations
+const QB_WORKING_KEY = "qbWorkingState";
 
 function capitalize(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -185,7 +190,7 @@ export default function QuickBookPage() {
     }
     if (hasPending) { setPendingEdits(edits); setShowSaveModal(true); }
 
-    // Load defaults
+    // Load defaults from DB
     const res = await fetch(`/api/quick-book/defaults?businessId=${biz.id}&phone=${phone.replace(/\D/g,"")}`);
     const json = await res.json();
 
@@ -195,7 +200,13 @@ export default function QuickBookPage() {
       return;
     }
 
-    const d: QuickBookDefaults = json.defaults;
+    // Use the working state (one-time edits from this session) if it exists,
+    // otherwise fall back to the DB defaults
+    let d: QuickBookDefaults = json.defaults;
+    const savedWorking = sessionStorage.getItem(QB_WORKING_KEY);
+    if (savedWorking) {
+      try { d = JSON.parse(savedWorking); } catch {}
+    }
     setDefaults(d);
 
     // Load customer info for booking
@@ -268,6 +279,8 @@ export default function QuickBookPage() {
     if (!defaults) return;
     const updated = applyEditsToDefaults(defaults, pendingEdits);
     setDefaults(updated);
+    // Persist working state so it survives navigating away and back for more edits
+    sessionStorage.setItem(QB_WORKING_KEY, JSON.stringify(updated));
     // Recompute next date if day changed
     if (pendingEdits.dayOfWeek) {
       const nd = nextDateForDay(pendingEdits.dayOfWeek, openDays);
@@ -282,6 +295,8 @@ export default function QuickBookPage() {
     if (!defaults || !business || !customer) return;
     const updated = applyEditsToDefaults(defaults, pendingEdits);
     setDefaults(updated);
+    // Clear working state — DB is now up to date
+    sessionStorage.removeItem(QB_WORKING_KEY);
     if (pendingEdits.dayOfWeek) {
       const nd = nextDateForDay(pendingEdits.dayOfWeek, openDays);
       setNextDate(nd);
@@ -315,11 +330,24 @@ export default function QuickBookPage() {
     if (edits.staffId !== undefined)   updated.staff_id = edits.staffId === "any" ? null : edits.staffId;
     if (edits.time !== undefined)      updated.booking_time = edits.time;
     if (edits.dayOfWeek !== undefined) updated.booking_day_of_week = edits.dayOfWeek;
-    if (edits.serviceId !== undefined) updated.service_id = edits.serviceId;
+    if (edits.serviceId !== undefined) {
+      updated.service_id = edits.serviceId;
+      // Also update the joined services object so the display shows the new service
+      updated.services = {
+        ...updated.services,
+        id: edits.serviceId,
+        name: edits.serviceName ?? updated.services.name,
+        price_cents: edits.servicePriceCents ? parseInt(edits.servicePriceCents, 10) : updated.services.price_cents,
+        duration_minutes: edits.serviceDuration ? parseInt(edits.serviceDuration, 10) : updated.services.duration_minutes,
+      };
+      // Clear addons when service changes — they may not apply to the new service
+      updated.addon_ids = [];
+      updated.addons = [];
+    }
     if (edits.addonIds !== undefined) {
       try { updated.addon_ids = JSON.parse(edits.addonIds); } catch {}
     }
-    if (edits.vehicleType !== undefined)     updated.vehicle_type = edits.vehicleType;
+    if (edits.vehicleType !== undefined)      updated.vehicle_type = edits.vehicleType;
     if (edits.vehicleCondition !== undefined) updated.vehicle_condition = edits.vehicleCondition;
     return updated;
   }
@@ -396,6 +424,7 @@ export default function QuickBookPage() {
       return;
     }
 
+    sessionStorage.removeItem(QB_WORKING_KEY);
     setBooked(true);
     setBooking(false);
     setTimeout(() => router.push(`/${slug}/dashboard`), 2000);
