@@ -18,6 +18,7 @@ interface Business {
   name: string;
   primary_color: string;
   features?: Record<string, unknown>;
+  default_booking_status?: string;
 }
 
 interface Customer {
@@ -154,7 +155,7 @@ export default function QuickBookPage() {
   const loadData = useCallback(async () => {
     const { data: biz } = await supabase
       .from("businesses")
-      .select("id, name, primary_color, features")
+      .select("id, name, primary_color, features, default_booking_status")
       .eq("slug", slug)
       .single();
     if (!biz) { setLoading(false); return; }
@@ -419,7 +420,7 @@ export default function QuickBookPage() {
         vehicleType:   defaults.vehicle_type || null,
         vehicleCondition: defaults.vehicle_condition || null,
         addonIds:      defaults.addon_ids.length > 0 ? defaults.addon_ids : null,
-        defaultBookingStatus: "requested",
+        defaultBookingStatus: business.default_booking_status || "requested",
       }),
     });
 
