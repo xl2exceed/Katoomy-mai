@@ -74,6 +74,7 @@ const EDIT_KEYS = {
   serviceName:       "qbEdit_serviceName",
   serviceDuration:   "qbEdit_serviceDuration",
   addonIds:          "qbEdit_addonIds",
+  addonDetails:      "qbEdit_addonDetails",
   vehicleType:       "qbEdit_vehicleType",
   vehicleCondition:  "qbEdit_vehicleCondition",
 } as const;
@@ -346,6 +347,10 @@ export default function QuickBookPage() {
     }
     if (edits.addonIds !== undefined) {
       try { updated.addon_ids = JSON.parse(edits.addonIds); } catch {}
+      // Rebuild the addons detail array from the saved detail objects
+      if (edits.addonDetails !== undefined) {
+        try { updated.addons = JSON.parse(edits.addonDetails); } catch {}
+      }
     }
     if (edits.vehicleType !== undefined)      updated.vehicle_type = edits.vehicleType;
     if (edits.vehicleCondition !== undefined) updated.vehicle_condition = edits.vehicleCondition;
@@ -597,11 +602,15 @@ export default function QuickBookPage() {
             warn={staffUnavailable}
           />
 
-          {/* Add-ons */}
-          {defaults.addons.length > 0 ? (
+          {/* Add-ons — always shown for carwash */}
+          {isCarwash && (
             <Row
               label="Add-ons"
-              value={defaults.addons.filter(a => defaults.addon_ids.includes(a.id)).map(a => a.name).join(", ") || "None"}
+              value={
+                defaults.addon_ids.length > 0
+                  ? defaults.addons.filter(a => defaults.addon_ids.includes(a.id)).map(a => a.name).join(", ") || "None"
+                  : "None"
+              }
               sub={addonTotal > 0 ? `+$${(addonTotal / 100).toFixed(2)}` : undefined}
               onEdit={() => {
                 seedSessionForEdit();
@@ -609,17 +618,7 @@ export default function QuickBookPage() {
               }}
               color={color}
             />
-          ) : isCarwash ? (
-            <Row
-              label="Add-ons"
-              value="None"
-              onEdit={() => {
-                seedSessionForEdit();
-                router.push(`/${slug}/addons?from=quick-book`);
-              }}
-              color={color}
-            />
-          ) : null}
+          )}
 
           {/* Vehicle (car wash only) */}
           {isCarwash && (

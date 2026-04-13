@@ -107,7 +107,9 @@ export default function AddonsPage() {
     sessionStorage.setItem("addonTotalCents", String(addonTotal));
 
     if (fromQuickBook) {
+      const selectedAddonObjects = addons.filter(a => selectedAddonIds.has(a.id));
       sessionStorage.setItem("qbEdit_addonIds", JSON.stringify([...selectedAddonIds]));
+      sessionStorage.setItem("qbEdit_addonDetails", JSON.stringify(selectedAddonObjects));
       sessionStorage.removeItem("quickBookReturn");
       router.push(`/${slug}/quick-book`);
       return;
