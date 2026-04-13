@@ -129,7 +129,8 @@ export default function ServicesPage() {
         router.push(`/${slug}/book`);
       }
     } else {
-      // Barber / default flow: straight to book (date/time)
+      // Barber / default flow: clear any stale carwash price then go to book
+      sessionStorage.removeItem("vehicleBasedPriceCents");
       router.push(`/${slug}/book`);
     }
   };
