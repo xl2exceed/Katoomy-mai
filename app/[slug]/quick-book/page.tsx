@@ -199,7 +199,7 @@ export default function QuickBookPage() {
     setDefaults(d);
 
     // Load customer info for booking
-    const { data: cust } = await supabaseAdmin_clientSafe(supabase, biz.id, phone.replace(/\D/g,""));
+    const cust = await supabaseAdmin_clientSafe(supabase, biz.id, phone.replace(/\D/g,""));
     if (cust) setCustomer(cust);
 
     // Find next date
