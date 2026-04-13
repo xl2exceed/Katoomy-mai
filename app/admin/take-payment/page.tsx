@@ -114,12 +114,12 @@ export default function AdminTakePaymentPage() {
       setLookup(data);
       setCustomerName(data.customerName || "");
       if (data.services.length > 0) setSelectedServiceId(data.services[0].id);
-      // Pre-fill the custom payment form whenever a customer is found
-      setCustomCustomerName(data.customerName || "");
-      if (data.existingBooking) {
+      // If the customer has a custom-status booking, pre-fill the custom payment form
+      if (data.existingBooking?.isCustom) {
         setLinkedBookingId(data.existingBooking.id);
         setCustomServiceName(data.existingBooking.serviceName);
         setCustomAmount((data.existingBooking.priceCents / 100).toFixed(2));
+        setCustomCustomerName(data.customerName || "");
       } else {
         setLinkedBookingId(null);
       }
