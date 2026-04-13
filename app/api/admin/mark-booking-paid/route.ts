@@ -36,30 +36,11 @@ export async function POST(req: NextRequest) {
   // Mark booking as paid
   await supabaseAdmin.from('bookings').update({ payment_status: 'paid' }).eq('id', bookingId);
 
-  // Record in alternative payment ledger
-  const now = new Date();
-  const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const customerArr = booking.customers as unknown as { full_name: string | null; phone: string }[];
-  const serviceArr = booking.services as unknown as { name: string }[];
-  const customerData = Array.isArray(customerArr) ? customerArr[0] : null;
-  const serviceData = Array.isArray(serviceArr) ? serviceArr[0] : null;
+  // Note: alternative_payment_ledger is written by the DB trigger
+  // (trg_auto_record_alternative_payment) when payment_status changes to 'paid'.
+  // No explicit insert needed here.
 
-  await supabaseAdmin.from('alternative_payment_ledger').insert({
-    business_id: booking.business_id,
-    booking_id: bookingId,
-    customer_name: customerData?.full_name ?? null,
-    customer_phone: customerData?.phone ?? null,
-    service_name: serviceData?.name ?? null,
-    service_amount_cents: booking.total_price_cents,
-    tip_cents: 0,
-    platform_fee_cents: 100,
-    payment_method: 'cash',
-    fee_absorbed_by: 'business',
-    billing_month: billingMonth,
-    billing_status: 'pending',
-    marked_paid_by: null,
-    notes: 'Cash payment marked by admin',
-  });
+  const now = new Date();
 
   // Award loyalty points
   const { data: loyalty } = await supabaseAdmin
