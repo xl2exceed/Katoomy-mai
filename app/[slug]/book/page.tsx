@@ -33,6 +33,9 @@ export default function BookPage() {
   const searchParams = useSearchParams();
   const slug = params.slug as string;
   const rescheduleBookingId = searchParams.get("rescheduleBookingId");
+  const fromQuickBook = searchParams.get("from") === "quick-book";
+  // edit=staff → show only staff step; edit=datetime → skip to date/time
+  const quickBookEdit = searchParams.get("edit") as "staff" | "datetime" | null;
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [service, setService] = useState<Service | null>(null);
@@ -92,6 +95,12 @@ export default function BookPage() {
     if (savedVehiclePrice) setVehicleBasedPriceCents(parseInt(savedVehiclePrice, 10));
     const savedAddonTotal = parseInt(sessionStorage.getItem("addonTotalCents") || "0", 10);
     setAddonTotalCents(savedAddonTotal);
+
+    // Restore staff selection when returning from quick-book edit
+    if (fromQuickBook) {
+      const savedStaff = sessionStorage.getItem("selectedStaffId");
+      if (savedStaff) setSelectedStaffId(savedStaff);
+    }
 
     // Get business
     const { data: businessData } = await supabase
@@ -155,7 +164,15 @@ export default function BookPage() {
         .order('full_name');
       if (staffData && staffData.length > 0) {
         setStaffMembers(staffData);
-        setStep("staff");
+        // When editing just the staff member from quick-book, start on staff step.
+        // When editing date/time from quick-book, skip staff and start on date.
+        if (fromQuickBook && quickBookEdit === "datetime") {
+          setStep("date");
+        } else {
+          setStep("staff");
+        }
+      } else if (fromQuickBook && quickBookEdit === "datetime") {
+        setStep("date");
       }
 
 
@@ -355,6 +372,17 @@ export default function BookPage() {
       return;
     }
 
+    // Quick Book return: save the chosen time/day back and redirect to quick-book
+    if (fromQuickBook) {
+      sessionStorage.setItem("qbEdit_time", selectedTime);
+      const d = new Date(selectedDate + "T00:00:00");
+      const dayName = d.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+      sessionStorage.setItem("qbEdit_dayOfWeek", dayName);
+      sessionStorage.removeItem("quickBookReturn");
+      router.push(`/${slug}/quick-book`);
+      return;
+    }
+
     // New booking: store details and go to customer-info
     sessionStorage.setItem("bookingDate", selectedDate);
     sessionStorage.setItem("bookingTime", selectedTime);
@@ -503,11 +531,20 @@ export default function BookPage() {
           </div>
           <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
             <button
-              onClick={() => setStep("date")}
+              onClick={() => {
+                if (fromQuickBook && quickBookEdit === "staff") {
+                  // Save staff edit and return to quick-book
+                  sessionStorage.setItem("qbEdit_staffId", selectedStaffId);
+                  sessionStorage.removeItem("quickBookReturn");
+                  router.push(`/${slug}/quick-book`);
+                } else {
+                  setStep("date");
+                }
+              }}
               className="w-full text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition"
               style={{ backgroundColor: business?.primary_color || "#2563EB" }}
             >
-              Next: Select Date &rarr;
+              {fromQuickBook && quickBookEdit === "staff" ? "Save Provider →" : "Next: Select Date →"}
             </button>
           </div>
         </div>

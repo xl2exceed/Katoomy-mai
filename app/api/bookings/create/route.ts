@@ -147,6 +147,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Seed Quick Book defaults on first booking
+    try {
+      const { count } = await supabaseAdmin
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("customer_id", customerId)
+        .eq("business_id", businessId)
+        .neq("status", "cancelled");
+
+      if (count === 1) {
+        // This is their first booking — save as default
+        const startDt = new Date(startISO || `${bookingDate}T${bookingTime}:00`);
+        const dayName = startDt.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+        await supabaseAdmin
+          .from("customer_quick_book_defaults")
+          .upsert(
+            {
+              customer_id: customerId,
+              business_id: businessId,
+              service_id: serviceId,
+              staff_id: staffId || null,
+              booking_time: bookingTime,
+              booking_day_of_week: dayName,
+              vehicle_type: vehicleType || null,
+              vehicle_condition: vehicleCondition || null,
+              addon_ids: addonIds && addonIds.length > 0 ? addonIds : [],
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "customer_id,business_id" }
+          );
+      }
+    } catch (err) {
+      console.error("Failed to seed quick book defaults (non-fatal):", err);
+    }
+
     // Notify business owner
     // Format from raw strings to avoid Vercel's UTC timezone offset
     const [hStr, mStr] = bookingTime.split(":");

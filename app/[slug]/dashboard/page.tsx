@@ -634,19 +634,28 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Upcoming Appointments */}
+        {/* Appointments */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900">
-              Upcoming Appointments
+              Appointments
             </h2>
-            <Link
-              href={`/${slug}/services`}
-              className="text-sm font-semibold"
-              style={{ color: primaryColor }}
-            >
-              Book Another
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/${slug}/quick-book`}
+                className="text-sm font-semibold px-3 py-1.5 rounded-lg text-white"
+                style={{ backgroundColor: primaryColor }}
+              >
+                ⚡ Quick Book
+              </Link>
+              <Link
+                href={`/${slug}/services`}
+                className="text-sm font-semibold"
+                style={{ color: primaryColor }}
+              >
+                Book
+              </Link>
+            </div>
           </div>
 
           {upcomingBookings.length === 0 ? (

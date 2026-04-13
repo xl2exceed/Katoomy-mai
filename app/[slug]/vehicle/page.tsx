@@ -4,7 +4,7 @@
 // No pricing shown here — prices are shown on the services page with surcharge baked in
 // After this page → /[slug]/services
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -40,7 +40,9 @@ const CONDITIONS = [
 export default function VehiclePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const fromQuickBook = searchParams.get("from") === "quick-book";
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<string>("");
@@ -77,6 +79,15 @@ export default function VehiclePage() {
     if (!selectedVehicle) return;
     sessionStorage.setItem("selectedVehicleType", selectedVehicle);
     sessionStorage.setItem("selectedVehicleCondition", selectedCondition);
+
+    if (fromQuickBook) {
+      sessionStorage.setItem("qbEdit_vehicleType", selectedVehicle);
+      sessionStorage.setItem("qbEdit_vehicleCondition", selectedCondition);
+      sessionStorage.removeItem("quickBookReturn");
+      router.push(`/${slug}/quick-book`);
+      return;
+    }
+
     // Flag that vehicle was just selected — services page consumes this once
     sessionStorage.setItem("vehicleJustSelected", "1");
     // Clear any stale service/addon selections from a previous booking

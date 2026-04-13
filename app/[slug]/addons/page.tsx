@@ -3,7 +3,7 @@
 // Step in the car wash booking flow: customer selects optional add-ons
 // After this page → /[slug]/book (date/time)
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -24,7 +24,9 @@ interface Addon {
 export default function AddonsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const fromQuickBook = searchParams.get("from") === "quick-book";
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [addons, setAddons] = useState<Addon[]>([]);
@@ -103,6 +105,14 @@ export default function AddonsPage() {
   const handleContinue = () => {
     sessionStorage.setItem("selectedAddonIds", JSON.stringify([...selectedAddonIds]));
     sessionStorage.setItem("addonTotalCents", String(addonTotal));
+
+    if (fromQuickBook) {
+      sessionStorage.setItem("qbEdit_addonIds", JSON.stringify([...selectedAddonIds]));
+      sessionStorage.removeItem("quickBookReturn");
+      router.push(`/${slug}/quick-book`);
+      return;
+    }
+
     router.push(`/${slug}/book`);
   };
 

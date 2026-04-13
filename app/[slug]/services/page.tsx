@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -23,7 +23,9 @@ interface Business {
 export default function ServicesPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const fromQuickBook = searchParams.get("from") === "quick-book";
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -98,6 +100,15 @@ export default function ServicesPage() {
   const selectService = async (serviceId: string, adjustedPriceCents: number) => {
     sessionStorage.setItem("selectedServiceId", serviceId);
     sessionStorage.removeItem("selectedAddonIds");
+
+    // Quick Book edit: save the new service and return
+    if (fromQuickBook) {
+      sessionStorage.setItem("qbEdit_serviceId", serviceId);
+      sessionStorage.setItem("qbEdit_servicePriceCents", String(adjustedPriceCents));
+      sessionStorage.removeItem("quickBookReturn");
+      router.push(`/${slug}/quick-book`);
+      return;
+    }
 
     if (isCarwash) {
       // Save the surcharge-adjusted price so customer-info uses the correct amount
