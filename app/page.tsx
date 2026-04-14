@@ -571,13 +571,13 @@ export default function LandingPage() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="transition hover:text-white">
-                    Privacy
+                  <Link href="/privacy-policy" className="transition hover:text-white">
+                    Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link href="/terms" className="transition hover:text-white">
-                    Terms
+                  <Link href="/sms-terms" className="transition hover:text-white">
+                    Terms &amp; Conditions
                   </Link>
                 </li>
               </ul>
