@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const chargeServiceCents = safeServiceCents + feeModeCents;
 
     const totalCents = chargeServiceCents + safeTipCents;
-    const platformFeeCents = Math.round(totalCents * 0.015);
+    const platformFeeCents = Math.round(totalCents * 0.015) + feeModeCents;
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {

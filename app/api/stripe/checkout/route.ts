@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     const feeModeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
     const chargeAmountCents = effectivePriceCents + feeModeCents;
-    const platformFeeCents = Math.round(chargeAmountCents * 0.015);
+    const platformFeeCents = Math.round(chargeAmountCents * 0.015) + feeModeCents;
 
     const lineItemName =
       paymentType === "deposit" ? `Deposit for ${serviceName}` : serviceName;
