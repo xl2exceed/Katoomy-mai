@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 
-const BUSINESS_NAME = "Katoomy Barber";
+const BUSINESS_NAME = "Any Business Name";
 const PRIMARY_COLOR = "#1D4ED8";
 
 function formatPhone(value: string) {
@@ -221,9 +221,7 @@ export default function BookingOptInDemoPage() {
           className="w-full text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: PRIMARY_COLOR }}
         >
-          {paymentChoice === "cash"
-            ? "Book Appointment →"
-            : `Pay $${(priceCents / 100).toFixed(2)} →`}
+          Submit →
         </button>
       </div>
     </div>
