@@ -61,8 +61,6 @@ export default function SmsTermsPage() {
             <p>You may opt in to receive SMS messages through Katoomy in one of the following ways:</p>
             <ul className="mt-3 list-disc pl-5 space-y-2">
               <li>By providing your mobile phone number and checking an opt-in checkbox on a Katoomy-powered booking form.</li>
-              <li>By texting a designated keyword to a phone number as instructed by a business using Katoomy.</li>
-              <li>By verbally or electronically consenting to receive SMS messages when scheduling an appointment.</li>
             </ul>
             <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl px-5 py-4">
               <p className="text-gray-700"><strong>By opting in, you expressly consent to receive recurring automated text messages, including marketing messages, at the mobile number you provide. Consent is not a condition of purchasing any goods or services.</strong></p>
@@ -87,7 +85,7 @@ export default function SmsTermsPage() {
 
           <div>
             <h2 className="text-lg font-bold text-gray-900 mb-2">6. Message and Data Rates</h2>
-            <p>Standard message and data rates may apply to all SMS messages sent and received through the Katoomy platform. These charges are billed by your mobile carrier and are your responsibility. Katoomy and Venditco LLC are not responsible for any charges imposed by your carrier.</p>
+            <p>Standard message and data rates may apply to all SMS messages sent and received through the Katoomy platform. These charges are billed by your mobile carrier and are your responsibility. Katoomy and Venditco LLC are not responsible for any charges imposed by your carrier. Message frequency varies based on appointment activity.</p>
           </div>
 
           <div>
