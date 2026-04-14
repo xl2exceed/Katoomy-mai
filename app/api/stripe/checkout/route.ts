@@ -95,7 +95,16 @@ export async function POST(req: NextRequest) {
 
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
-    const platformFeeCents = Math.round(effectivePriceCents * 0.015);
+
+    // Add the $1 platform fee to the Stripe charge when the customer absorbs it
+    const { data: cashSettings } = await supabaseAdmin
+      .from("cashapp_settings")
+      .select("fee_mode")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    const feeModeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+    const chargeAmountCents = effectivePriceCents + feeModeCents;
+    const platformFeeCents = Math.round(chargeAmountCents * 0.015);
 
     const lineItemName =
       paymentType === "deposit" ? `Deposit for ${serviceName}` : serviceName;
@@ -116,7 +125,7 @@ export async function POST(req: NextRequest) {
                 name: lineItemName,
                 description: lineItemDesc,
               },
-              unit_amount: effectivePriceCents,
+              unit_amount: chargeAmountCents,
             },
             quantity: 1,
           },

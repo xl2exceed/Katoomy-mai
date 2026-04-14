@@ -62,7 +62,17 @@ export async function POST(req: NextRequest) {
     const safeTipCents = tipCents && tipCents > 0 ? tipCents : 0;
     // Use client-computed serviceCents (handles deposit remaining balance correctly)
     const safeServiceCents = serviceCents && serviceCents > 0 ? serviceCents : booking.total_price_cents;
-    const totalCents = safeServiceCents + safeTipCents;
+
+    // Add the $1 platform fee to the Stripe charge when the customer absorbs it
+    const { data: cashSettings } = await supabaseAdmin
+      .from("cashapp_settings")
+      .select("fee_mode")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    const feeModeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+    const chargeServiceCents = safeServiceCents + feeModeCents;
+
+    const totalCents = chargeServiceCents + safeTipCents;
     const platformFeeCents = Math.round(totalCents * 0.015);
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
@@ -70,7 +80,7 @@ export async function POST(req: NextRequest) {
         price_data: {
           currency: "usd",
           product_data: { name: "Service Payment" },
-          unit_amount: safeServiceCents,
+          unit_amount: chargeServiceCents,
         },
         quantity: 1,
       },
