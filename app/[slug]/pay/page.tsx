@@ -31,6 +31,7 @@ export default function PayPage() {
   const [tipCents, setTipCents] = useState(0);
   const [customDollars, setCustomDollars] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   const supabase = createClient();
 
@@ -62,6 +63,15 @@ export default function PayPage() {
     }
 
     setBooking(data as BookingData);
+
+    // Fetch fee_mode for display
+    const { data: cashSettings } = await supabase
+      .from("cashapp_settings")
+      .select("fee_mode")
+      .eq("business_id", data.business_id)
+      .maybeSingle();
+    setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
+
     setLoading(false);
   };
 
@@ -117,9 +127,10 @@ export default function PayPage() {
   }
 
   const serviceCents = booking ? getServiceCents() : 0;
-  const servicePriceDollars = (serviceCents / 100).toFixed(2);
+  const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
+  const servicePriceDollars = ((serviceCents + platformFeeDisplay) / 100).toFixed(2);
   const totalCents = serviceCents + tipCents;
-  const totalDollars = (totalCents / 100).toFixed(2);
+  const totalDollars = ((totalCents + platformFeeDisplay) / 100).toFixed(2);
   const serviceName =
     (booking?.services as { name: string; price_cents: number } | null)?.name || "Service";
   const isDepositPayment = booking?.payment_status === "deposit_paid";

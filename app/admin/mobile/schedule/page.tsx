@@ -491,7 +491,7 @@ export default function MobileSchedulePage() {
                     {booking.status.replace("_", " ")}
                   </span>
                   <span className="text-lg font-bold text-gray-900">
-                    ${(booking.total_price_cents / 100).toFixed(2)}
+                    ${((booking.total_price_cents + platformFee) / 100).toFixed(2)}
                   </span>
                 </div>
 
@@ -551,7 +551,7 @@ export default function MobileSchedulePage() {
                 })}
               </p>
               <p className="text-sm font-bold text-gray-900 mt-2">
-                ${(selectedBooking.total_price_cents / 100).toFixed(2)}
+                ${((selectedBooking.total_price_cents + platformFee) / 100).toFixed(2)}
               </p>
             </div>
             <p className="text-gray-600 text-sm mb-6">

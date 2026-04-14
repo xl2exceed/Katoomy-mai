@@ -472,7 +472,7 @@ export default function StaffSchedulePage() {
                   </div>
                 ) : (
                   <span className="text-lg font-bold text-gray-900">
-                    ${(booking.total_price_cents / 100).toFixed(2)}
+                    ${((booking.total_price_cents + platformFee) / 100).toFixed(2)}
                   </span>
                 )}
               </div>
