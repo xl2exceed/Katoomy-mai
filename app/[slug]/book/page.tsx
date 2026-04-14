@@ -56,6 +56,7 @@ export default function BookPage() {
   const [selectedStaffId, setSelectedStaffId] = useState<string>("any");
   const [vehicleBasedPriceCents, setVehicleBasedPriceCents] = useState<number | null>(null);
   const [addonTotalCents, setAddonTotalCents] = useState(0);
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   useEffect(() => {
     loadData();
@@ -125,6 +126,14 @@ export default function BookPage() {
           close_time: hoursData.end_time,
         });
       }
+
+      // Fetch fee_mode for display
+      const { data: cashSettings } = await supabase
+        .from("cashapp_settings")
+        .select("fee_mode")
+        .eq("business_id", businessData.id)
+        .maybeSingle();
+      setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
 
       // Get service
       const { data: serviceData } = await supabase
@@ -456,9 +465,10 @@ export default function BookPage() {
           <div className="mt-3 pt-3 border-t border-green-500">
             {(() => {
               const basePrice = vehicleBasedPriceCents ?? (service?.price_cents ?? 0);
-              const total = basePrice + addonTotalCents;
+              const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
+              const total = basePrice + addonTotalCents + platformFeeDisplay;
               if (memberDiscountPercent && service) {
-                const discounted = Math.round(basePrice * (1 - memberDiscountPercent / 100)) + addonTotalCents;
+                const discounted = Math.round(basePrice * (1 - memberDiscountPercent / 100)) + addonTotalCents + platformFeeDisplay;
                 return (
                   <>
                     <p className="text-lg text-green-200 line-through">${(total / 100).toFixed(2)}</p>
