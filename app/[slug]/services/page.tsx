@@ -34,6 +34,7 @@ export default function ServicesPage() {
   const [isCarwash, setIsCarwash] = useState(false);
   const [surcharges, setSurcharges] = useState<Record<string, number>>({});
   const [vehicleType, setVehicleType] = useState<string>("");
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   useEffect(() => {
     const loadData = async () => {
@@ -89,6 +90,14 @@ export default function ServicesPage() {
         if (servicesData) {
           setServices(servicesData as Service[]);
         }
+
+        // Fetch fee_mode to know whether to bake platform fee into displayed price
+        const { data: cashSettings } = await supabase
+          .from("cashapp_settings")
+          .select("fee_mode")
+          .eq("business_id", businessData.id)
+          .maybeSingle();
+        setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
       }
 
       setLoading(false);
@@ -183,6 +192,9 @@ export default function ServicesPage() {
             // For carwash: bake the vehicle surcharge into the displayed price
             const surcharge = isCarwash ? (surcharges[vehicleType] ?? 0) : 0;
             const displayPrice = service.price_cents + surcharge;
+            // Bake the $1 platform fee into the displayed price when customer pays it
+            const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
+            const customerVisiblePrice = displayPrice + platformFeeDisplay;
 
             return (
               <button
@@ -202,12 +214,12 @@ export default function ServicesPage() {
                   <div className="text-right">
                     {memberDiscountPct > 0 ? (
                       <>
-                        <p className="text-sm text-gray-400 line-through">${(displayPrice / 100).toFixed(2)}</p>
-                        <p className="text-2xl font-bold text-gray-900">${(Math.round(displayPrice * (1 - memberDiscountPct / 100)) / 100).toFixed(2)}</p>
+                        <p className="text-sm text-gray-400 line-through">${(customerVisiblePrice / 100).toFixed(2)}</p>
+                        <p className="text-2xl font-bold text-gray-900">${(Math.round(customerVisiblePrice * (1 - memberDiscountPct / 100)) / 100).toFixed(2)}</p>
                         <p className="text-xs text-blue-600 font-medium">⭐ Member price</p>
                       </>
                     ) : (
-                      <p className="text-2xl font-bold text-gray-900">${(displayPrice / 100).toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-gray-900">${(customerVisiblePrice / 100).toFixed(2)}</p>
                     )}
                   </div>
                 </div>

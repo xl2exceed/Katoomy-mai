@@ -133,18 +133,12 @@ export default function ExternalPayPage() {
         <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-1.5">
           <div className="flex justify-between text-sm text-gray-600">
             <span>Service</span>
-            <span>${(serviceCents / 100).toFixed(2)}</span>
+            <span>${((serviceCents + platformFeeCents) / 100).toFixed(2)}</span>
           </div>
           {tipCents > 0 && (
             <div className="flex justify-between text-sm text-gray-600">
               <span>Tip</span>
               <span>${(tipCents / 100).toFixed(2)}</span>
-            </div>
-          )}
-          {platformFeeCents > 0 && (
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Platform fee</span>
-              <span>${(platformFeeCents / 100).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between font-bold text-gray-900 pt-1.5 border-t border-gray-200">
