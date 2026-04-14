@@ -543,7 +543,7 @@ export default function CustomerInfoPage() {
                   className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
                 />
                 <span className="text-xs text-gray-600 leading-relaxed">
-                  I agree to receive SMS text messages from {business?.name} including appointment reminders, booking confirmations, and promotional offers. Message and data rates may apply. Message frequency varies. Reply STOP to opt out at any time. Reply HELP for help.{" "}
+                  I agree to receive SMS text messages from Katoomy on behalf of {business?.name} including appointment reminders, booking confirmations, marketing and promotional offers. Message and data rates may apply. Message frequency varies. Reply STOP to opt out at any time. Reply HELP for help.{" "}
                   <a href="/sms-terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">View our SMS Terms &amp; Conditions.</a>
                 </span>
               </label>
