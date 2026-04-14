@@ -68,6 +68,7 @@ export default function BookingsPage() {
   const [refundSuccess, setRefundSuccess] = useState("");
 
   const [businessId, setBusinessId] = useState("");
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   const supabase = createClient();
 
@@ -107,6 +108,15 @@ export default function BookingsPage() {
 
     if (business) {
       setBusinessId(business.id);
+
+      // Fetch fee_mode for display
+      const { data: cashSettings } = await supabase
+        .from("cashapp_settings")
+        .select("fee_mode")
+        .eq("business_id", business.id)
+        .maybeSingle();
+      setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
+
       const startDate = new Date(selectedDate);
       startDate.setHours(0, 0, 0, 0);
 
@@ -380,6 +390,8 @@ export default function BookingsPage() {
     });
   };
 
+  const platformFee = feeMode === "pass_to_customer" ? 100 : 0;
+
   const paymentBadge = (booking: Booking) => {
     const total = booking.total_price_cents;
     if (["paid", "cash_paid"].includes(booking.payment_status)) {
@@ -393,7 +405,7 @@ export default function BookingsPage() {
       return null; // shown via separate "Refunded" badge
     }
     if (booking.status === "completed") {
-      return { text: `Owes $${(total / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" };
+      return { text: `Owes $${((total + platformFee) / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" };
     }
     return null;
   };
@@ -598,7 +610,7 @@ export default function BookingsPage() {
                       <div className="flex items-center space-x-4">
                         <div className="text-right mr-4">
                           <p className="text-xl font-bold text-gray-900">
-                            ${(booking.total_price_cents / 100).toFixed(2)}
+                            ${((booking.total_price_cents + platformFee) / 100).toFixed(2)}
                           </p>
                           {(() => { const badge = paymentBadge(booking); return badge ? (
                             <span className={`mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded border ${badge.color}`}>

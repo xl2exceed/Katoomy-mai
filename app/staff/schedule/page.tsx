@@ -71,6 +71,9 @@ export default function StaffSchedulePage() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
+
+  const platformFee = feeMode === "pass_to_customer" ? 100 : 0;
 
   const paymentBadge = (booking: Booking) => {
     const total = booking.total_price_cents;
@@ -91,7 +94,7 @@ export default function StaffSchedulePage() {
       return { text: "Custom — payment pending", color: "bg-purple-100 border-purple-400 text-purple-800" };
     }
     if (booking.status === "completed") {
-      return { text: `Owes $${(total / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" };
+      return { text: `Owes $${((total + platformFee) / 100).toFixed(2)}`, color: "bg-orange-100 border-orange-500 text-orange-800" };
     }
     return null;
   };
@@ -171,6 +174,14 @@ export default function StaffSchedulePage() {
         setAddonsMap(map);
       }
     }
+
+    // Fetch fee_mode for display
+    const { data: cashSettings } = await supabase
+      .from("cashapp_settings")
+      .select("fee_mode")
+      .eq("business_id", s.business_id)
+      .maybeSingle();
+    setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
   }
 
   async function loadBookings() {

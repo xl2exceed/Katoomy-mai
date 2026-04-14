@@ -599,9 +599,10 @@ export default function DashboardPage() {
               {awaitingPaymentBookings.map((booking) => {
                 const isDeposit = booking.payment_status === "deposit_paid";
                 const depositPaid = booking.deposit_amount_cents ?? 0;
+                const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
                 const amountDue = isDeposit
                   ? (booking.total_price_cents > depositPaid ? booking.total_price_cents : booking.services.price_cents) - depositPaid
-                  : booking.total_price_cents;
+                  : booking.total_price_cents + platformFeeDisplay;
                 return (
                   <div
                     key={booking.id}
