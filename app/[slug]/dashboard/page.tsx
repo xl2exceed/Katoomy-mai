@@ -644,14 +644,14 @@ export default function DashboardPage() {
               <Link
                 href={`/${slug}/quick-book`}
                 className="text-sm font-semibold px-3 py-1.5 rounded-lg text-white"
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: "#16a34a" }}
               >
                 ⚡ Quick Book
               </Link>
               <Link
                 href={`/${slug}/services`}
-                className="text-sm font-semibold"
-                style={{ color: primaryColor }}
+                className="text-sm font-semibold px-3 py-1.5 rounded-lg text-white"
+                style={{ backgroundColor: primaryColor }}
               >
                 Book
               </Link>
