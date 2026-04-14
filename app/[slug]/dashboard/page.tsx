@@ -61,6 +61,7 @@ export default function DashboardPage() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   // Phone prompt states
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
@@ -156,6 +157,14 @@ export default function DashboardPage() {
 
     if (businessData) {
       setBusiness(businessData);
+
+      // Fetch fee_mode for display
+      const { data: cashSettings } = await supabase
+        .from("cashapp_settings")
+        .select("fee_mode")
+        .eq("business_id", businessData.id)
+        .maybeSingle();
+      setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
     }
 
     // Check localStorage for a saved phone number
@@ -704,7 +713,7 @@ export default function DashboardPage() {
                       <p className="font-bold text-gray-900">
                         {booking.payment_status === "deposit_paid"
                           ? (() => { const d = booking.deposit_amount_cents ?? 0; const full = booking.total_price_cents > d ? booking.total_price_cents : booking.services.price_cents; return `$${((full - d) / 100).toFixed(2)}`; })()
-                          : `$${(booking.total_price_cents / 100).toFixed(2)}`}
+                          : `$${((booking.total_price_cents + (feeMode === "pass_to_customer" ? 100 : 0)) / 100).toFixed(2)}`}
                       </p>
                       <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
                         {booking.status}
@@ -846,7 +855,7 @@ export default function DashboardPage() {
                 {formatTime(selectedBooking.start_ts)}
               </p>
               <p className="text-sm text-gray-900 font-bold mt-2">
-                ${(selectedBooking.total_price_cents / 100).toFixed(2)}
+                ${((selectedBooking.total_price_cents + (feeMode === "pass_to_customer" ? 100 : 0)) / 100).toFixed(2)}
               </p>
             </div>
             <p className="text-gray-700 mb-6">

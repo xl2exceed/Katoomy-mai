@@ -95,7 +95,8 @@ export default function ChoosePaymentPage() {
     router.push(`/${slug}/cashapp-pay?${p.toString()}`);
   };
 
-  const totalCents = serviceCents + tipCents;
+  const platformFeeCents = cashapp?.feeMode === "pass_to_customer" ? 100 : 0;
+  const totalCents = serviceCents + tipCents + platformFeeCents;
 
   // Show spinner while loading settings or while auto-redirecting to Stripe
   if (loading || selecting || !cashapp?.cashappEnabled) {
@@ -135,11 +136,6 @@ export default function ChoosePaymentPage() {
             </div>
             <div className="text-left flex-1">
               <p className="font-bold text-gray-900 text-base">Pay with Cash App, Zelle, or Cash</p>
-              <p className="text-sm text-green-700 mt-0.5">
-                {cashapp.feeMode === "pass_to_customer"
-                  ? "Includes $1.00 platform fee"
-                  : "No extra fees"}
-              </p>
             </div>
             <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

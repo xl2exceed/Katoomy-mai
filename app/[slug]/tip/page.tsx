@@ -28,6 +28,7 @@ export default function TipPage() {
   const [selectedCents, setSelectedCents] = useState<number | null>(null);
   const [customDollars, setCustomDollars] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   const supabase = createClient();
 
@@ -52,6 +53,15 @@ export default function TipPage() {
       return;
     }
     setBooking(data as BookingData);
+
+    // Fetch fee_mode for display
+    const { data: cashSettings } = await supabase
+      .from("cashapp_settings")
+      .select("fee_mode")
+      .eq("business_id", data.business_id)
+      .maybeSingle();
+    setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
+
     setLoading(false);
   };
 
@@ -85,7 +95,8 @@ export default function TipPage() {
     );
   }
 
-  const servicePriceDollars = ((booking?.total_price_cents ?? 0) / 100).toFixed(2);
+  const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
+  const servicePriceDollars = (((booking?.total_price_cents ?? 0) + platformFeeDisplay) / 100).toFixed(2);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">

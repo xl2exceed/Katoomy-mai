@@ -66,6 +66,7 @@ export default function CustomerInfoPage() {
   const [isMobileService, setIsMobileService] = useState(false);
   const [isHybrid, setIsHybrid] = useState(false);
   const [serviceLocation, setServiceLocation] = useState<"shop" | "mobile" | "">("");
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   // Form fields
   const [name, setName] = useState("");
@@ -169,6 +170,14 @@ export default function CustomerInfoPage() {
         if (depositData.enabled) setPaymentChoice("deposit");
       }
 
+      // Fetch fee_mode for display
+      const { data: cashSettings } = await supabase
+        .from("cashapp_settings")
+        .select("fee_mode")
+        .eq("business_id", businessData.id)
+        .maybeSingle();
+      setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
+
       // Get service
       const { data: serviceData } = await supabase
         .from("services")
@@ -233,6 +242,11 @@ export default function CustomerInfoPage() {
       : base;
     return discounted + addonTotalCents + travelFeeCents;
   };
+
+  // Display-only: adds the baked-in platform fee when customer pays it
+  const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
+  const displayTotalWithFee = (): number => effectiveTotalCents() + platformFeeDisplay;
+  const displayServicePriceWithFee = (): number => effectiveServicePriceCents() + platformFeeDisplay;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString + "T00:00:00");
@@ -430,9 +444,9 @@ export default function CustomerInfoPage() {
     );
   }
 
-  const displayTotal = effectiveTotalCents();
+  const displayTotal = displayTotalWithFee();
   const displayDiscounted = memberDiscountPct > 0
-    ? Math.round(effectiveServicePriceCents() * (1 - memberDiscountPct / 100)) + addonTotalCents + travelFeeCents
+    ? Math.round(effectiveServicePriceCents() * (1 - memberDiscountPct / 100)) + addonTotalCents + travelFeeCents + platformFeeDisplay
     : null;
 
   return (
@@ -475,7 +489,7 @@ export default function CustomerInfoPage() {
             {displayDiscounted !== null ? (
               <>
                 <p className="text-lg text-green-200 line-through mt-2">
-                  ${(effectiveServicePriceCents() / 100).toFixed(2)}
+                  ${(displayServicePriceWithFee() / 100).toFixed(2)}
                 </p>
                 <p className="text-2xl font-bold text-white">
                   ${(displayDiscounted / 100).toFixed(2)}
@@ -654,7 +668,7 @@ export default function CustomerInfoPage() {
                   <div className="text-right">
                     {displayDiscounted !== null ? (
                       <>
-                        <p className="text-sm text-gray-400 line-through">${(effectiveServicePriceCents() / 100).toFixed(2)}</p>
+                        <p className="text-sm text-gray-400 line-through">${(displayServicePriceWithFee() / 100).toFixed(2)}</p>
                         <p className="font-bold text-gray-900">${(displayDiscounted / 100).toFixed(2)}</p>
                       </>
                     ) : (

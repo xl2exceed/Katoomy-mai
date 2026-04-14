@@ -40,6 +40,7 @@ export default function ConfirmationPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   useEffect(() => {
     loadData();
@@ -66,6 +67,14 @@ export default function ConfirmationPage() {
 
     if (businessData) {
       setBusiness(businessData);
+
+      // Fetch fee_mode for display
+      const { data: cashSettings } = await supabase
+        .from("cashapp_settings")
+        .select("fee_mode")
+        .eq("business_id", businessData.id)
+        .maybeSingle();
+      setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
 
       // Get booking with customer and service info
       const { data: bookingData } = await supabase
@@ -239,9 +248,9 @@ export default function ConfirmationPage() {
                   </>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-500 font-medium">Total Paid</p>
+                    <p className="text-sm text-gray-500 font-medium">Total</p>
                     <p className="text-gray-900 font-bold text-2xl">
-                      ${booking ? (booking.total_price_cents / 100).toFixed(2) : "0.00"}
+                      ${booking ? ((booking.total_price_cents + (feeMode === "pass_to_customer" ? 100 : 0)) / 100).toFixed(2) : "0.00"}
                     </p>
                     {booking && booking.services.price_cents > booking.total_price_cents && (
                       <p className="text-sm text-blue-600 font-medium mt-1">⭐ Elite Member discount applied</p>

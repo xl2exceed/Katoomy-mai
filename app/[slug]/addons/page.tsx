@@ -33,6 +33,7 @@ export default function AddonsPage() {
   const [selectedAddonIds, setSelectedAddonIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [basePrice, setBasePrice] = useState(0);
+  const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   useEffect(() => {
     loadData();
@@ -80,6 +81,14 @@ export default function AddonsPage() {
       .order("sort_order", { ascending: true });
 
     if (addonsData) setAddons(addonsData);
+
+    // Fetch fee_mode to know whether to bake platform fee into displayed price
+    const { data: cashSettings } = await supabase
+      .from("cashapp_settings")
+      .select("fee_mode")
+      .eq("business_id", businessData.id)
+      .maybeSingle();
+    setFeeMode(cashSettings?.fee_mode ?? "pass_to_customer");
 
     // Restore previously selected add-ons if user navigated back
     const savedAddons = sessionStorage.getItem("selectedAddonIds");
@@ -191,22 +200,28 @@ export default function AddonsPage() {
         )}
 
         {/* Price summary */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-2">
-          <div className="flex justify-between text-gray-600">
-            <span>Service</span>
-            <span>${(basePrice / 100).toFixed(2)}</span>
-          </div>
-          {addonTotal > 0 && (
-            <div className="flex justify-between text-gray-600">
-              <span>Add-ons</span>
-              <span>+${(addonTotal / 100).toFixed(2)}</span>
+        {(() => {
+          const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
+          const displayBasePrice = basePrice + platformFeeDisplay;
+          return (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-2">
+              <div className="flex justify-between text-gray-600">
+                <span>Service</span>
+                <span>${(displayBasePrice / 100).toFixed(2)}</span>
+              </div>
+              {addonTotal > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Add-ons</span>
+                  <span>+${(addonTotal / 100).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="border-t pt-2 flex justify-between font-bold text-gray-900">
+                <span>Subtotal</span>
+                <span>${((displayBasePrice + addonTotal) / 100).toFixed(2)}</span>
+              </div>
             </div>
-          )}
-          <div className="border-t pt-2 flex justify-between font-bold text-gray-900">
-            <span>Subtotal</span>
-            <span>${((basePrice + addonTotal) / 100).toFixed(2)}</span>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Skip or Continue */}
         <div className="space-y-3">
