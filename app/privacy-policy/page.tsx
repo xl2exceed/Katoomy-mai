@@ -1,10 +1,15 @@
 // app/privacy-policy/page.tsx
 // Katoomy Privacy Policy — public page, no auth required
 
+import Link from "next/link";
+
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-3xl mx-auto px-6 py-16">
+        <Link href="/" className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 mb-8">
+          ← Back
+        </Link>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
         <p className="text-sm text-gray-500 mb-10">Effective Date: April 11, 2026 &nbsp;·&nbsp; Last Updated: April 11, 2026</p>
 
