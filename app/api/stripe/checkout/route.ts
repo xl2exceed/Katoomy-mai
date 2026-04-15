@@ -102,7 +102,8 @@ export async function POST(req: NextRequest) {
       .select("fee_mode")
       .eq("business_id", businessId)
       .maybeSingle();
-    const feeModeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+      // Skip $1 platform fee on deposit payments — it will be charged on the final payment
+    const feeModeCents = (cashSettings?.fee_mode === "business_absorbs" || paymentType === "deposit") ? 0 : 100;
     const chargeAmountCents = effectivePriceCents + feeModeCents;
     const platformFeeCents = Math.round(chargeAmountCents * 0.015) + feeModeCents;
 
