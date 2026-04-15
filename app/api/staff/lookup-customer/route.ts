@@ -35,13 +35,23 @@ export async function POST(req: NextRequest) {
   const cleanPhone = phone.replace(/\D/g, "");
   const businessId = staff.business_id;
 
+  // Determine platform fee (passed to customer or absorbed by business)
+  const { data: cashSettings } = await supabaseAdmin
+    .from("cashapp_settings")
+    .select("fee_mode")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const platformFeeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+
   // Load services for this business
-  const { data: services } = await supabaseAdmin
+  const { data: rawServices } = await supabaseAdmin
     .from("services")
     .select("id, name, price_cents, duration_minutes")
     .eq("business_id", businessId)
     .eq("is_active", true)
     .order("name");
+  // Bake platform fee into displayed service prices
+  const services = (rawServices || []).map(s => ({ ...s, price_cents: s.price_cents + platformFeeCents }));
 
   // Look up customer by phone
   const { data: customer } = await supabaseAdmin
@@ -83,6 +93,8 @@ export async function POST(req: NextRequest) {
     priceCents = fullPrice - depositPaid;
     depositPaidCents = depositPaid;
   }
+  // Add platform fee to displayed amount due
+  priceCents += platformFeeCents;
 
   return NextResponse.json({
     customerName: customer.full_name,

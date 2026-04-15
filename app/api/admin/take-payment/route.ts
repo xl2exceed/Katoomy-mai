@@ -153,6 +153,14 @@ export async function POST(req: NextRequest) {
       ? fullPrice - depositPaid
       : fullPrice;
 
+  // Platform fee baked into cash charge when passed to customer
+  const { data: cashSettings } = await supabaseAdmin
+    .from("cashapp_settings")
+    .select("fee_mode")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const platformFee = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+
   // ── Cash payment ──────────────────────────────────────────────────────────
   if (mode === "cash") {
     let cashBookingId: string;
@@ -173,7 +181,7 @@ export async function POST(req: NextRequest) {
           start_ts: now.toISOString(),
           end_ts: endTime.toISOString(),
           status: "completed",
-          total_price_cents: service.price_cents,
+          total_price_cents: service.price_cents + platformFee,
           payment_status: "cash_paid",
           customer_notes: "Walk-in — admin collected cash",
         })
@@ -194,7 +202,7 @@ export async function POST(req: NextRequest) {
       customer_name: customerName,
       customer_phone: cleanPhone,
       service_name: service.name,
-      service_amount_cents: chargeAmountCents,
+      service_amount_cents: chargeAmountCents + platformFee,
       tip_cents: 0,
       platform_fee_cents: 100,
       payment_method: "cash",
