@@ -49,7 +49,7 @@ export default function ChoosePaymentPage() {
         const res = await fetch("/api/stripe/pay-with-tip", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookingId, serviceCents, tipCents, businessId, slug }),
+          body: JSON.stringify({ bookingId, serviceCents, tipCents, businessId, slug, source }),
         });
         const data = await res.json();
         if (data.url) { window.location.href = data.url; return; }
@@ -95,7 +95,8 @@ export default function ChoosePaymentPage() {
     router.push(`/${slug}/cashapp-pay?${p.toString()}`);
   };
 
-  const platformFeeCents = cashapp?.feeMode === "pass_to_customer" ? 100 : 0;
+  // "qr" source (take-payment QR flow) already has the fee baked into serviceCents
+  const platformFeeCents = (cashapp?.feeMode === "pass_to_customer" && source !== "qr") ? 100 : 0;
   const totalCents = serviceCents + tipCents + platformFeeCents;
 
   // Show spinner while loading settings or while auto-redirecting to Stripe

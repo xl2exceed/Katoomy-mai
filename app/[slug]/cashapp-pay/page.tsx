@@ -24,6 +24,7 @@ export default function ExternalPayPage() {
   const bookingId = searchParams.get("bookingId");
   const serviceCents = parseInt(searchParams.get("serviceCents") ?? "0", 10);
   const tipCents = parseInt(searchParams.get("tipCents") ?? "0", 10);
+  const source = searchParams.get("source") ?? "qr";
 
   const [settings, setSettings] = useState<PaymentSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +66,8 @@ export default function ExternalPayPage() {
     );
   }
 
-  const platformFeeCents = settings?.feeMode === "pass_to_customer" ? 100 : 0;
+  // "qr" source (take-payment QR flow) already has the fee baked into serviceCents
+  const platformFeeCents = (settings?.feeMode === "pass_to_customer" && source !== "qr") ? 100 : 0;
   const totalCents = serviceCents + tipCents + platformFeeCents;
   const totalDollars = (totalCents / 100).toFixed(2);
 

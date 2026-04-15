@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { bookingId, serviceCents, tipCents, businessId, slug, customerEmail } =
+    const { bookingId, serviceCents, tipCents, businessId, slug, customerEmail, source } =
       await req.json();
 
     if (!bookingId || !businessId || !slug) {
@@ -63,13 +63,14 @@ export async function POST(req: NextRequest) {
     // Use client-computed serviceCents (handles deposit remaining balance correctly)
     const safeServiceCents = serviceCents && serviceCents > 0 ? serviceCents : booking.total_price_cents;
 
-    // Add the $1 platform fee to the Stripe charge when the customer absorbs it
+    // Add the $1 platform fee to the Stripe charge when the customer absorbs it.
+    // "qr" source (take-payment QR flow) already has the fee baked into serviceCents — skip adding it again.
     const { data: cashSettings } = await supabaseAdmin
       .from("cashapp_settings")
       .select("fee_mode")
       .eq("business_id", businessId)
       .maybeSingle();
-    const feeModeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+    const feeModeCents = (cashSettings?.fee_mode === "business_absorbs" || source === "qr") ? 0 : 100;
     const chargeServiceCents = safeServiceCents + feeModeCents;
 
     const totalCents = chargeServiceCents + safeTipCents;
