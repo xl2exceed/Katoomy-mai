@@ -150,6 +150,9 @@ export default function QuickBookPage() {
   // Surcharge data (car wash)
   const [surcharges, setSurcharges] = useState<Record<string,number>>({});
 
+  // Platform fee (baked into price when customer pays)
+  const [platformFee, setPlatformFee] = useState(100);
+
   const supabase = createClient();
 
   const loadData = useCallback(async () => {
@@ -164,6 +167,15 @@ export default function QuickBookPage() {
     const features = biz.features as Record<string, unknown> | null;
     const carwash = (features?.niche as string) === "carwash";
     setIsCarwash(carwash);
+
+    // Load platform fee setting
+    const { data: cashSettings } = await supabase
+      .from("cashapp_settings")
+      .select("fee_mode")
+      .eq("business_id", biz.id)
+      .maybeSingle();
+    const fee = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+    setPlatformFee(fee);
 
     if (carwash) {
       try {
@@ -447,7 +459,7 @@ export default function QuickBookPage() {
     const surcharge = (isCarwash && defaults.vehicle_type) ? (surcharges[defaults.vehicle_type] ?? 0) : 0;
     const servicePriceCents = defaults.services.price_cents + surcharge;
     const addonTotal = defaults.addons.filter(a => defaults.addon_ids.includes(a.id)).reduce((s,a) => s + a.price_cents, 0);
-    const totalPriceCents = servicePriceCents + addonTotal;
+    const totalPriceCents = servicePriceCents + addonTotal + platformFee;
 
     const res = await fetch("/api/bookings/create", {
       method: "POST",
@@ -568,7 +580,7 @@ export default function QuickBookPage() {
   const surcharge = (isCarwash && defaults.vehicle_type) ? (surcharges[defaults.vehicle_type] ?? 0) : 0;
   const servicePriceCents = defaults.services.price_cents + surcharge;
   const addonTotal = defaults.addons.filter(a => defaults.addon_ids.includes(a.id)).reduce((s,a) => s + a.price_cents, 0);
-  const totalPriceCents = servicePriceCents + addonTotal;
+  const totalPriceCents = servicePriceCents + addonTotal + platformFee;
 
   const staffName = defaults.staff ? (defaults.staff.display_name || defaults.staff.full_name) : "No preference";
 
