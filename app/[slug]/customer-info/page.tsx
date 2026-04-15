@@ -247,6 +247,8 @@ export default function CustomerInfoPage() {
   const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
   const displayTotalWithFee = (): number => effectiveTotalCents() + platformFeeDisplay;
   const displayServicePriceWithFee = (): number => effectiveServicePriceCents() + platformFeeDisplay;
+  // Original (non-discounted) total for the crossed-out price when a member discount is active
+  const originalTotalWithFee = effectiveServicePriceCents() + addonTotalCents + travelFeeCents + platformFeeDisplay;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString + "T00:00:00");
@@ -489,7 +491,7 @@ export default function CustomerInfoPage() {
             {displayDiscounted !== null ? (
               <>
                 <p className="text-lg text-green-200 line-through mt-2">
-                  ${(displayTotal / 100).toFixed(2)}
+                  ${(originalTotalWithFee / 100).toFixed(2)}
                 </p>
                 <p className="text-2xl font-bold text-white">
                   ${(displayDiscounted / 100).toFixed(2)}
@@ -668,7 +670,7 @@ export default function CustomerInfoPage() {
                   <div className="text-right">
                     {displayDiscounted !== null ? (
                       <>
-                        <p className="text-sm text-gray-400 line-through">${(displayTotal / 100).toFixed(2)}</p>
+                        <p className="text-sm text-gray-400 line-through">${(originalTotalWithFee / 100).toFixed(2)}</p>
                         <p className="font-bold text-gray-900">${(displayDiscounted / 100).toFixed(2)}</p>
                       </>
                     ) : (

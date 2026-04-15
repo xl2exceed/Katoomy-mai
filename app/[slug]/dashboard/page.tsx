@@ -600,8 +600,9 @@ export default function DashboardPage() {
                 const isDeposit = booking.payment_status === "deposit_paid";
                 const depositPaid = booking.deposit_amount_cents ?? 0;
                 const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
+                const fullTotal = booking.total_price_cents > depositPaid ? booking.total_price_cents : booking.services.price_cents;
                 const amountDue = isDeposit
-                  ? (booking.total_price_cents > depositPaid ? booking.total_price_cents : booking.services.price_cents) - depositPaid
+                  ? fullTotal + platformFeeDisplay - depositPaid
                   : booking.total_price_cents + platformFeeDisplay;
                 return (
                   <div
@@ -614,7 +615,7 @@ export default function DashboardPage() {
                           {booking.services.name}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {formatDate(booking.start_ts)}
+                          {formatDate(booking.start_ts)} at {formatTime(booking.start_ts)}
                         </p>
                         {booking.staff?.full_name && (
                           <p className="text-xs text-gray-500 mt-0.5">

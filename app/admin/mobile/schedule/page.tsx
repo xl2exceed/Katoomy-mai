@@ -74,7 +74,7 @@ export default function MobileSchedulePage() {
       return { text: `Paid in full ($${(total / 100).toFixed(2)})`, color: "bg-green-100 border-green-500 text-green-800" };
     }
     if (booking.payment_status === "deposit_paid") {
-      return { text: `Deposit paid — bal: $${((total - deposit) / 100).toFixed(2)}`, color: "bg-yellow-100 border-yellow-500 text-yellow-800" };
+      return { text: `Deposit paid — bal: $${((total + platformFee - deposit) / 100).toFixed(2)}`, color: "bg-yellow-100 border-yellow-500 text-yellow-800" };
     }
     if (booking.payment_status === "refunded") {
       return { text: "Refunded", color: "bg-gray-100 border-gray-400 text-gray-700" };
