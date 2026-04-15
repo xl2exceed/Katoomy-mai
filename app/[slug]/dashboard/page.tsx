@@ -713,7 +713,7 @@ export default function DashboardPage() {
                     <div className="text-right">
                       <p className="font-bold text-gray-900">
                         {booking.payment_status === "deposit_paid"
-                          ? (() => { const d = booking.deposit_amount_cents ?? 0; const full = booking.total_price_cents > d ? booking.total_price_cents : booking.services.price_cents; return `$${((full - d) / 100).toFixed(2)}`; })()
+                          ? (() => { const d = booking.deposit_amount_cents ?? 0; const full = booking.total_price_cents > d ? booking.total_price_cents : booking.services.price_cents; const platformFee = feeMode === "pass_to_customer" ? 100 : 0; return `$${((full + platformFee - d) / 100).toFixed(2)}`; })()
                           : `$${((booking.total_price_cents + (feeMode === "pass_to_customer" ? 100 : 0)) / 100).toFixed(2)}`}
                       </p>
                       <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">

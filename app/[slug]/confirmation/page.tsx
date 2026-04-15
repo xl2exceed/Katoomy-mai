@@ -243,7 +243,7 @@ export default function ConfirmationPage() {
                       Remaining balance due at appointment
                     </p>
                     <p className="text-orange-700 font-bold text-xl">
-                      ${(() => { const d = booking.deposit_amount_cents ?? 0; const full = booking.total_price_cents > d ? booking.total_price_cents : booking.services.price_cents; return ((full - d) / 100).toFixed(2); })()}
+                      ${(() => { const d = booking.deposit_amount_cents ?? 0; const full = booking.total_price_cents > d ? booking.total_price_cents : booking.services.price_cents; const platformFee = feeMode === "pass_to_customer" ? 100 : 0; return ((full + platformFee - d) / 100).toFixed(2); })()}
                     </p>
                   </>
                 ) : (

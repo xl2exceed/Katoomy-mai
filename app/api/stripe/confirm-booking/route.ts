@@ -191,39 +191,10 @@ export async function POST(req: NextRequest) {
         startDateTime.getTime() + Number(durationMinutes) * 60000,
       );
 
-      // For deposits: compute the correct total_price_cents server-side.
-      // Look up the service price and apply any active member discount — this is the
-      // authoritative value regardless of what was stored in Stripe session metadata.
-      let totalPriceCents = meta.paymentType === "deposit" ? Number(meta.fullPriceCents) : Number(priceCents);
-      if (meta.paymentType === "deposit") {
-        const { data: svc } = await supabaseAdmin
-          .from("services")
-          .select("price_cents")
-          .eq("id", serviceId)
-          .single();
-        if (svc) {
-          let fullPrice = svc.price_cents;
-          // Check for active member subscription and apply discount
-          const { data: memberSub } = await supabaseAdmin
-            .from("member_subscriptions")
-            .select("plan_id")
-            .eq("customer_id", customerId)
-            .eq("business_id", businessId)
-            .eq("status", "active")
-            .maybeSingle();
-          if (memberSub?.plan_id) {
-            const { data: plan } = await supabaseAdmin
-              .from("membership_plans")
-              .select("discount_percent")
-              .eq("id", memberSub.plan_id)
-              .single();
-            if (plan && plan.discount_percent > 0) {
-              fullPrice = Math.round(svc.price_cents * (1 - plan.discount_percent / 100));
-            }
-          }
-          totalPriceCents = fullPrice;
-        }
-      }
+      // For deposits: fullPriceCents = effectiveTotalCents() from client
+      // = discounted service price + add-ons + travel fee (no platform fee).
+      // The member discount was already applied client-side, so use it directly.
+      const totalPriceCents = meta.paymentType === "deposit" ? Number(meta.fullPriceCents) : Number(priceCents);
 
       const { data: booking, error: bookingError } = await supabaseAdmin
         .from("bookings")
