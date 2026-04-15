@@ -29,10 +29,19 @@ export async function GET(req: NextRequest) {
 
   // Remaining balance for deposit-paid bookings
   const depositPaid = booking.deposit_amount_cents ?? 0;
-  const serviceCents =
+  const baseServiceCents =
     booking.payment_status === "deposit_paid"
       ? (booking.total_price_cents > depositPaid ? booking.total_price_cents : booking.total_price_cents) - depositPaid
       : booking.total_price_cents;
+
+  // Add platform fee if passed to customer
+  const { data: cashSettings } = await supabaseAdmin
+    .from("cashapp_settings")
+    .select("fee_mode")
+    .eq("business_id", booking.business_id)
+    .maybeSingle();
+  const platformFee = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+  const serviceCents = baseServiceCents + platformFee;
 
   const serviceName =
     (Array.isArray(booking.services)
