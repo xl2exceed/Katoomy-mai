@@ -489,7 +489,7 @@ export default function CustomerInfoPage() {
             {displayDiscounted !== null ? (
               <>
                 <p className="text-lg text-green-200 line-through mt-2">
-                  ${(displayServicePriceWithFee() / 100).toFixed(2)}
+                  ${(displayTotal / 100).toFixed(2)}
                 </p>
                 <p className="text-2xl font-bold text-white">
                   ${(displayDiscounted / 100).toFixed(2)}
@@ -668,7 +668,7 @@ export default function CustomerInfoPage() {
                   <div className="text-right">
                     {displayDiscounted !== null ? (
                       <>
-                        <p className="text-sm text-gray-400 line-through">${(displayServicePriceWithFee() / 100).toFixed(2)}</p>
+                        <p className="text-sm text-gray-400 line-through">${(displayTotal / 100).toFixed(2)}</p>
                         <p className="font-bold text-gray-900">${(displayDiscounted / 100).toFixed(2)}</p>
                       </>
                     ) : (
