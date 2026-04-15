@@ -190,14 +190,14 @@ export async function POST(req: NextRequest) {
           service_name: serviceNameForLedger,
           service_amount_cents: serviceCentsForLedger,
           tip_cents: safeTipCents,
-          platform_fee_cents: Math.round((session.amount_total ?? 0) * 0.015),
+          platform_fee_cents: 0,
           payment_method: "card",
           fee_absorbed_by: "customer",
           billing_month: billingMonth,
-          billing_status: "pending",
+          billing_status: "stripe_collected",
           appointment_ts: ts.toISOString(),
           marked_paid_by: staffIdForLedger,
-          notes: "Custom payment — Stripe credit card",
+          notes: "Stripe card payment — fee collected automatically",
         });
       }
     }

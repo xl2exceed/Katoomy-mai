@@ -1,7 +1,18 @@
--- Fix: prevent Stripe card payments from being recorded as "cash" in alternative_payment_ledger.
--- When payment_status = 'paid' and there is no booking_payment_reports entry, this is a direct
--- Stripe charge (not cash/Cash App/Zelle) — skip the ledger insert entirely.
+-- Fix: record Stripe card payments in alternative_payment_ledger correctly.
+-- They should appear in the ledger for tracking, but with platform_fee_cents=0
+-- and billing_status='stripe_collected' because Stripe already forwards the $1
+-- to Katoomy automatically via application_fee_amount — no monthly billing needed.
+--
+-- Also adds 'card' to the payment_method check constraint (was missing).
 
+-- 1. Expand the payment_method check constraint to include 'card'
+ALTER TABLE public.alternative_payment_ledger
+  DROP CONSTRAINT IF EXISTS alternative_payment_ledger_payment_method_check;
+ALTER TABLE public.alternative_payment_ledger
+  ADD CONSTRAINT alternative_payment_ledger_payment_method_check
+  CHECK (payment_method IN ('cashapp', 'cash', 'other', 'card'));
+
+-- 2. Update the trigger function
 CREATE OR REPLACE FUNCTION public.auto_record_alternative_payment()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -13,6 +24,7 @@ DECLARE
   v_service_name   text;
   v_payment_method text;
   v_billing_month  text;
+  v_is_stripe      boolean;
 BEGIN
   -- Only act when payment_status transitions to a paid state
   IF NEW.payment_status NOT IN ('paid', 'cash_paid') THEN
@@ -37,22 +49,25 @@ BEGIN
    ORDER BY created_at DESC
    LIMIT 1;
 
-  -- If no payment report entry exists and status is 'paid', this is a direct Stripe card payment.
-  -- Stripe payments are recorded in the `payments` table, not here — skip.
-  IF v_payment_method IS NULL AND NEW.payment_status = 'paid' THEN
-    RETURN NEW;
-  END IF;
+  -- Determine if this is a direct Stripe card payment:
+  -- no booking_payment_reports entry means no "I've Paid" flow was used
+  v_is_stripe := (v_payment_method IS NULL AND NEW.payment_status = 'paid');
 
-  -- Normalize to values allowed by the check constraint
-  v_payment_method := CASE v_payment_method
-    WHEN 'cash_app' THEN 'cashapp'
-    WHEN 'zelle'    THEN 'other'
-    WHEN 'cash'     THEN 'cash'
-    ELSE CASE
-      WHEN NEW.payment_status = 'cash_paid' THEN 'cashapp'
-      ELSE 'cash'
-    END
-  END;
+  IF v_is_stripe THEN
+    -- Stripe: fee already collected automatically — record for tracking only
+    v_payment_method := 'card';
+  ELSE
+    -- Normalize cash/alternative method values
+    v_payment_method := CASE v_payment_method
+      WHEN 'cash_app' THEN 'cashapp'
+      WHEN 'zelle'    THEN 'other'
+      WHEN 'cash'     THEN 'cash'
+      ELSE CASE
+        WHEN NEW.payment_status = 'cash_paid' THEN 'cashapp'
+        ELSE 'cash'
+      END
+    END;
+  END IF;
 
   -- Look up customer and service details
   SELECT full_name, phone
@@ -89,12 +104,13 @@ BEGIN
     v_service_name,
     NEW.total_price_cents,
     0,
-    100,
+    CASE WHEN v_is_stripe THEN 0 ELSE 100 END,
     v_payment_method,
-    'business',
+    CASE WHEN v_is_stripe THEN 'customer' ELSE 'business' END,
     v_billing_month,
-    'pending',
-    'Auto-recorded by payment trigger'
+    CASE WHEN v_is_stripe THEN 'stripe_collected' ELSE 'pending' END,
+    CASE WHEN v_is_stripe THEN 'Stripe card payment — fee collected automatically'
+         ELSE 'Auto-recorded by payment trigger' END
   );
 
   RETURN NEW;
