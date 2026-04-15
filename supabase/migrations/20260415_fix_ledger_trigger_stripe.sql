@@ -3,16 +3,22 @@
 -- and billing_status='stripe_collected' because Stripe already forwards the $1
 -- to Katoomy automatically via application_fee_amount — no monthly billing needed.
 --
--- Also adds 'card' to the payment_method check constraint (was missing).
+-- Also adds 'card' to the payment_method check constraint.
 
--- 1. Expand the payment_method check constraint to include 'card'
+-- 1. Normalize any existing rows that have unexpected payment_method values
+--    so the new constraint can be validated without errors.
+UPDATE public.alternative_payment_ledger
+  SET payment_method = 'card'
+  WHERE payment_method NOT IN ('cashapp', 'cash', 'other', 'card');
+
+-- 2. Expand the payment_method check constraint to include 'card'
 ALTER TABLE public.alternative_payment_ledger
   DROP CONSTRAINT IF EXISTS alternative_payment_ledger_payment_method_check;
 ALTER TABLE public.alternative_payment_ledger
   ADD CONSTRAINT alternative_payment_ledger_payment_method_check
   CHECK (payment_method IN ('cashapp', 'cash', 'other', 'card'));
 
--- 2. Update the trigger function
+-- 3. Update the trigger function
 CREATE OR REPLACE FUNCTION public.auto_record_alternative_payment()
 RETURNS trigger
 LANGUAGE plpgsql
