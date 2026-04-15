@@ -82,7 +82,7 @@ export default function StaffSchedulePage() {
       return { text: `Paid in full ($${(total / 100).toFixed(2)})`, color: "bg-green-100 border-green-500 text-green-800" };
     }
     if (booking.payment_status === "deposit_paid") {
-      return { text: `Deposit paid — bal: $${((total - deposit) / 100).toFixed(2)}`, color: "bg-yellow-100 border-yellow-500 text-yellow-800" };
+      return { text: `Deposit paid — bal: $${((total + platformFee - deposit) / 100).toFixed(2)}`, color: "bg-yellow-100 border-yellow-500 text-yellow-800" };
     }
     if (booking.payment_status === "refunded") {
       return { text: "Refunded", color: "bg-gray-100 border-gray-400 text-gray-700" };
@@ -464,7 +464,7 @@ export default function StaffSchedulePage() {
                 {booking.payment_status === "deposit_paid" ? (
                   <div className="text-right">
                     <span className="text-lg font-bold text-orange-600">
-                      ${((booking.total_price_cents - (booking.deposit_amount_cents ?? 0)) / 100).toFixed(2)} due
+                      ${((booking.total_price_cents + platformFee - (booking.deposit_amount_cents ?? 0)) / 100).toFixed(2)} due
                     </span>
                     <p className="text-xs text-gray-500 mt-0.5">
                       Deposit paid: ${((booking.deposit_amount_cents ?? 0) / 100).toFixed(2)}
