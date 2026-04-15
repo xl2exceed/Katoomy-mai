@@ -219,8 +219,8 @@ export default function QuickBookPage() {
     const nd = nextDateForDay(d.booking_day_of_week, availRules?.days_open || []);
     setNextDate(nd);
 
-    // Check staff availability if a staff member is saved
-    if (nd && d.staff_id && d.staff_id !== "any") {
+    // Check slot availability (staff-specific or general)
+    if (nd) {
       const available = await checkSlotAvailable(biz.id, nd, d.booking_time, d.staff_id, d.services.duration_minutes);
       if (!available) setStaffUnavailable(true);
     }
@@ -246,27 +246,65 @@ export default function QuickBookPage() {
     businessId: string,
     date: string,
     time: string,
-    staffId: string,
+    staffId: string | null,
     durationMinutes: number,
   ): Promise<boolean> {
     const slotStart = new Date(`${date}T${time}:00`);
     const slotEnd   = new Date(slotStart.getTime() + durationMinutes * 60000);
 
+    // Reject slots in the past
+    if (slotStart <= new Date()) return false;
+
+    // Use same ±12h window as book page to handle timezone edge cases
+    const startOfDay = new Date(`${date}T00:00:00`);
+    startOfDay.setHours(startOfDay.getHours() - 12);
+    const endOfDay = new Date(`${date}T23:59:59`);
+    endOfDay.setHours(endOfDay.getHours() + 12);
+
     const { data: bookings } = await supabase
       .from("bookings")
-      .select("start_ts, end_ts")
+      .select("start_ts, end_ts, staff_id")
       .eq("business_id", businessId)
-      .eq("staff_id", staffId)
-      .gte("start_ts", new Date(`${date}T00:00:00`).toISOString())
-      .lt("start_ts",  new Date(`${date}T23:59:59`).toISOString())
+      .gte("start_ts", startOfDay.toISOString())
+      .lt("start_ts",  endOfDay.toISOString())
       .neq("status", "cancelled");
 
-    const conflicts = (bookings || []).filter((b: { start_ts: string; end_ts: string }) => {
+    // Filter to bookings that actually land on the target date in local time
+    const dayBookings = (bookings || []).filter((b: { start_ts: string }) =>
+      new Date(b.start_ts).toLocaleDateString("en-CA") === date
+    );
+
+    function overlaps(b: { start_ts: string; end_ts: string }) {
       const bStart = new Date(b.start_ts);
       const bEnd   = new Date(b.end_ts);
       return slotStart < bEnd && slotEnd > bStart;
-    });
-    return conflicts.length === 0;
+    }
+
+    if (staffId && staffId !== "any") {
+      // Specific staff — conflict only if that staff member is booked
+      return !dayBookings
+        .filter((b: { staff_id: string | null }) => b.staff_id === staffId)
+        .some(overlaps);
+    }
+
+    // Load active staff count to decide "any" vs no-staff logic
+    const { data: staffList } = await supabase
+      .from("staff")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("is_active", true);
+
+    if (!staffList || staffList.length === 0) {
+      // No staff — business is a single resource; conflict if any booking overlaps
+      return !dayBookings.some(overlaps);
+    }
+
+    // Has staff, "any" selected — available if at least one staff member is free
+    return staffList.some((s: { id: string }) =>
+      !dayBookings
+        .filter((b: { staff_id: string | null }) => b.staff_id === s.id)
+        .some(overlaps)
+    );
   }
 
   // Discard pending edits
@@ -277,19 +315,25 @@ export default function QuickBookPage() {
   }
 
   // Apply pending edits to current defaults display (one-time — don't save to DB)
-  function applyEditsOneTime() {
-    if (!defaults) return;
+  async function applyEditsOneTime() {
+    if (!defaults || !business) return;
     const updated = applyEditsToDefaults(defaults, pendingEdits);
     setDefaults(updated);
     // Persist working state so it survives navigating away and back for more edits
     sessionStorage.setItem(QB_WORKING_KEY, JSON.stringify(updated));
     // Recompute next date if day changed
-    if (pendingEdits.dayOfWeek) {
-      const nd = nextDateForDay(pendingEdits.dayOfWeek, openDays);
-      setNextDate(nd);
-    }
+    const nd = pendingEdits.dayOfWeek
+      ? nextDateForDay(pendingEdits.dayOfWeek, openDays)
+      : nextDate;
+    if (pendingEdits.dayOfWeek) setNextDate(nd);
     clearPendingEdits();
-    setStaffUnavailable(false);
+    // Re-check availability with updated settings
+    if (nd) {
+      const available = await checkSlotAvailable(business.id, nd, updated.booking_time, updated.staff_id, updated.services.duration_minutes);
+      setStaffUnavailable(!available);
+    } else {
+      setStaffUnavailable(false);
+    }
   }
 
   // Apply pending edits and save to DB as new default
@@ -299,12 +343,18 @@ export default function QuickBookPage() {
     setDefaults(updated);
     // Clear working state — DB is now up to date
     sessionStorage.removeItem(QB_WORKING_KEY);
-    if (pendingEdits.dayOfWeek) {
-      const nd = nextDateForDay(pendingEdits.dayOfWeek, openDays);
-      setNextDate(nd);
-    }
+    const nd = pendingEdits.dayOfWeek
+      ? nextDateForDay(pendingEdits.dayOfWeek, openDays)
+      : nextDate;
+    if (pendingEdits.dayOfWeek) setNextDate(nd);
     clearPendingEdits();
-    setStaffUnavailable(false);
+    // Re-check availability with updated settings
+    if (nd) {
+      const available = await checkSlotAvailable(business.id, nd, updated.booking_time, updated.staff_id, updated.services.duration_minutes);
+      setStaffUnavailable(!available);
+    } else {
+      setStaffUnavailable(false);
+    }
 
     const phone = localStorage.getItem(PHONE_KEY);
     if (!phone) return;
@@ -381,18 +431,16 @@ export default function QuickBookPage() {
     setBooking(true);
     setBookError("");
 
-    // Check availability one more time
-    if (defaults.staff_id && defaults.staff_id !== "any") {
-      const available = await checkSlotAvailable(
-        business.id, nextDate, defaults.booking_time,
-        defaults.staff_id, defaults.services.duration_minutes
-      );
-      if (!available) {
-        setStaffUnavailable(true);
-        setBooking(false);
-        setBookError("That time slot is no longer available. Please edit the time or staff member.");
-        return;
-      }
+    // Check availability one more time before creating the booking
+    const available = await checkSlotAvailable(
+      business.id, nextDate, defaults.booking_time,
+      defaults.staff_id, defaults.services.duration_minutes
+    );
+    if (!available) {
+      setStaffUnavailable(true);
+      setBooking(false);
+      setBookError("That time slot is no longer available. Please edit the time or date.");
+      return;
     }
 
     const startDateTime = new Date(`${nextDate}T${defaults.booking_time}:00`);
@@ -545,10 +593,10 @@ export default function QuickBookPage() {
         {staffUnavailable && (
           <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-4">
             <p className="font-semibold text-orange-800 text-sm">
-              ⚠️ {staffName} isn&apos;t available at your usual time on the next {capitalize(defaults.booking_day_of_week)}.
+              ⚠️ That time slot isn&apos;t available on the next {capitalize(defaults.booking_day_of_week)}.
             </p>
             <p className="text-orange-700 text-xs mt-1">
-              Edit your time or staff member below, then tap &quot;Book It&quot;.
+              Edit your time or date below, then tap &quot;Book It&quot;.
             </p>
           </div>
         )}
@@ -676,7 +724,7 @@ export default function QuickBookPage() {
         </button>
         {staffUnavailable && (
           <p className="text-center text-xs text-orange-600 mt-2">
-            Edit the provider or time above before booking
+            Edit the time or date above before booking
           </p>
         )}
       </div>
