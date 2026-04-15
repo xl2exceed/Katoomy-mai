@@ -100,6 +100,7 @@ export default function ExternalPayPage() {
           serviceCents,
           tipCents,
           feeMode: settings?.feeMode ?? "pass_to_customer",
+          source,
         }),
       });
       if (!res.ok) {

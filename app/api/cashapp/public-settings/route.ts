@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const zelleEnabled = !!(settings?.zelle_enabled && (settings?.zelle_phone || settings?.zelle_email));
 
   if (!cashappEnabled && !zelleEnabled) {
-    return NextResponse.json({ cashappEnabled: false, zelleEnabled: false });
+    return NextResponse.json({ cashappEnabled: false, zelleEnabled: false, businessId: business.id });
   }
 
   return NextResponse.json({
