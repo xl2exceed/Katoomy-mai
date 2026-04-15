@@ -459,7 +459,8 @@ export default function QuickBookPage() {
     const surcharge = (isCarwash && defaults.vehicle_type) ? (surcharges[defaults.vehicle_type] ?? 0) : 0;
     const servicePriceCents = defaults.services.price_cents + surcharge;
     const addonTotal = defaults.addons.filter(a => defaults.addon_ids.includes(a.id)).reduce((s,a) => s + a.price_cents, 0);
-    const totalPriceCents = servicePriceCents + addonTotal + platformFee;
+    // platformFee is display-only; stored price matches normal booking flow (no fee baked in)
+    const totalPriceCents = servicePriceCents + addonTotal;
 
     const res = await fetch("/api/bookings/create", {
       method: "POST",
@@ -580,7 +581,9 @@ export default function QuickBookPage() {
   const surcharge = (isCarwash && defaults.vehicle_type) ? (surcharges[defaults.vehicle_type] ?? 0) : 0;
   const servicePriceCents = defaults.services.price_cents + surcharge;
   const addonTotal = defaults.addons.filter(a => defaults.addon_ids.includes(a.id)).reduce((s,a) => s + a.price_cents, 0);
-  const totalPriceCents = servicePriceCents + addonTotal + platformFee;
+  // platformFee is display-only (same as customer-info page); not included in the stored booking total
+  const totalPriceCents = servicePriceCents + addonTotal;
+  const displayTotalCents = totalPriceCents + platformFee;
 
   const staffName = defaults.staff ? (defaults.staff.display_name || defaults.staff.full_name) : "No preference";
 
@@ -698,7 +701,7 @@ export default function QuickBookPage() {
           {/* Total */}
           <div className="px-5 py-4 bg-gray-50 flex justify-between items-center">
             <span className="font-bold text-gray-900">Total</span>
-            <span className="font-bold text-xl" style={{ color }}>${(totalPriceCents / 100).toFixed(2)}</span>
+            <span className="font-bold text-xl" style={{ color }}>${(displayTotalCents / 100).toFixed(2)}</span>
           </div>
         </div>
 
