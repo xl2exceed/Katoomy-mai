@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const [cancelError, setCancelError] = useState("");
   const [loading, setLoading] = useState(true);
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
+  const [paymentReports, setPaymentReports] = useState<Record<string, { customer_response: string | null; resolution_status: string }>>({});
 
   // Phone prompt states
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
@@ -91,7 +92,23 @@ export default function DashboardPage() {
       .in("payment_status", ["unpaid", "deposit_paid"])
       .not("payment_status", "eq", "custom_paid")
       .order("start_ts", { ascending: false });
-    setAwaitingPaymentBookings((awaitingPayment as Booking[]) || []);
+    const awaitingData = (awaitingPayment as Booking[]) || [];
+    setAwaitingPaymentBookings(awaitingData);
+    await loadPaymentReports(awaitingData.map(b => b.id));
+  };
+
+  const loadPaymentReports = async (bookingIds: string[]) => {
+    if (bookingIds.length === 0) { setPaymentReports({}); return; }
+    const { data: reports } = await supabase
+      .from("booking_payment_reports")
+      .select("booking_id, customer_response, resolution_status")
+      .in("booking_id", bookingIds)
+      .order("created_at", { ascending: false });
+    const map: Record<string, { customer_response: string | null; resolution_status: string }> = {};
+    (reports || []).forEach((r: { booking_id: string; customer_response: string | null; resolution_status: string }) => {
+      if (!map[r.booking_id]) map[r.booking_id] = r;
+    });
+    setPaymentReports(map);
   };
 
   useEffect(() => {
@@ -111,6 +128,15 @@ export default function DashboardPage() {
         () => { reloadBookings(cid); }
       )
       .subscribe();
+    // Real-time: update payment report status when business responds
+    const reportChannel = supabase
+      .channel(`customer-payment-reports-${cid}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "booking_payment_reports", filter: `customer_id=eq.${cid}` },
+        () => { reloadBookings(cid); }
+      )
+      .subscribe();
     // BroadcastChannel: reload instantly when a custom payment is recorded from the Take Payment page
     let bc: BroadcastChannel | null = null;
     try {
@@ -119,6 +145,7 @@ export default function DashboardPage() {
     } catch { /* not supported */ }
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(reportChannel);
       bc?.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -223,7 +250,9 @@ export default function DashboardPage() {
       .not("payment_status", "eq", "custom_paid")
       .order("start_ts", { ascending: false });
 
-    setAwaitingPaymentBookings((awaitingPayment as Booking[]) || []);
+    const awaitingData2 = (awaitingPayment as Booking[]) || [];
+    setAwaitingPaymentBookings(awaitingData2);
+    await loadPaymentReports(awaitingData2.map(b => b.id));
 
     const { data: loyaltyData } = await supabase
       .from("loyalty_ledger")
@@ -604,6 +633,9 @@ export default function DashboardPage() {
                 const amountDue = isDeposit
                   ? fullTotal + platformFeeDisplay - depositPaid
                   : booking.total_price_cents + platformFeeDisplay;
+                const report = paymentReports[booking.id];
+                const isPendingConfirmation = report?.customer_response === "paid" && report?.resolution_status === "pending";
+                const isDisputed = report?.resolution_status === "disputed_unpaid";
                 return (
                   <div
                     key={booking.id}
@@ -632,12 +664,30 @@ export default function DashboardPage() {
                         ${(amountDue / 100).toFixed(2)}
                       </p>
                     </div>
-                    <Link
-                      href={`/${slug}/pay?bookingId=${booking.id}`}
-                      className="block w-full text-center py-3 rounded-xl text-white font-bold bg-orange-500 hover:bg-orange-600 transition"
-                    >
-                      Pay Now
-                    </Link>
+                    {isPendingConfirmation ? (
+                      <div className="w-full px-4 py-3 bg-amber-50 border border-amber-300 rounded-xl text-sm text-amber-800 text-center font-medium">
+                        ⏳ Waiting for {business?.name || "the business"} to confirm your payment.
+                      </div>
+                    ) : isDisputed ? (
+                      <>
+                        <div className="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                          <span className="font-bold">{business?.name || "The business"}</span> has not received your payment. Make sure that you have completed the payment process.
+                        </div>
+                        <Link
+                          href={`/${slug}/pay?bookingId=${booking.id}`}
+                          className="block w-full text-center py-3 rounded-xl text-white font-bold bg-orange-500 hover:bg-orange-600 transition"
+                        >
+                          Pay Now
+                        </Link>
+                      </>
+                    ) : (
+                      <Link
+                        href={`/${slug}/pay?bookingId=${booking.id}`}
+                        className="block w-full text-center py-3 rounded-xl text-white font-bold bg-orange-500 hover:bg-orange-600 transition"
+                      >
+                        Pay Now
+                      </Link>
+                    )}
                   </div>
                 );
               })}

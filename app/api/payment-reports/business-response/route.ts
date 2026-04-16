@@ -6,7 +6,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { createStaffClient } from "@/lib/supabase/staff-client";
-import { getSmsTemplate, fillSmsTemplate } from "@/lib/smsTemplates";
 
 export async function POST(req: NextRequest) {
   // Support both admin (cookie) and staff (Bearer token) auth
@@ -157,15 +156,8 @@ export async function POST(req: NextRequest) {
       .from("businesses").select("slug, name").eq("id", report.business_id).maybeSingle();
 
     if (customer?.phone) {
-      const amountDollars = (report.total_amount_cents / 100).toFixed(2);
-      const payLink = `${process.env.NEXT_PUBLIC_APP_URL}/${biz?.slug}/dashboard`;
-      const tmpl = await getSmsTemplate(report.business_id, "payment_dispute");
-      const smsBody = fillSmsTemplate(tmpl, {
-        customer_name: customer.full_name || "there",
-        business_name: biz?.name || "Your business",
-        amount: amountDollars,
-        pay_link: payLink,
-      });
+      const payLink = `${process.env.NEXT_PUBLIC_APP_URL}/${biz?.slug}/pay?bookingId=${report.booking_id}`;
+      const smsBody = `${biz?.name || "The business"} has not received your payment. Make sure that you have completed the payment process. Pay now: ${payLink}`;
 
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/sms/send`, {
         method: "POST",
