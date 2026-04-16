@@ -2,7 +2,7 @@
 // Vercel cron endpoint — runs every hour, fires due reminders
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/webpush";
 import { getSmsTemplate, fillSmsTemplate } from "@/lib/smsTemplates";
 
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  const supabase = supabaseAdmin;
   const now = new Date();
   const windowEnd = new Date(now.getTime() + 60 * 60 * 1000);
 
@@ -152,6 +152,17 @@ export async function GET(req: NextRequest) {
             .delete()
             .in("endpoint", expiredEndpoints);
         }
+
+        // Log to notification_log so it shows in the in-app notification bell
+        await supabase.from("notification_log").insert({
+          target_type: "customer",
+          customer_id: reminder.customer_id,
+          business_id: reminder.business_id,
+          title: `⏰ Reminder: ${serviceName}`,
+          body: `Hi ${customerName}! Your appointment is in 2 hours — ${apptTime}. See you soon!`,
+          url: business ? `/${business.slug}/dashboard` : "/",
+          read: false,
+        });
       } else if (reminder.channel === "sms") {
         if (!customer?.phone) {
           await supabase

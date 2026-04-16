@@ -220,6 +220,39 @@ export async function POST(req: NextRequest) {
       read: false,
     });
 
+    // Notify customer — push + notification_log so it shows in the bell
+    const { data: bizForSlug } = await supabaseAdmin
+      .from("businesses").select("slug").eq("id", businessId).maybeSingle();
+    const bizSlug = bizForSlug?.slug;
+
+    const { data: customerSubs } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("endpoint, p256dh, auth")
+      .eq("customer_id", customerId)
+      .eq("user_type", "customer");
+
+    if (customerSubs && customerSubs.length > 0) {
+      await Promise.all(
+        customerSubs.map((sub) =>
+          sendPushNotification(sub, {
+            title: "Booking Confirmed 📅",
+            body: `Your ${serviceName} appointment is confirmed for ${apptTime}.`,
+            url: bizSlug ? `/${bizSlug}/dashboard` : "/",
+          }),
+        ),
+      );
+    }
+
+    await supabaseAdmin.from("notification_log").insert({
+      target_type: "customer",
+      customer_id: customerId,
+      business_id: businessId,
+      title: "Booking Confirmed 📅",
+      body: `Your ${serviceName} appointment is confirmed for ${apptTime}.`,
+      url: bizSlug ? `/${bizSlug}/dashboard` : "/",
+      read: false,
+    });
+
     // Notify assigned staff member
     if (staffId) {
       const { data: staffSubs } = await supabaseAdmin
