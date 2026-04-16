@@ -294,7 +294,7 @@ export async function POST(req: NextRequest) {
             booking_id: bookingId,
             customer_name: customerName,
             service_name: meta.serviceName,
-            service_amount_cents: totalPriceCents,
+            service_amount_cents: Number(priceCents),
             tip_cents: 0,
             platform_fee_cents: 0,
             payment_method: "card",
