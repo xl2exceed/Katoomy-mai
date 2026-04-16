@@ -42,6 +42,7 @@ export default function CustomerNotificationsPage() {
   }, []);
 
   const loadNotifications = async () => {
+    // Load business info (public — no RLS issue)
     const { data: businessData } = await supabase
       .from("businesses")
       .select("id, name, primary_color")
@@ -61,33 +62,26 @@ export default function CustomerNotificationsPage() {
       return;
     }
 
-    const { data: customer } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("business_id", businessData.id)
-      .eq("phone", savedPhone)
-      .single();
+    // Use API route with supabaseAdmin to bypass RLS
+    // (customers have no Supabase JWT session — createClient() queries are unauthenticated)
+    const res = await fetch(
+      `/api/notifications/customer?slug=${encodeURIComponent(slug)}&phone=${encodeURIComponent(savedPhone)}`
+    );
 
-    if (!customer) {
-      setNoPhone(true);
+    if (!res.ok) {
       setLoading(false);
       return;
     }
 
-    const { data } = await supabase
-      .from("notification_log")
-      .select("*")
-      .eq("customer_id", customer.id)
-      .order("created_at", { ascending: false });
+    const json = await res.json();
+    setNotifications(json.notifications || []);
 
-    setNotifications(data || []);
-
-    // Mark all as read
-    await supabase
-      .from("notification_log")
-      .update({ read: true })
-      .eq("customer_id", customer.id)
-      .eq("read", false);
+    // Mark all as read via API
+    fetch("/api/notifications/customer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, phone: savedPhone }),
+    }).catch(() => {});
 
     setLoading(false);
   };
