@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
   if (!amountCents || amountCents <= 0) return NextResponse.json({ error: "Amount must be greater than $0" }, { status: 400 });
 
   const validMethods = ["cash", "cashapp", "zelle", "card", "other"];
-  const method = validMethods.includes(paymentMethod) ? paymentMethod : "cash";
+  const rawMethod = validMethods.includes(paymentMethod) ? paymentMethod : "cash";
+  const method = rawMethod === "zelle" ? "other" : rawMethod;
 
   const ts = appointmentTs ? new Date(appointmentTs) : new Date();
   const billingMonth = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}`;
