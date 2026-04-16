@@ -493,7 +493,7 @@ export default function StaffSchedulePage() {
               </div>
               {["completed", "custom"].includes(booking.status) && !["paid", "cash_paid", "custom_paid", "deposit_paid", "refunded"].includes(booking.payment_status) && (
                 <Link
-                  href="/staff/payment"
+                  href={`/staff/payment?phone=${booking.customers.phone || ""}`}
                   className="mt-3 block w-full py-3 bg-emerald-600 text-white rounded-xl font-bold active:scale-95 transition shadow text-center"
                 >
                   💳 Take A Payment

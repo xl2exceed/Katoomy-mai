@@ -110,6 +110,13 @@ export default function StaffPaymentPage() {
       }
     }
     setLoading(false);
+    // Pre-fill phone from URL param (e.g. from Take A Payment button on schedule)
+    const urlParams = new URLSearchParams(window.location.search);
+    const prefillDigits = (urlParams.get("phone") ?? "").replace(/\D/g, "");
+    if (prefillDigits.length === 10) {
+      setCustomerPhone(formatPhoneInput(prefillDigits));
+      doLookup(prefillDigits, s.id);
+    }
   }
 
   function authHeaders(): Record<string, string> {
@@ -128,13 +135,14 @@ export default function StaffPaymentPage() {
     }
   }
 
-  async function doLookup(digits: string) {
+  async function doLookup(digits: string, staffIdOverride?: string) {
+    const sid = staffIdOverride ?? staffId;
     setLooking(true);
     try {
       const res = await fetch("/api/staff/lookup-customer", {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ staffId, phone: digits }),
+        body: JSON.stringify({ staffId: sid, phone: digits }),
       });
       const data: LookupResult = await res.json();
       setLookup(data);

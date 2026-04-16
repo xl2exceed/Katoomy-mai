@@ -88,6 +88,13 @@ export default function AdminTakePaymentPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/admin/login"); return; }
     setLoading(false);
+    // Pre-fill phone from URL param (e.g. from Take A Payment button on schedule)
+    const urlParams = new URLSearchParams(window.location.search);
+    const prefillDigits = (urlParams.get("phone") ?? "").replace(/\D/g, "");
+    if (prefillDigits.length === 10) {
+      setCustomerPhone(formatPhoneInput(prefillDigits));
+      doLookup(prefillDigits);
+    }
   }
 
   function handlePhoneChange(val: string) {
