@@ -278,6 +278,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Record in alternative_payment_ledger for tracking (full Stripe payments only — not deposits)
+    // Deposits are recorded when the final balance is paid.
+    if (meta.paymentType !== "deposit") {
+      try {
+        const { data: existingLedger } = await supabaseAdmin
+          .from("alternative_payment_ledger")
+          .select("id")
+          .eq("booking_id", bookingId)
+          .maybeSingle();
+        if (!existingLedger) {
+          const billingMonth = new Date().toISOString().slice(0, 7);
+          await supabaseAdmin.from("alternative_payment_ledger").insert({
+            business_id: businessId,
+            booking_id: bookingId,
+            customer_name: customerName,
+            service_name: meta.serviceName,
+            service_amount_cents: totalPriceCents,
+            tip_cents: 0,
+            platform_fee_cents: 0,
+            payment_method: "card",
+            fee_absorbed_by: "customer",
+            billing_month: billingMonth,
+            billing_status: "stripe_collected",
+            notes: "Stripe card payment — fee collected automatically",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to record ledger entry (non-fatal):", err);
+      }
+    }
+
     // Award loyalty points on payment (pre-paid new bookings and existing QR/card payments)
     try {
       const { data: loyalty, error: loyaltyErr } = await supabaseAdmin
