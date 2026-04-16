@@ -51,6 +51,13 @@ interface AddonInfo {
   duration_minutes: number;
 }
 
+interface DepositSettings {
+  enabled: boolean;
+  type: "flat" | "percent";
+  amount_cents?: number;
+  percent?: number;
+}
+
 interface QuickBookDefaults {
   id: string;
   service_id: string;
@@ -152,6 +159,7 @@ export default function QuickBookPage() {
 
   // Platform fee (baked into price when customer pays)
   const [platformFee, setPlatformFee] = useState(100);
+  const [depositSettings, setDepositSettings] = useState<DepositSettings | null>(null);
 
   const supabase = createClient();
 
@@ -176,6 +184,13 @@ export default function QuickBookPage() {
       .maybeSingle();
     const fee = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
     setPlatformFee(fee);
+
+    const { data: depositData } = await supabase
+      .from("deposit_settings")
+      .select("enabled, type, amount_cents, percent")
+      .eq("business_id", biz.id)
+      .maybeSingle();
+    if (depositData?.enabled) setDepositSettings(depositData as DepositSettings);
 
     if (carwash) {
       try {
@@ -438,6 +453,15 @@ export default function QuickBookPage() {
     }
   }
 
+  function getDepositCents(totalCents: number): number {
+    if (!depositSettings?.enabled) return 0;
+    if (depositSettings.type === "flat") return depositSettings.amount_cents || 0;
+    if (depositSettings.type === "percent" && depositSettings.percent) {
+      return Math.round(totalCents * (depositSettings.percent / 100));
+    }
+    return 0;
+  }
+
   const handleBookIt = async () => {
     if (!defaults || !business || !customer || !nextDate) return;
     setBooking(true);
@@ -459,9 +483,48 @@ export default function QuickBookPage() {
     const surcharge = (isCarwash && defaults.vehicle_type) ? (surcharges[defaults.vehicle_type] ?? 0) : 0;
     const servicePriceCents = defaults.services.price_cents + surcharge;
     const addonTotal = defaults.addons.filter(a => defaults.addon_ids.includes(a.id)).reduce((s,a) => s + a.price_cents, 0);
-    // platformFee is display-only; stored price matches normal booking flow (no fee baked in)
     const totalPriceCents = servicePriceCents + addonTotal;
 
+    // If deposits are enabled, route through Stripe checkout (same as normal booking flow)
+    if (depositSettings?.enabled) {
+      const depositCents = getDepositCents(totalPriceCents);
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId:      business.id,
+          serviceId:       defaults.service_id,
+          serviceName:     defaults.services.name,
+          priceCents:      depositCents,
+          fullPriceCents:  totalPriceCents,
+          paymentType:     "deposit",
+          customerName:    customer.full_name,
+          customerPhone:   customer.phone,
+          customerEmail:   customer.email || "",
+          bookingDate:     nextDate,
+          bookingTime:     defaults.booking_time,
+          startISO:        startDateTime.toISOString(),
+          durationMinutes: defaults.services.duration_minutes,
+          slug,
+          staffId:         defaults.staff_id || undefined,
+          vehicleType:     defaults.vehicle_type || undefined,
+          vehicleCondition: defaults.vehicle_condition || undefined,
+          addonIds:        defaults.addon_ids.length > 0 ? defaults.addon_ids : undefined,
+          smsConsent:      true,
+        }),
+      });
+      if (!res.ok) {
+        setBookError("Could not start payment. Please try again.");
+        setBooking(false);
+        return;
+      }
+      const data = await res.json();
+      sessionStorage.removeItem(QB_WORKING_KEY);
+      window.location.href = data.url;
+      return;
+    }
+
+    // No deposit — create booking directly
     const res = await fetch("/api/bookings/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -699,9 +762,16 @@ export default function QuickBookPage() {
           )}
 
           {/* Total */}
-          <div className="px-5 py-4 bg-gray-50 flex justify-between items-center">
-            <span className="font-bold text-gray-900">Total</span>
-            <span className="font-bold text-xl" style={{ color }}>${(displayTotalCents / 100).toFixed(2)}</span>
+          <div className="px-5 py-4 bg-gray-50">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-gray-900">Total</span>
+              <span className="font-bold text-xl" style={{ color }}>${(displayTotalCents / 100).toFixed(2)}</span>
+            </div>
+            {depositSettings?.enabled && (
+              <p className="text-xs text-orange-600 font-medium mt-1 text-right">
+                Deposit due today: ${(getDepositCents(totalPriceCents) / 100).toFixed(2)}
+              </p>
+            )}
           </div>
         </div>
 
