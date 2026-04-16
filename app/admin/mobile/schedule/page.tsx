@@ -511,8 +511,8 @@ export default function MobileSchedulePage() {
                   </select>
                 </div>
 
-                {booking.status === "completed" &&
-                  !["paid", "cash_paid", "deposit_paid", "refunded"].includes(booking.payment_status) && (
+                {["completed", "custom"].includes(booking.status) &&
+                  !["paid", "cash_paid", "custom_paid", "deposit_paid", "refunded"].includes(booking.payment_status) && (
                     <Link
                       href="/admin/mobile/take-payment"
                       className="mt-3 block w-full py-3 bg-emerald-600 text-white rounded-xl font-bold active:scale-95 transition shadow text-center"
