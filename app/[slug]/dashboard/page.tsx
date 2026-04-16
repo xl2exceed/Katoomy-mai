@@ -647,8 +647,8 @@ export default function DashboardPage() {
 
         {/* Appointments */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-3">
               Appointments
             </h2>
             <div className="flex items-center gap-2">
