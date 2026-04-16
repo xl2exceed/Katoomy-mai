@@ -664,21 +664,15 @@ export default function DashboardPage() {
                 className="text-sm font-semibold px-3 py-1.5 rounded-lg text-white"
                 style={{ backgroundColor: primaryColor }}
               >
-                Book
+                Book an Appointment
               </Link>
             </div>
           </div>
 
           {upcomingBookings.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No upcoming appointments</p>
-              <Link
-                href={`/${slug}/services`}
-                className="inline-block px-6 py-3 rounded-lg text-white font-semibold"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Book an Appointment
-              </Link>
+            <div className="py-6">
+              <p className="text-gray-500 mb-2">No upcoming appointments</p>
+              <p className="text-sm text-gray-400">Book your next appointment. For lightning fast booking try <span className="font-semibold text-green-600">⚡ Quick Book</span></p>
             </div>
           ) : (
             <div className="space-y-3">
