@@ -3,10 +3,11 @@
 -- and billing_status='stripe_collected' because Stripe already forwards the $1
 -- to Katoomy automatically via application_fee_amount — no monthly billing needed.
 --
--- Also adds 'card' to the payment_method check constraint.
+-- Also adds 'card' to the payment_method check constraint, and adds an INSERT
+-- trigger so new bookings created with payment_status already set (e.g. Stripe
+-- self-booking flow) are recorded — not just updates.
 
 -- 1. Normalize any existing rows that have unexpected payment_method values
---    so the new constraint can be validated without errors.
 UPDATE public.alternative_payment_ledger
   SET payment_method = 'card'
   WHERE payment_method NOT IN ('cashapp', 'cash', 'other', 'card');
@@ -18,7 +19,7 @@ ALTER TABLE public.alternative_payment_ledger
   ADD CONSTRAINT alternative_payment_ledger_payment_method_check
   CHECK (payment_method IN ('cashapp', 'cash', 'other', 'card'));
 
--- 3. Update the trigger function
+-- 3. Update the trigger function (handles both INSERT and UPDATE via TG_OP)
 CREATE OR REPLACE FUNCTION public.auto_record_alternative_payment()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -32,12 +33,12 @@ DECLARE
   v_billing_month  text;
   v_is_stripe      boolean;
 BEGIN
-  -- Only act when payment_status transitions to a paid state
+  -- Only act when payment_status is a paid state
   IF NEW.payment_status NOT IN ('paid', 'cash_paid') THEN
     RETURN NEW;
   END IF;
-  -- Skip if payment_status didn't actually change
-  IF OLD.payment_status IS NOT DISTINCT FROM NEW.payment_status THEN
+  -- For UPDATE: skip if payment_status didn't actually change
+  IF TG_OP = 'UPDATE' AND OLD.payment_status IS NOT DISTINCT FROM NEW.payment_status THEN
     RETURN NEW;
   END IF;
   -- Skip if already recorded (idempotent)
@@ -60,10 +61,8 @@ BEGIN
   v_is_stripe := (v_payment_method IS NULL AND NEW.payment_status = 'paid');
 
   IF v_is_stripe THEN
-    -- Stripe: fee already collected automatically — record for tracking only
     v_payment_method := 'card';
   ELSE
-    -- Normalize cash/alternative method values
     v_payment_method := CASE v_payment_method
       WHEN 'cash_app' THEN 'cashapp'
       WHEN 'zelle'    THEN 'other'
@@ -75,7 +74,6 @@ BEGIN
     END;
   END IF;
 
-  -- Look up customer and service details
   SELECT full_name, phone
     INTO v_customer_name, v_customer_phone
     FROM public.customers
@@ -89,27 +87,12 @@ BEGIN
   v_billing_month := to_char(now(), 'YYYY-MM');
 
   INSERT INTO public.alternative_payment_ledger (
-    business_id,
-    booking_id,
-    customer_name,
-    customer_phone,
-    service_name,
-    service_amount_cents,
-    tip_cents,
-    platform_fee_cents,
-    payment_method,
-    fee_absorbed_by,
-    billing_month,
-    billing_status,
-    notes
+    business_id, booking_id, customer_name, customer_phone, service_name,
+    service_amount_cents, tip_cents, platform_fee_cents, payment_method,
+    fee_absorbed_by, billing_month, billing_status, notes
   ) VALUES (
-    NEW.business_id,
-    NEW.id,
-    v_customer_name,
-    v_customer_phone,
-    v_service_name,
-    NEW.total_price_cents,
-    0,
+    NEW.business_id, NEW.id, v_customer_name, v_customer_phone, v_service_name,
+    NEW.total_price_cents, 0,
     CASE WHEN v_is_stripe THEN 0 ELSE 100 END,
     v_payment_method,
     CASE WHEN v_is_stripe THEN 'customer' ELSE 'business' END,
@@ -125,3 +108,17 @@ EXCEPTION WHEN OTHERS THEN
   RETURN NEW;
 END;
 $$;
+
+-- 4. Keep the existing UPDATE trigger
+DROP TRIGGER IF EXISTS trg_auto_record_alternative_payment ON public.bookings;
+CREATE TRIGGER trg_auto_record_alternative_payment
+  AFTER UPDATE OF payment_status ON public.bookings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_record_alternative_payment();
+
+-- 5. Add INSERT trigger so new bookings created already-paid (Stripe self-booking) are recorded
+DROP TRIGGER IF EXISTS trg_auto_record_alternative_payment_insert ON public.bookings;
+CREATE TRIGGER trg_auto_record_alternative_payment_insert
+  AFTER INSERT ON public.bookings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_record_alternative_payment();
