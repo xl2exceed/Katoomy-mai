@@ -492,12 +492,12 @@ export default function StaffSchedulePage() {
                 </select>
               </div>
               {booking.status === "completed" && !["paid", "cash_paid", "deposit_paid", "refunded"].includes(booking.payment_status) && (
-                <button
-                  onClick={() => handleMarkPaid(booking)}
-                  className="mt-3 w-full py-3 bg-emerald-600 text-white rounded-xl font-bold active:scale-95 transition shadow"
+                <Link
+                  href="/staff/payment"
+                  className="mt-3 block w-full py-3 bg-emerald-600 text-white rounded-xl font-bold active:scale-95 transition shadow text-center"
                 >
-                  Mark Paid (Cash)
-                </button>
+                  💳 Take A Payment
+                </Link>
               )}
             </div>
           ))}
