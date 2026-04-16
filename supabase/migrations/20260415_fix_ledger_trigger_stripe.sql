@@ -7,19 +7,26 @@
 -- trigger so new bookings created with payment_status already set (e.g. Stripe
 -- self-booking flow) are recorded — not just updates.
 
--- 1. Normalize any existing rows that have unexpected payment_method values
+-- 1. Normalize any existing rows with unexpected payment_method values
 UPDATE public.alternative_payment_ledger
   SET payment_method = 'card'
   WHERE payment_method NOT IN ('cashapp', 'cash', 'other', 'card');
 
--- 2. Expand the payment_method check constraint to include 'card'
+-- 2. Expand payment_method constraint to include 'card'
 ALTER TABLE public.alternative_payment_ledger
   DROP CONSTRAINT IF EXISTS alternative_payment_ledger_payment_method_check;
 ALTER TABLE public.alternative_payment_ledger
   ADD CONSTRAINT alternative_payment_ledger_payment_method_check
   CHECK (payment_method IN ('cashapp', 'cash', 'other', 'card'));
 
--- 3. Update the trigger function (handles both INSERT and UPDATE via TG_OP)
+-- 3. Expand billing_status constraint to include 'stripe_collected'
+ALTER TABLE public.alternative_payment_ledger
+  DROP CONSTRAINT IF EXISTS alternative_payment_ledger_billing_status_check;
+ALTER TABLE public.alternative_payment_ledger
+  ADD CONSTRAINT alternative_payment_ledger_billing_status_check
+  CHECK (billing_status IN ('pending', 'billed', 'waived', 'stripe_collected'));
+
+-- 4. Update the trigger function (handles both INSERT and UPDATE via TG_OP)
 CREATE OR REPLACE FUNCTION public.auto_record_alternative_payment()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -109,14 +116,14 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
--- 4. Keep the existing UPDATE trigger
+-- 5. Keep the existing UPDATE trigger
 DROP TRIGGER IF EXISTS trg_auto_record_alternative_payment ON public.bookings;
 CREATE TRIGGER trg_auto_record_alternative_payment
   AFTER UPDATE OF payment_status ON public.bookings
   FOR EACH ROW
   EXECUTE FUNCTION public.auto_record_alternative_payment();
 
--- 5. Add INSERT trigger so new bookings created already-paid (Stripe self-booking) are recorded
+-- 6. Add INSERT trigger so new bookings created already-paid (Stripe self-booking) are recorded
 DROP TRIGGER IF EXISTS trg_auto_record_alternative_payment_insert ON public.bookings;
 CREATE TRIGGER trg_auto_record_alternative_payment_insert
   AFTER INSERT ON public.bookings
