@@ -189,10 +189,11 @@ export async function POST(req: NextRequest) {
     let cashBookingId: string;
 
     if (existingBookingId) {
-      await supabaseAdmin
+      const { error: updateErr } = await supabaseAdmin
         .from("bookings")
         .update({ payment_status: "cash_paid", status: "completed", staff_id: staffId })
         .eq("id", existingBookingId);
+      if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
       cashBookingId = existingBookingId;
     } else {
       const { data: booking, error } = await supabaseAdmin

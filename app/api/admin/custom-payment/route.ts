@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
       .eq("id", resolvedBookingId);
     if (updateError) {
       console.error("[custom-payment] Booking update error:", updateError.message);
+      return NextResponse.json({ error: `Payment recorded in ledger but booking status could not be updated: ${updateError.message}` }, { status: 500 });
     }
     // Award loyalty points to the customer
     if (resolvedCustomerId) {
