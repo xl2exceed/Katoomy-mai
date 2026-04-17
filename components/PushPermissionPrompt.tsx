@@ -43,18 +43,19 @@ export default function PushPermissionPrompt({
     const check = async () => {
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
-      // Already granted -- silently re-subscribe if subscription expired
+      // Already granted -- ensure subscription exists in browser AND in DB
       if (Notification.permission === "granted" && vapidKey) {
         try {
           const reg = await navigator.serviceWorker.ready;
-          const existing = await reg.pushManager.getSubscription();
-          if (!existing) {
-            const subscription = await reg.pushManager.subscribe({
+          let sub = await reg.pushManager.getSubscription();
+          if (!sub) {
+            sub = await reg.pushManager.subscribe({
               userVisibleOnly: true,
               applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
             });
-            await saveSubscription(customerId, subscription);
           }
+          // Always upsert to DB — covers cases where DB row was never saved or got deleted
+          await saveSubscription(customerId, sub);
         } catch (err) {
           console.error("Silent customer push resubscribe failed:", err);
         }
