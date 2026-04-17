@@ -15,7 +15,7 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     // Confirm there is an active recovery session before showing the form
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
       if (data.session) {
         setSessionReady(true);
       } else {
