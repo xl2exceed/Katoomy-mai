@@ -91,13 +91,39 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [appInstalls, setAppInstalls] = useState<number | null>(null);
+  const [installPeriod, setInstallPeriod] = useState<"all" | "week" | "month" | "custom">("all");
+  const [installStart, setInstallStart] = useState("");
+  const [installEnd, setInstallEnd] = useState("");
+  const [installCustomActive, setInstallCustomActive] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/admin/app-installs")
+  function fetchInstalls(p: "all" | "week" | "month" | "custom", start?: string, end?: string) {
+    setAppInstalls(null);
+    let url = "/api/admin/app-installs";
+    if (p === "week") url += "?period=week";
+    else if (p === "month") url += "?period=month";
+    else if (p === "custom" && start && end) url += `?period=custom&startDate=${start}&endDate=${end}`;
+    fetch(url)
       .then(r => r.json())
       .then(d => setAppInstalls(d.count ?? 0))
       .catch(() => setAppInstalls(0));
+  }
+
+  useEffect(() => {
+    fetchInstalls("all");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function handleInstallPeriod(p: "all" | "week" | "month" | "custom") {
+    setInstallPeriod(p);
+    if (p === "custom") {
+      if (!installStart) setInstallStart(thirtyAgo);
+      if (!installEnd) setInstallEnd(today);
+      setInstallCustomActive(true);
+    } else {
+      setInstallCustomActive(false);
+      fetchInstalls(p);
+    }
+  }
 
   // Default custom dates to last 30 days when switching to custom
   const today = new Date().toISOString().split("T")[0];
@@ -195,13 +221,41 @@ export default function AnalyticsPage() {
       ) : !data ? (
         <div className="text-gray-500">Could not load analytics.</div>
       ) : (
-        <AnalyticsContent data={data} appInstalls={appInstalls ?? 0} />
+        <AnalyticsContent
+          data={data}
+          appInstalls={appInstalls}
+          installPeriod={installPeriod}
+          installStart={installStart}
+          installEnd={installEnd}
+          installCustomActive={installCustomActive}
+          today={today}
+          onInstallPeriod={handleInstallPeriod}
+          onInstallStart={setInstallStart}
+          onInstallEnd={setInstallEnd}
+          onApplyInstallCustom={() => fetchInstalls("custom", installStart, installEnd)}
+        />
       )}
     </div>
   );
 }
 
-function AnalyticsContent({ data, appInstalls }: { data: AnalyticsData; appInstalls: number }) {
+function AnalyticsContent({
+  data, appInstalls,
+  installPeriod, installStart, installEnd, installCustomActive, today,
+  onInstallPeriod, onInstallStart, onInstallEnd, onApplyInstallCustom,
+}: {
+  data: AnalyticsData;
+  appInstalls: number | null;
+  installPeriod: "all" | "week" | "month" | "custom";
+  installStart: string;
+  installEnd: string;
+  installCustomActive: boolean;
+  today: string;
+  onInstallPeriod: (p: "all" | "week" | "month" | "custom") => void;
+  onInstallStart: (v: string) => void;
+  onInstallEnd: (v: string) => void;
+  onApplyInstallCustom: () => void;
+}) {
   const {
     currentPeriodLabel, previousPeriodLabel,
     current, previous, trend,
@@ -258,13 +312,65 @@ function AnalyticsContent({ data, appInstalls }: { data: AnalyticsData; appInsta
       </div>
 
       {/* App Installs */}
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">App Installs (All Time)</p>
-          <p className="text-4xl font-bold text-gray-900">{appInstalls}</p>
-          <p className="text-xs text-gray-500 mt-1">Customers who installed your app to their home screen</p>
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">App Installs</p>
+            <p className="text-4xl font-bold text-gray-900">
+              {appInstalls === null ? (
+                <span className="inline-block h-9 w-12 bg-orange-200 animate-pulse rounded" />
+              ) : appInstalls}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Customers who installed your app to their home screen</p>
+          </div>
+          <span className="text-5xl flex-shrink-0">📲</span>
         </div>
-        <span className="text-5xl">📲</span>
+
+        {/* Period picker */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          {(["all", "week", "month", "custom"] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => onInstallPeriod(p)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                installPeriod === p
+                  ? "bg-orange-500 text-white shadow"
+                  : "bg-white text-gray-600 border border-orange-200 hover:bg-orange-50"
+              }`}
+            >
+              {p === "all" ? "All Time" : p === "week" ? "Last 7 Days" : p === "month" ? "Last 30 Days" : "Custom"}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom date inputs */}
+        {installCustomActive && (
+          <div className="flex flex-wrap items-end gap-3 mt-3 pt-3 border-t border-orange-200">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Start</label>
+              <input
+                type="date" value={installStart} max={installEnd || today}
+                onChange={e => onInstallStart(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">End</label>
+              <input
+                type="date" value={installEnd} min={installStart} max={today}
+                onChange={e => onInstallEnd(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
+            <button
+              onClick={onApplyInstallCustom}
+              disabled={!installStart || !installEnd}
+              className="px-4 py-1.5 bg-orange-500 text-white rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-50 hover:bg-orange-600 transition"
+            >
+              Apply
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Money Intelligence */}
