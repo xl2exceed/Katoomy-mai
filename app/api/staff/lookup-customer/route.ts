@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     .select("id, service_id, total_price_cents, deposit_amount_cents, payment_status, status, start_ts, services(name, price_cents)")
     .eq("business_id", businessId)
     .eq("customer_id", customer.id)
-    .or("and(payment_status.in.(unpaid,deposit_paid),status.in.(completed,confirmed)),and(status.eq.custom,payment_status.eq.unpaid)")
+    .or("and(payment_status.in.(unpaid,deposit_paid),status.in.(completed,confirmed)),and(status.eq.custom,payment_status.eq.unpaid),and(status.eq.custom,payment_status.eq.deposit_paid)")
     .order("start_ts", { ascending: false })
     .limit(1)
     .maybeSingle();

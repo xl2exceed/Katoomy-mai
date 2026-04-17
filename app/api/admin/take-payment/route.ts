@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     .eq("business_id", businessId)
     .eq("customer_id", customerId)
     .in("payment_status", ["unpaid", "deposit_paid"])
-    .in("status", ["completed", "confirmed"])
+    .in("status", ["completed", "confirmed", "custom"])
     .order("start_ts", { ascending: false })
     .limit(1)
     .maybeSingle();
