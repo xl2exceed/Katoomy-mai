@@ -41,11 +41,24 @@ export default function ConfirmationPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
+  const [countdown, setCountdown] = useState(10);
 
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-redirect to dashboard after 10 seconds
+  useEffect(() => {
+    if (loading) return;
+    if (countdown <= 0) {
+      router.push(`/${slug}/dashboard`);
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, countdown]);
 
   const loadData = async () => {
     const supabase = createClient();
@@ -287,7 +300,7 @@ export default function ConfirmationPage() {
           >
             <div>Go to My Page</div>
             <div className="text-xs text-white/80 mt-1">
-              Appointments · Rewards · Referrals
+              Redirecting in {countdown}s · Appointments · Rewards · Referrals
             </div>
           </Link>
         </div>
