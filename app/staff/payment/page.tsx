@@ -207,7 +207,8 @@ export default function StaffPaymentPage() {
         });
       }
       reset();
-      alert("✅ Cash App payment recorded successfully!");
+      setCustomSuccess("✅ Cash App payment recorded successfully.");
+      setTimeout(() => setCustomSuccess(""), 4000);
     } catch {
       setError("Network error. Please try again.");
     }
@@ -235,7 +236,8 @@ export default function StaffPaymentPage() {
         setQrUrl(data.bookingUrl || data.url);
       } else {
         reset();
-        alert("Cash payment recorded.");
+        setCustomSuccess("✅ Cash payment recorded successfully.");
+        setTimeout(() => setCustomSuccess(""), 4000);
       }
     } catch {
       setError("Network error. Please try again.");
@@ -244,7 +246,14 @@ export default function StaffPaymentPage() {
   }
 
   function reset() {
-    setQrUrl(""); setCustomerPhone(""); setCustomerName(""); setSelectedServiceId(""); setLookup(null); setError("");
+    setQrUrl("");
+    setCustomerPhone(""); setCustomerName(""); setSelectedServiceId(""); setLookup(null); setError("");
+    // Also clear custom payment form so no stale data remains
+    setCustomServiceName(""); setCustomAmount(""); setCustomTip(""); setCustomCustomerName("");
+    setCustomMethod("cash"); setLinkedBookingId(null); setCustomQrUrl(""); setCustomError(""); setCustomSuccess("");
+    const now = new Date();
+    setCustomDate(now.toISOString().slice(0, 10));
+    setCustomTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
   }
 
   async function submitCustomPayment() {
@@ -300,22 +309,15 @@ export default function StaffPaymentPage() {
       });
       const data = await res.json();
       if (!res.ok) { setCustomError(data.error || "Something went wrong."); setCustomBusy(false); return; }
-      setCustomSuccess("Payment recorded successfully.");
       // Broadcast to all open tabs (schedule pages) to reload bookings immediately
       try {
         const bc = new BroadcastChannel("katoomy-booking-update");
         bc.postMessage({ type: "custom_payment_recorded", bookingId: linkedBookingId });
         bc.close();
       } catch { /* BroadcastChannel not supported */ }
-      setCustomServiceName("");
-      setCustomAmount("");
-      setCustomTip("");
-      setCustomCustomerName("");
-      setCustomMethod("cash");
-      setLinkedBookingId(null);
-      const now = new Date();
-      setCustomDate(now.toISOString().slice(0, 10));
-      setCustomTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+      reset();
+      setCustomSuccess("✅ Payment recorded successfully.");
+      setTimeout(() => setCustomSuccess(""), 4000);
     } catch {
       setCustomError("Network error. Please try again.");
     }
@@ -436,6 +438,11 @@ export default function StaffPaymentPage() {
     <div className="min-h-screen bg-gray-50 p-4">
       <Link href="/staff/dashboard" className="text-emerald-600 font-medium mb-4 block">Back to Menu</Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Take Payment</h1>
+      {customSuccess && (
+        <div className="mb-4 rounded-xl bg-green-50 border border-green-400 px-4 py-3 text-green-800 font-semibold text-sm">
+          {customSuccess}
+        </div>
+      )}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
 
         <div>
@@ -659,7 +666,6 @@ export default function StaffPaymentPage() {
           ) : (
             <>
               {customError && <p className="text-red-600 text-sm">{customError}</p>}
-              {customSuccess && <p className="text-green-600 text-sm font-semibold">{customSuccess}</p>}
               <button
                 onClick={submitCustomPayment} disabled={customBusy}
                 className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-base disabled:opacity-60 active:scale-95 transition"
