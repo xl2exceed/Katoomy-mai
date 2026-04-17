@@ -80,6 +80,13 @@ export async function POST(req: NextRequest) {
   const ts = appointmentTs ? new Date(appointmentTs) : new Date();
   const billingMonth = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}`;
 
+  const { data: cashSettings } = await supabaseAdmin
+    .from("cashapp_settings")
+    .select("fee_mode")
+    .eq("business_id", business.id)
+    .maybeSingle();
+  const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
+
   // If a bookingId is provided, verify it belongs to this business and is in custom status
   let resolvedBookingId: string | null = null;
   let resolvedCustomerId: string | null = null;
@@ -106,7 +113,7 @@ export async function POST(req: NextRequest) {
     tip_cents: tipCents ?? 0,
     platform_fee_cents: 100,
     payment_method: method,
-    fee_absorbed_by: "business",
+    fee_absorbed_by: feeAbsorbedBy,
     billing_month: billingMonth,
     billing_status: "pending",
     appointment_ts: ts.toISOString(),
