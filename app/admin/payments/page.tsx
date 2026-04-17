@@ -21,6 +21,7 @@ interface LedgerEntry {
   appointment_ts: string | null;
   notes: string | null;
   businesses?: { name: string; slug: string } | null;
+  bookings?: { start_ts: string } | null;
 }
 
 interface MonthlyBilling {
@@ -78,7 +79,7 @@ export default function AdminPaymentsPage() {
     const [{ data: ledgerData }, { data: billingData }] = await Promise.all([
       supabase
         .from("alternative_payment_ledger")
-        .select("*, businesses(name, slug)")
+        .select("*, businesses(name, slug), bookings(start_ts)")
         .order("marked_paid_at", { ascending: false })
         .limit(1000),
       supabase
@@ -236,7 +237,7 @@ export default function AdminPaymentsPage() {
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Method</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Month</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Appointment</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -281,14 +282,21 @@ export default function AdminPaymentsPage() {
                         <span className={statusBadge(entry.billing_status)}>{entry.billing_status}</span>
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                        {entry.appointment_ts ? (
-                          <>
-                            <div>{new Date(entry.appointment_ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
-                            <div>{new Date(entry.appointment_ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</div>
-                          </>
-                        ) : (
-                          new Date(entry.marked_paid_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                        )}
+                        {(() => {
+                          // Prefer booking start_ts (appointment time), then appointment_ts, then payment time
+                          const apptTs =
+                            (Array.isArray(entry.bookings) ? (entry.bookings as { start_ts: string }[])[0]?.start_ts : (entry.bookings as { start_ts: string } | null)?.start_ts)
+                            ?? entry.appointment_ts
+                            ?? null;
+                          const d = apptTs ? new Date(apptTs) : new Date(entry.marked_paid_at);
+                          return (
+                            <>
+                              <div>{d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+                              <div>{d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</div>
+                              {!apptTs && <div className="text-gray-300 italic">payment time</div>}
+                            </>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}

@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   // Look for most recent unpaid/deposit-paid booking
   const { data: existingUnpaidBooking } = await supabaseAdmin
     .from("bookings")
-    .select("id, total_price_cents, deposit_amount_cents, payment_status")
+    .select("id, start_ts, total_price_cents, deposit_amount_cents, payment_status")
     .eq("business_id", businessId)
     .eq("customer_id", customerId)
     .in("payment_status", ["unpaid", "deposit_paid"])
@@ -211,6 +211,7 @@ export async function POST(req: NextRequest) {
       billing_month: billingMonth,
       billing_status: "pending",
       marked_paid_by: null,
+      appointment_ts: existingUnpaidBooking?.start_ts ?? now.toISOString(),
       notes: "Cash payment recorded by admin",
     });
 
