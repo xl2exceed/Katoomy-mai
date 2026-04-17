@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,6 +11,19 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sessionReady, setSessionReady] = useState(false);
+
+  useEffect(() => {
+    // Confirm there is an active recovery session before showing the form
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        setSessionReady(true);
+      } else {
+        setError("This reset link is invalid or has expired. Please request a new one.");
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +47,11 @@ export default function ResetPasswordPage() {
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         )}
 
-        <form onSubmit={handleReset} className="space-y-4">
+        {!sessionReady && !error && (
+          <div className="text-center py-4 text-gray-500 text-sm">Verifying reset link…</div>
+        )}
+
+        <form onSubmit={handleReset} className="space-y-4" style={{ display: sessionReady ? undefined : "none" }}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
             <input

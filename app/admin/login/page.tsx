@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
     if (!email) { setError("Enter your email address first."); return; }
     setLoading(true); setError("");
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/admin/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/admin/reset-password`,
     });
     setLoading(false);
     if (err) { setError(err.message); return; }
