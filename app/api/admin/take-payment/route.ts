@@ -195,11 +195,19 @@ export async function POST(req: NextRequest) {
 
     await awardLoyaltyOnPayment(businessId, customerId, cashBookingId);
 
-    // Record in alternative payment ledger for billing
+    // Record in alternative payment ledger.
+    // The DB trigger may have already inserted a row when payment_status was set —
+    // check first so we never create duplicates. If it exists, update it with
+    // richer data. If not, insert fresh.
     const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    await supabaseAdmin.from("alternative_payment_ledger").insert({
-      business_id: businessId,
-      booking_id: cashBookingId,
+    const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
+    const { data: existingLedger } = await supabaseAdmin
+      .from("alternative_payment_ledger")
+      .select("id")
+      .eq("booking_id", cashBookingId)
+      .maybeSingle();
+
+    const ledgerPayload = {
       customer_name: customerName,
       customer_phone: cleanPhone,
       service_name: service.name,
@@ -207,13 +215,23 @@ export async function POST(req: NextRequest) {
       tip_cents: 0,
       platform_fee_cents: platformFee,
       payment_method: "cash",
-      fee_absorbed_by: cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer",
+      fee_absorbed_by: feeAbsorbedBy,
       billing_month: billingMonth,
       billing_status: "pending",
       marked_paid_by: null,
       appointment_ts: existingUnpaidBooking?.start_ts ?? now.toISOString(),
       notes: "Cash payment recorded by admin",
-    });
+    };
+
+    if (existingLedger) {
+      await supabaseAdmin.from("alternative_payment_ledger").update(ledgerPayload).eq("id", existingLedger.id);
+    } else {
+      await supabaseAdmin.from("alternative_payment_ledger").insert({
+        business_id: businessId,
+        booking_id: cashBookingId,
+        ...ledgerPayload,
+      });
+    }
 
     return NextResponse.json({ success: true, bookingId: cashBookingId });
   }

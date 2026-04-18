@@ -125,3 +125,21 @@ CREATE TRIGGER trg_auto_record_alternative_payment_insert
   AFTER INSERT ON public.bookings
   FOR EACH ROW
   EXECUTE FUNCTION public.auto_record_alternative_payment();
+
+-- Remove duplicate ledger entries (keep the most recently created row per booking_id).
+-- Duplicates were caused by the trigger firing AND explicit route inserts both running.
+DELETE FROM public.alternative_payment_ledger
+WHERE booking_id IS NOT NULL
+  AND id NOT IN (
+    SELECT DISTINCT ON (booking_id) id
+    FROM public.alternative_payment_ledger
+    WHERE booking_id IS NOT NULL
+    ORDER BY booking_id, created_at DESC
+  );
+
+-- Add a partial unique index so one booking can only ever produce one ledger row.
+-- Partial (WHERE booking_id IS NOT NULL) preserves manual/unlinked entries.
+DROP INDEX IF EXISTS public.alt_ledger_booking_id_unique;
+CREATE UNIQUE INDEX alt_ledger_booking_id_unique
+  ON public.alternative_payment_ledger (booking_id)
+  WHERE booking_id IS NOT NULL;
