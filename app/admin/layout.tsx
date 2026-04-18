@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Sidebar from "./_components/Sidebar";
 import { createClient } from "@/lib/supabase/server";
+import AiHelpWidget from "@/components/AiHelpWidget";
 
 export const runtime = "nodejs";
 
@@ -60,13 +61,19 @@ export default async function AdminLayout({
 
   // Mobile routes render without the desktop sidebar
   if (pathname.startsWith("/admin/mobile")) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <AiHelpWidget />
+      </>
+    );
   }
 
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar businessId={businessId} plan={plan} status={status} niche={niche} />
       <main className="flex-1 overflow-y-auto">{children}</main>
+      <AiHelpWidget />
     </div>
   );
 }
