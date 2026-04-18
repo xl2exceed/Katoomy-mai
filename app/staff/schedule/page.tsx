@@ -23,7 +23,7 @@ interface Booking {
   vehicle_condition: string | null;
   customer_address: string | null;
   addon_ids: string[] | null;
-  customers: { full_name: string | null; phone: string };
+  customers: { full_name: string | null; phone: string } | null;
   services: { name: string } | null;
 }
 
@@ -420,9 +420,9 @@ export default function StaffSchedulePage() {
               </div>
               <div className="mt-2 pt-2 border-t border-gray-200">
                 <p className="text-base font-semibold text-gray-900">
-                  {booking.customers.full_name || "Guest"}
+                  {booking.customers?.full_name || "Guest"}
                 </p>
-                <p className="text-sm text-gray-600">{formatPhone(booking.customers.phone)}</p>
+                <p className="text-sm text-gray-600">{formatPhone(booking.customers?.phone)}</p>
                 {booking.services?.name && (
                   <p className="text-sm text-gray-700 mt-0.5">{booking.services.name}</p>
                 )}
@@ -493,7 +493,7 @@ export default function StaffSchedulePage() {
               </div>
               {["completed", "custom"].includes(booking.status) && !["paid", "cash_paid", "custom_paid", "refunded"].includes(booking.payment_status) && (
                 <Link
-                  href={`/staff/payment?phone=${booking.customers.phone || ""}`}
+                  href={`/staff/payment?phone=${booking.customers?.phone || ""}`}
                   className="mt-3 block w-full py-3 bg-emerald-600 text-white rounded-xl font-bold active:scale-95 transition shadow text-center"
                 >
                   💳 Take A Payment
@@ -515,7 +515,7 @@ export default function StaffSchedulePage() {
             <h3 className="text-xl font-bold text-gray-900 mb-4">Cancel Appointment?</h3>
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="font-semibold text-gray-900">
-                {selectedBooking.customers.full_name || "Guest"}
+                {selectedBooking.customers?.full_name || "Guest"}
               </p>
               <p className="text-sm text-gray-600 mt-1">
                 {new Date(selectedBooking.start_ts).toLocaleString("en-US", {
