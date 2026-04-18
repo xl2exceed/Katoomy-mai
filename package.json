@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/generate-ai-knowledge.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate-knowledge": "node scripts/generate-ai-knowledge.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.6.1",
