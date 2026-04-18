@@ -115,12 +115,14 @@ export default function StaffPaymentPage() {
     const prefillDigits = (urlParams.get("phone") ?? "").replace(/\D/g, "");
     if (prefillDigits.length === 10) {
       setCustomerPhone(formatPhoneInput(prefillDigits));
-      doLookup(prefillDigits, s.id);
+      // Pass the fresh session token directly — token state hasn't updated yet (React batching)
+      doLookup(prefillDigits, s.id, session?.access_token || "");
     }
   }
 
-  function authHeaders(): Record<string, string> {
-    return { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) };
+  function authHeaders(tokenOverride?: string): Record<string, string> {
+    const t = tokenOverride ?? token;
+    return { "Content-Type": "application/json", ...(t ? { Authorization: "Bearer " + t } : {}) };
   }
 
   function handlePhoneChange(val: string) {
@@ -135,19 +137,23 @@ export default function StaffPaymentPage() {
     }
   }
 
-  async function doLookup(digits: string, staffIdOverride?: string) {
+  async function doLookup(digits: string, staffIdOverride?: string, tokenOverride?: string) {
     const sid = staffIdOverride ?? staffId;
     setLooking(true);
     try {
       const res = await fetch("/api/staff/lookup-customer", {
         method: "POST",
-        headers: authHeaders(),
+        headers: authHeaders(tokenOverride),
         body: JSON.stringify({ staffId: sid, phone: digits }),
       });
+      if (!res.ok) {
+        setLooking(false);
+        return;
+      }
       const data: LookupResult = await res.json();
       setLookup(data);
       setCustomerName(data.customerName || "");
-      if (data.services.length > 0) setSelectedServiceId(data.services[0].id);
+      if ((data.services?.length ?? 0) > 0) setSelectedServiceId(data.services[0].id);
       // If the customer has a custom-status booking, pre-fill the custom payment form
       if (data.existingBooking?.isCustom) {
         setLinkedBookingId(data.existingBooking.id);
@@ -507,7 +513,7 @@ export default function StaffPaymentPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base text-gray-900 bg-white"
               />
             </div>
-            {lookup.services.length > 0 && (
+            {(lookup.services?.length ?? 0) > 0 && (
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Service</label>
                 <select
