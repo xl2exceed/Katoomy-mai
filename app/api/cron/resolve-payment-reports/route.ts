@@ -63,29 +63,40 @@ export async function GET(req: NextRequest) {
     }).eq("id", report.id);
 
     if (fee_should_charge) {
-      // Mark booking as cash_paid if not already
+      // Mark booking as cash_paid if not already (fires DB trigger)
       await supabaseAdmin.from("bookings")
         .update({ payment_status: "cash_paid" })
         .eq("id", report.booking_id)
         .in("payment_status", ["unpaid", "pending"]);
 
-      // Record in ledger if not already there
-      const { data: existing } = await supabaseAdmin
-        .from("alternative_payment_ledger")
-        .select("id").eq("booking_id", report.booking_id).maybeSingle();
+      // Always check-then-update the ledger so fee_absorbed_by reflects
+      // cashapp_settings regardless of what the DB trigger wrote.
+      const [{ data: existing }, { data: cashSettings }] = await Promise.all([
+        supabaseAdmin.from("alternative_payment_ledger").select("id").eq("booking_id", report.booking_id).maybeSingle(),
+        supabaseAdmin.from("cashapp_settings").select("fee_mode").eq("business_id", report.business_id).maybeSingle(),
+      ]);
 
-      if (!existing) {
+      const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
+      const platformFeeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+
+      const ledgerPayload = {
+        service_amount_cents: report.service_amount_cents,
+        tip_cents: report.tip_cents,
+        platform_fee_cents: platformFeeCents,
+        payment_method: report.payment_method,
+        fee_absorbed_by: feeAbsorbedBy,
+        billing_month: billingMonth,
+        billing_status: "pending",
+        notes: `Auto-resolved: ${resolution_reason}`,
+      };
+
+      if (existing) {
+        await supabaseAdmin.from("alternative_payment_ledger").update(ledgerPayload).eq("id", existing.id);
+      } else {
         await supabaseAdmin.from("alternative_payment_ledger").insert({
           business_id: report.business_id,
           booking_id: report.booking_id,
-          service_amount_cents: report.service_amount_cents,
-          tip_cents: report.tip_cents,
-          platform_fee_cents: report.fee_amount_cents,
-          payment_method: report.payment_method,
-          fee_absorbed_by: report.fee_amount_cents > 0 ? "customer" : "business",
-          billing_month: billingMonth,
-          billing_status: "pending",
-          notes: `Auto-resolved: ${resolution_reason}`,
+          ...ledgerPayload,
         });
       }
     }

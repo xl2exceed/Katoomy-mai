@@ -33,14 +33,60 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Booking is already paid' }, { status: 400 });
   }
 
-  // Mark booking as paid
+  // Mark booking as paid (this fires the DB trigger which inserts a ledger row)
   await supabaseAdmin.from('bookings').update({ payment_status: 'paid' }).eq('id', bookingId);
 
-  // Note: alternative_payment_ledger is written by the DB trigger
-  // (trg_auto_record_alternative_payment) when payment_status changes to 'paid'.
-  // No explicit insert needed here.
-
+  // Always write the correct fee_absorbed_by — read from cashapp_settings.
+  // The trigger may have already inserted a row (with a hardcoded value), so we
+  // check: if a row exists, UPDATE it; otherwise INSERT. This ensures the setting
+  // in Payment Settings is always honoured regardless of trigger state.
   const now = new Date();
+  const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const { data: cashSettings } = await supabaseAdmin
+    .from('cashapp_settings')
+    .select('fee_mode')
+    .eq('business_id', booking.business_id)
+    .maybeSingle();
+
+  const feeAbsorbedBy = cashSettings?.fee_mode === 'business_absorbs' ? 'business' : 'customer';
+  const platformFeeCents = cashSettings?.fee_mode === 'business_absorbs' ? 0 : 100;
+
+  const customers = booking.customers as unknown as { full_name: string | null; phone: string | null }[] | null;
+  const services = booking.services as unknown as { name: string }[] | null;
+  const customerName = Array.isArray(customers) ? customers[0]?.full_name : null;
+  const customerPhone = Array.isArray(customers) ? customers[0]?.phone : null;
+  const serviceName = Array.isArray(services) ? services[0]?.name : null;
+
+  const { data: existingLedger } = await supabaseAdmin
+    .from('alternative_payment_ledger')
+    .select('id')
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+
+  const ledgerPayload = {
+    customer_name: customerName,
+    customer_phone: customerPhone,
+    service_name: serviceName,
+    service_amount_cents: booking.total_price_cents,
+    tip_cents: 0,
+    platform_fee_cents: platformFeeCents,
+    payment_method: 'cash',
+    fee_absorbed_by: feeAbsorbedBy,
+    billing_month: billingMonth,
+    billing_status: 'pending',
+    notes: 'Marked paid by admin',
+  };
+
+  if (existingLedger) {
+    await supabaseAdmin.from('alternative_payment_ledger').update(ledgerPayload).eq('id', existingLedger.id);
+  } else {
+    await supabaseAdmin.from('alternative_payment_ledger').insert({
+      business_id: booking.business_id,
+      booking_id: bookingId,
+      ...ledgerPayload,
+    });
+  }
 
   // Award loyalty points
   const { data: loyalty } = await supabaseAdmin

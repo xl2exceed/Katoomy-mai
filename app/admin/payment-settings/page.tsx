@@ -142,37 +142,39 @@ export default function PaymentSettingsPage() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Used to generate the payment link customers tap to open Cash App</p>
               </div>
-
-              <hr className="border-gray-100" />
-              <div>
-                <p className="font-semibold text-gray-900 mb-1 text-sm">Platform Fee ($1.00 per transaction)</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setSettings((p) => ({ ...p, fee_mode: "pass_to_customer" }))}
-                    className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition ${
-                      settings.fee_mode === "pass_to_customer"
-                        ? "border-green-500 bg-green-50 text-green-800"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
-                    }`}
-                  >
-                    Customer pays
-                    <div className="text-xs font-normal mt-0.5 opacity-70">Added to their total</div>
-                  </button>
-                  <button
-                    onClick={() => setSettings((p) => ({ ...p, fee_mode: "business_absorbs" }))}
-                    className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition ${
-                      settings.fee_mode === "business_absorbs"
-                        ? "border-blue-500 bg-blue-50 text-blue-800"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
-                    }`}
-                  >
-                    Business absorbs
-                    <div className="text-xs font-normal mt-0.5 opacity-70">Not shown to customer</div>
-                  </button>
-                </div>
-              </div>
             </>
           )}
+
+          {/* Platform fee setting applies to ALL non-card payments — always visible */}
+          <hr className="border-gray-100" />
+          <div>
+            <p className="font-semibold text-gray-900 mb-1 text-sm">Platform Fee ($1.00 per transaction)</p>
+            <p className="text-xs text-gray-500 mb-3">Applies to cash, Cash App, Zelle, and other non-card payments.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSettings((p) => ({ ...p, fee_mode: "pass_to_customer" }))}
+                className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition ${
+                  settings.fee_mode === "pass_to_customer"
+                    ? "border-green-500 bg-green-50 text-green-800"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                Customer pays
+                <div className="text-xs font-normal mt-0.5 opacity-70">Added to their total</div>
+              </button>
+              <button
+                onClick={() => setSettings((p) => ({ ...p, fee_mode: "business_absorbs" }))}
+                className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition ${
+                  settings.fee_mode === "business_absorbs"
+                    ? "border-blue-500 bg-blue-50 text-blue-800"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                Business absorbs
+                <div className="text-xs font-normal mt-0.5 opacity-70">Not shown to customer</div>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* ── Zelle Section ─────────────────────────────────── */}

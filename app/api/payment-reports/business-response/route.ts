@@ -63,30 +63,44 @@ export async function POST(req: NextRequest) {
       .eq("id", report.booking_id);
 
     // ── Record in alternative_payment_ledger ──────────────────────────
+    // The DB trigger fires when booking is updated above, inserting a row that
+    // may have the wrong fee_absorbed_by. Always check-then-update so the value
+    // from cashapp_settings is used regardless of trigger state.
     const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const { data: existingLedger } = await supabaseAdmin
-      .from("alternative_payment_ledger")
-      .select("id").eq("booking_id", report.booking_id).maybeSingle();
 
-    if (!existingLedger) {
-      // Map payment_method to values allowed by the ledger check constraint
-      const ledgerMethod =
-        report.payment_method === "cash_app" ? "cashapp" :
-        report.payment_method === "zelle"    ? "other"   :
-        report.payment_method === "cash"     ? "cash"    : "cashapp";
+    const [{ data: existingLedger }, { data: cashSettings }] = await Promise.all([
+      supabaseAdmin.from("alternative_payment_ledger").select("id").eq("booking_id", report.booking_id).maybeSingle(),
+      supabaseAdmin.from("cashapp_settings").select("fee_mode").eq("business_id", report.business_id).maybeSingle(),
+    ]);
 
+    const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
+    const platformFeeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+
+    const ledgerMethod =
+      report.payment_method === "cash_app" ? "cashapp" :
+      report.payment_method === "zelle"    ? "other"   :
+      report.payment_method === "cash"     ? "cash"    : "cashapp";
+
+    const ledgerPayload = {
+      service_amount_cents: report.service_amount_cents,
+      tip_cents: report.tip_cents,
+      platform_fee_cents: platformFeeCents,
+      payment_method: ledgerMethod,
+      fee_absorbed_by: feeAbsorbedBy,
+      billing_month: billingMonth,
+      billing_status: "pending",
+      marked_paid_by: staffId,
+      notes: `Confirmed by ${staffId ? "staff" : "admin"}`,
+    };
+
+    if (existingLedger) {
+      const { error: ledgerErr } = await supabaseAdmin.from("alternative_payment_ledger").update(ledgerPayload).eq("id", existingLedger.id);
+      if (ledgerErr) console.error("[business-response] Ledger update error:", ledgerErr.message);
+    } else {
       const { error: ledgerErr } = await supabaseAdmin.from("alternative_payment_ledger").insert({
         business_id: report.business_id,
         booking_id: report.booking_id,
-        service_amount_cents: report.service_amount_cents,
-        tip_cents: report.tip_cents,
-        platform_fee_cents: report.fee_amount_cents,
-        payment_method: ledgerMethod,
-        fee_absorbed_by: report.fee_amount_cents > 0 ? "customer" : "business",
-        billing_month: billingMonth,
-        billing_status: "pending",
-        marked_paid_by: staffId,
-        notes: `Confirmed by ${staffId ? "staff" : "admin"}`,
+        ...ledgerPayload,
       });
       if (ledgerErr) console.error("[business-response] Ledger insert error:", ledgerErr.message);
     }

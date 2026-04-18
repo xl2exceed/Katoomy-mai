@@ -177,7 +177,10 @@ async function resolveReport(reportId: string) {
     }
   }
 
-  // If fee should charge, record in alternative_payment_ledger for monthly billing
+  // If fee should charge, record in alternative_payment_ledger for monthly billing.
+  // The DB trigger fires when booking is updated above, inserting a row that may
+  // have the wrong fee_absorbed_by. Always check-then-update so cashapp_settings
+  // is honoured regardless of trigger state.
   if (resolution.fee_should_charge) {
     const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const [existing, { data: cashSettings }] = await Promise.all([
@@ -185,22 +188,30 @@ async function resolveReport(reportId: string) {
       supabaseAdmin.from("cashapp_settings").select("fee_mode").eq("business_id", report.business_id).maybeSingle(),
     ]);
 
-    if (!existing.data) {
-      const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
-      const platformFeeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+    const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
+    const platformFeeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+    const ledgerMethod = report.payment_method === "cash_app" ? "cashapp" : report.payment_method === "zelle" ? "other" : "cash";
+
+    const ledgerPayload = {
+      service_amount_cents: report.service_amount_cents,
+      tip_cents: report.tip_cents,
+      platform_fee_cents: platformFeeCents,
+      payment_method: ledgerMethod,
+      fee_absorbed_by: feeAbsorbedBy,
+      billing_month: billingMonth,
+      billing_status: "pending",
+      notes: `Auto-resolved: ${resolution.resolution_reason}`,
+    };
+
+    if (existing.data) {
+      await supabaseAdmin.from("alternative_payment_ledger").update(ledgerPayload).eq("id", existing.data.id);
+    } else {
       await supabaseAdmin.from("alternative_payment_ledger").insert({
         business_id: report.business_id,
         booking_id: report.booking_id,
         customer_name: null,
         service_name: null,
-        service_amount_cents: report.service_amount_cents,
-        tip_cents: report.tip_cents,
-        platform_fee_cents: platformFeeCents,
-        payment_method: report.payment_method === "cash_app" ? "cashapp" : report.payment_method === "zelle" ? "other" : "cash",
-        fee_absorbed_by: feeAbsorbedBy,
-        billing_month: billingMonth,
-        billing_status: "pending",
-        notes: `Auto-resolved: ${resolution.resolution_reason}`,
+        ...ledgerPayload,
       });
     }
   }
