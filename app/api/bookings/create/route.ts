@@ -147,36 +147,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Seed Quick Book defaults on first booking
+    // Seed Quick Book defaults — upsert only if no row exists yet so customer
+    // edits are never overwritten, but returning customers who missed the first-
+    // booking seed still get populated.
     try {
-      const { count } = await supabaseAdmin
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
+      const { data: existingDefaults } = await supabaseAdmin
+        .from("customer_quick_book_defaults")
+        .select("id")
         .eq("customer_id", customerId)
         .eq("business_id", businessId)
-        .neq("status", "cancelled");
+        .maybeSingle();
 
-      if (count === 1) {
-        // This is their first booking — save as default
+      if (!existingDefaults) {
         const startDt = new Date(startISO || `${bookingDate}T${bookingTime}:00`);
         const dayName = startDt.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
         await supabaseAdmin
           .from("customer_quick_book_defaults")
-          .upsert(
-            {
-              customer_id: customerId,
-              business_id: businessId,
-              service_id: serviceId,
-              staff_id: staffId || null,
-              booking_time: bookingTime,
-              booking_day_of_week: dayName,
-              vehicle_type: vehicleType || null,
-              vehicle_condition: vehicleCondition || null,
-              addon_ids: addonIds && addonIds.length > 0 ? addonIds : [],
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "customer_id,business_id" }
-          );
+          .insert({
+            customer_id: customerId,
+            business_id: businessId,
+            service_id: serviceId,
+            staff_id: staffId || null,
+            booking_time: bookingTime,
+            booking_day_of_week: dayName,
+            vehicle_type: vehicleType || null,
+            vehicle_condition: vehicleCondition || null,
+            addon_ids: addonIds && addonIds.length > 0 ? addonIds : [],
+            updated_at: new Date().toISOString(),
+          });
       }
     } catch (err) {
       console.error("Failed to seed quick book defaults (non-fatal):", err);

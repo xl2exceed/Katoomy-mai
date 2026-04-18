@@ -239,12 +239,19 @@ export async function POST(req: NextRequest) {
           .neq("status", "cancelled");
 
         if (count === 1) {
-          const startDt = new Date(startISO || `${bookingDate}T${bookingTime}:00`);
-          const dayName = startDt.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-          await supabaseAdmin
+          const { data: existingDefaults } = await supabaseAdmin
             .from("customer_quick_book_defaults")
-            .upsert(
-              {
+            .select("id")
+            .eq("customer_id", customerId)
+            .eq("business_id", businessId)
+            .maybeSingle();
+
+          if (!existingDefaults) {
+            const startDt = new Date(startISO || `${bookingDate}T${bookingTime}:00`);
+            const dayName = startDt.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+            await supabaseAdmin
+              .from("customer_quick_book_defaults")
+              .insert({
                 customer_id: customerId,
                 business_id: businessId,
                 service_id: serviceId,
@@ -255,9 +262,8 @@ export async function POST(req: NextRequest) {
                 vehicle_condition: vehicleCondition || null,
                 addon_ids: addonIds && addonIds.length > 0 ? addonIds : [],
                 updated_at: new Date().toISOString(),
-              },
-              { onConflict: "customer_id,business_id" }
-            );
+              });
+          }
         }
       } catch (err) {
         console.error("Failed to seed quick book defaults (non-fatal):", err);

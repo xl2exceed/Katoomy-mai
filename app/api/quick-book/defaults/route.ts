@@ -46,7 +46,67 @@ export async function GET(req: NextRequest) {
     .single();
 
   if (!defaults) {
-    return NextResponse.json({ defaults: null, customerId: customer.id });
+    // No defaults row yet — try to auto-seed from the customer's most recent booking
+    // so returning customers (who booked before Quick Book was launched) aren't blocked.
+    const { data: lastBooking } = await supabaseAdmin
+      .from("bookings")
+      .select("service_id, staff_id, start_ts, services(id, name, price_cents, duration_minutes, pricing_type)")
+      .eq("customer_id", customer.id)
+      .eq("business_id", businessId)
+      .neq("status", "cancelled")
+      .order("start_ts", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!lastBooking) {
+      return NextResponse.json({ defaults: null, customerId: customer.id });
+    }
+
+    // Derive day-of-week and time from the last booking's start_ts
+    const lastStart = new Date(lastBooking.start_ts);
+    const dayName = lastStart.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+    const bookingTime = `${String(lastStart.getHours()).padStart(2, "0")}:${String(lastStart.getMinutes()).padStart(2, "0")}`;
+
+    await supabaseAdmin.from("customer_quick_book_defaults").upsert(
+      {
+        customer_id: customer.id,
+        business_id: businessId,
+        service_id: lastBooking.service_id,
+        staff_id: lastBooking.staff_id || null,
+        booking_time: bookingTime,
+        booking_day_of_week: dayName,
+        vehicle_type: null,
+        vehicle_condition: null,
+        addon_ids: [],
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "customer_id,business_id" }
+    );
+
+    // Re-fetch so we get the joined service/staff objects
+    const { data: seededDefaults } = await supabaseAdmin
+      .from("customer_quick_book_defaults")
+      .select(`
+        id,
+        booking_time,
+        booking_day_of_week,
+        vehicle_type,
+        vehicle_condition,
+        addon_ids,
+        service_id,
+        staff_id,
+        services (id, name, price_cents, duration_minutes, pricing_type),
+        staff (id, full_name, display_name, role, photo_url)
+      `)
+      .eq("customer_id", customer.id)
+      .eq("business_id", businessId)
+      .single();
+
+    if (!seededDefaults) {
+      return NextResponse.json({ defaults: null, customerId: customer.id });
+    }
+
+    return NextResponse.json({ defaults: { ...seededDefaults, addons: [] }, customerId: customer.id });
   }
 
   // Fetch addon details if any addon_ids stored
