@@ -180,13 +180,14 @@ async function resolveReport(reportId: string) {
   // If fee should charge, record in alternative_payment_ledger for monthly billing
   if (resolution.fee_should_charge) {
     const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const existing = await supabaseAdmin
-      .from("alternative_payment_ledger")
-      .select("id")
-      .eq("booking_id", report.booking_id)
-      .maybeSingle();
+    const [existing, { data: cashSettings }] = await Promise.all([
+      supabaseAdmin.from("alternative_payment_ledger").select("id").eq("booking_id", report.booking_id).maybeSingle(),
+      supabaseAdmin.from("cashapp_settings").select("fee_mode").eq("business_id", report.business_id).maybeSingle(),
+    ]);
 
     if (!existing.data) {
+      const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
+      const platformFeeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
       await supabaseAdmin.from("alternative_payment_ledger").insert({
         business_id: report.business_id,
         booking_id: report.booking_id,
@@ -194,9 +195,9 @@ async function resolveReport(reportId: string) {
         service_name: null,
         service_amount_cents: report.service_amount_cents,
         tip_cents: report.tip_cents,
-        platform_fee_cents: 100,
+        platform_fee_cents: platformFeeCents,
         payment_method: report.payment_method === "cash_app" ? "cashapp" : report.payment_method === "zelle" ? "other" : "cash",
-        fee_absorbed_by: "customer",
+        fee_absorbed_by: feeAbsorbedBy,
         billing_month: billingMonth,
         billing_status: "pending",
         notes: `Auto-resolved: ${resolution.resolution_reason}`,

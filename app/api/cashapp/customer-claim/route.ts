@@ -113,14 +113,16 @@ export async function POST(req: NextRequest) {
   const serviceAmountCents = booking.total_price_cents ?? 0;
   const tipCents = totalCents - serviceAmountCents > 0 ? totalCents - serviceAmountCents : 0;
 
-  // Fetch customer info
-  const { data: customer } = await supabaseAdmin
-    .from("customers")
-    .select("full_name, phone, referral_code")
-    .eq("id", booking.customer_id)
-    .maybeSingle();
+  // Fetch customer info and fee mode in parallel
+  const [{ data: customer }, { data: cashSettings }] = await Promise.all([
+    supabaseAdmin.from("customers").select("full_name, phone, referral_code").eq("id", booking.customer_id).maybeSingle(),
+    supabaseAdmin.from("cashapp_settings").select("fee_mode").eq("business_id", booking.business_id).maybeSingle(),
+  ]);
 
-  // Insert ledger entry
+  const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
+  const platformFeeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
+
+  // Insert ledger entry before updating booking so the DB trigger sees it and skips
   const { error: ledgerError } = await supabaseAdmin
     .from("alternative_payment_ledger")
     .insert({
@@ -131,9 +133,9 @@ export async function POST(req: NextRequest) {
       service_name: serviceName ?? null,
       service_amount_cents: serviceAmountCents,
       tip_cents: tipCents,
-      platform_fee_cents: 100,
+      platform_fee_cents: platformFeeCents,
       payment_method: "cashapp",
-      fee_absorbed_by: "customer",
+      fee_absorbed_by: feeAbsorbedBy,
       billing_month: billingMonth,
       billing_status: "pending",
       notes: "Customer self-reported payment via Cash App",
