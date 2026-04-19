@@ -67,6 +67,15 @@ export default function SettingsPage() {
   });
   const [smartCampaignSaving, setSmartCampaignSaving] = useState(false);
   const [smartCampaignMsg, setSmartCampaignMsg] = useState("");
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  const [smartCampaignTemplates, setSmartCampaignTemplates] = useState({
+    appt_reminder_template: "Hey {{customer_name}}! Just a reminder that you have an appointment at {{business_name}} tomorrow at {{appt_time}}. See you soon!",
+    winback_30_template: "Hey {{customer_name}}! It's been a little while since we've seen you at {{business_name}}. We miss you! Tap here to book your next appointment whenever you're ready: {{booking_link}}",
+    winback_60_template: "Hey {{customer_name}}, we haven't seen you in a while and we want to make it worth your while to come back. Use code COMEBACK for 10% off your next visit at {{business_name}}. Book here: {{booking_link}} — offer expires in 7 days!",
+    winback_90_template: "Hey {{customer_name}}, we'd love to have you back at {{business_name}}! It's been 3 months and we're offering you a special returning customer deal — mention this text when you book and we'll take care of you. Book here: {{booking_link}}",
+    referral_post_visit_template: "Hey {{customer_name}}, hope you're loving your results from {{business_name}}! If you know someone who'd love our services, send them your referral link and you'll both get rewarded: {{referral_link}}",
+    reengage_template: "Hey {{customer_name}}! It's about that time — you're usually in to see us around now. Ready to book your next appointment at {{business_name}}? It only takes a minute: {{booking_link}}",
+  });
 
   // Notification settings state
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>({
@@ -163,7 +172,7 @@ export default function SettingsPage() {
       // Load smart campaign toggles
       const { data: scData } = await supabase
         .from("ai_marketing_settings")
-        .select("appt_reminder_enabled, winback_30_enabled, winback_60_enabled, winback_90_enabled, referral_post_visit_enabled, reengage_enabled")
+        .select("appt_reminder_enabled, winback_30_enabled, winback_60_enabled, winback_90_enabled, referral_post_visit_enabled, reengage_enabled, winback_30_template, winback_60_template, winback_90_template, referral_post_visit_template, reengage_template")
         .eq("business_id", business.id)
         .maybeSingle();
       if (scData) {
@@ -175,6 +184,14 @@ export default function SettingsPage() {
           referral_post_visit_enabled: scData.referral_post_visit_enabled ?? true,
           reengage_enabled: scData.reengage_enabled ?? true,
         });
+        setSmartCampaignTemplates((prev) => ({
+          ...prev,
+          ...(scData.winback_30_template ? { winback_30_template: scData.winback_30_template } : {}),
+          ...(scData.winback_60_template ? { winback_60_template: scData.winback_60_template } : {}),
+          ...(scData.winback_90_template ? { winback_90_template: scData.winback_90_template } : {}),
+          ...(scData.referral_post_visit_template ? { referral_post_visit_template: scData.referral_post_visit_template } : {}),
+          ...(scData.reengage_template ? { reengage_template: scData.reengage_template } : {}),
+        }));
       }
     }
 
@@ -274,7 +291,10 @@ export default function SettingsPage() {
     setSmartCampaignMsg("");
     const { error } = await supabase
       .from("ai_marketing_settings")
-      .upsert({ business_id: businessId, ...smartCampaigns }, { onConflict: "business_id" });
+      .upsert(
+        { business_id: businessId, ...smartCampaigns, ...smartCampaignTemplates },
+        { onConflict: "business_id" }
+      );
     setSmartCampaignSaving(false);
     if (error) {
       setSmartCampaignMsg("❌ Failed to save campaign settings.");
@@ -832,94 +852,129 @@ export default function SettingsPage() {
             {([
               {
                 key: "appt_reminder_enabled" as const,
+                templateKey: "appt_reminder_template" as const,
                 label: "Appointment Reminder",
                 desc: "Sent 24 hours before each appointment to reduce no-shows.",
                 icon: "⏰",
+                vars: "{{customer_name}}, {{business_name}}, {{appt_time}}",
               },
               {
                 key: "winback_30_enabled" as const,
+                templateKey: "winback_30_template" as const,
                 label: "Win-Back — 30 Days (Friendly Check-In)",
                 desc: "Sent when a customer hasn't booked in 30 days. A friendly nudge to come back.",
                 icon: "👋",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
               },
               {
                 key: "winback_60_enabled" as const,
+                templateKey: "winback_60_template" as const,
                 label: "Win-Back — 60 Days (Discount Offer)",
-                desc: "Sent at 60 days inactive. Offers a 10% discount code to bring them back.",
+                desc: "Sent at 60 days inactive. Offers a discount code to bring them back.",
                 icon: "🎁",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
               },
               {
                 key: "winback_90_enabled" as const,
+                templateKey: "winback_90_template" as const,
                 label: "Win-Back — 90 Days (Last Chance)",
                 desc: "Sent at 90 days inactive. A final personalized offer to re-engage the customer.",
                 icon: "🚨",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
               },
               {
                 key: "referral_post_visit_enabled" as const,
+                templateKey: "referral_post_visit_template" as const,
                 label: "Referral Nudge (After Visit)",
                 desc: "Sent 3 days after a completed appointment, asking happy customers to refer friends.",
                 icon: "🙌",
+                vars: "{{customer_name}}, {{business_name}}, {{referral_link}}",
               },
               {
                 key: "reengage_enabled" as const,
+                templateKey: "reengage_template" as const,
                 label: "Re-Engagement Nudge",
-                desc: "Sent when a customer is overdue based on their personal visit pattern (e.g. usually every 2 weeks but hasn't booked in 3).",
+                desc: "Sent when a customer is overdue based on their personal visit pattern.",
                 icon: "📅",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
               },
-            ] as { key: keyof typeof smartCampaigns; label: string; desc: string; icon: string }[]).map(({ key, label, desc, icon }) => (
-              <div key={key} className={`flex items-start justify-between p-4 rounded-xl border-2 transition ${
+            ] as { key: keyof typeof smartCampaigns; templateKey: keyof typeof smartCampaignTemplates; label: string; desc: string; icon: string; vars: string }[]).map(({ key, templateKey, label, desc, icon, vars }) => (
+              <div key={key} className={`rounded-xl border-2 transition ${
                 smartCampaigns[key] ? "border-green-200 bg-green-50" : "border-gray-200 bg-gray-50"
               }`}>
-                <div className="flex items-start gap-3 flex-1 mr-4">
-                  <span className="text-xl mt-0.5">{icon}</span>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                {/* Card header row */}
+                <div className="flex items-start justify-between p-4">
+                  <div className="flex items-start gap-3 flex-1 mr-4">
+                    <span className="text-xl mt-0.5">{icon}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs font-medium ${
+                      smartCampaigns[key] ? "text-green-700" : "text-gray-500"
+                    }`}>{smartCampaigns[key] ? "On" : "Off"}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSmartCampaigns({ ...smartCampaigns, [key]: !smartCampaigns[key] })}
+                      style={{
+                        width: "44px",
+                        height: "24px",
+                        backgroundColor: smartCampaigns[key] ? "#16a34a" : "#d1d5db",
+                        borderRadius: "12px",
+                        position: "relative",
+                        transition: "background-color 0.2s",
+                        border: "none",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "2px",
+                          left: smartCampaigns[key] ? "22px" : "2px",
+                          width: "20px",
+                          height: "20px",
+                          backgroundColor: "white",
+                          borderRadius: "10px",
+                          transition: "left 0.2s",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        }}
+                      />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-xs font-medium ${
-                    smartCampaigns[key] ? "text-green-700" : "text-gray-500"
-                  }`}>{smartCampaigns[key] ? "On" : "Off"}</span>
+
+                {/* Edit message toggle */}
+                <div className="px-4 pb-2">
                   <button
                     type="button"
-                    onClick={() => setSmartCampaigns({ ...smartCampaigns, [key]: !smartCampaigns[key] })}
-                    style={{
-                      width: "44px",
-                      height: "24px",
-                      backgroundColor: smartCampaigns[key] ? "#16a34a" : "#d1d5db",
-                      borderRadius: "12px",
-                      position: "relative",
-                      transition: "background-color 0.2s",
-                      border: "none",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                    }}
+                    onClick={() => setExpandedCards((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition"
                   >
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: "2px",
-                        left: smartCampaigns[key] ? "22px" : "2px",
-                        width: "20px",
-                        height: "20px",
-                        backgroundColor: "white",
-                        borderRadius: "10px",
-                        transition: "left 0.2s",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                      }}
-                    />
+                    <span>{expandedCards[key] ? "▲ Hide message" : "▼ Edit message"}</span>
                   </button>
                 </div>
+
+                {/* Expandable template editor */}
+                {expandedCards[key] && (
+                  <div className="px-4 pb-4">
+                    <div className="border-t border-gray-200 pt-3">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Message Text</label>
+                      <textarea
+                        rows={3}
+                        value={smartCampaignTemplates[templateKey]}
+                        onChange={(e) => setSmartCampaignTemplates({ ...smartCampaignTemplates, [templateKey]: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-y"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Available variables: <span className="font-mono">{vars}</span></p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
-          </div>
-
-          <div className="bg-blue-50 rounded-lg p-4 mt-5">
-            <p className="text-sm text-blue-800">
-              <strong>💡 Tip:</strong> Message templates for each campaign can be customized in the
-              <strong> SMS Message Templates</strong> section above.
-            </p>
           </div>
 
           <div className="flex items-center justify-between mt-5">
