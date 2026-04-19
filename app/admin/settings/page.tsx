@@ -56,6 +56,18 @@ export default function SettingsPage() {
   const [smsTemplateSaving, setSmsTemplateSaving] = useState(false);
   const [smsTemplateMsg, setSmsTemplateMsg] = useState("");
 
+  // Smart Campaigns state
+  const [smartCampaigns, setSmartCampaigns] = useState({
+    appt_reminder_enabled: true,
+    winback_30_enabled: true,
+    winback_60_enabled: true,
+    winback_90_enabled: true,
+    referral_post_visit_enabled: true,
+    reengage_enabled: true,
+  });
+  const [smartCampaignSaving, setSmartCampaignSaving] = useState(false);
+  const [smartCampaignMsg, setSmartCampaignMsg] = useState("");
+
   // Notification settings state
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>({
     booking_confirmations: true,
@@ -147,6 +159,23 @@ export default function SettingsPage() {
         .eq("business_id", business.id)
         .maybeSingle();
       if (tmplData) setSmsTemplates((prev) => ({ ...prev, ...tmplData }));
+
+      // Load smart campaign toggles
+      const { data: scData } = await supabase
+        .from("ai_marketing_settings")
+        .select("appt_reminder_enabled, winback_30_enabled, winback_60_enabled, winback_90_enabled, referral_post_visit_enabled, reengage_enabled")
+        .eq("business_id", business.id)
+        .maybeSingle();
+      if (scData) {
+        setSmartCampaigns({
+          appt_reminder_enabled: scData.appt_reminder_enabled ?? true,
+          winback_30_enabled: scData.winback_30_enabled ?? true,
+          winback_60_enabled: scData.winback_60_enabled ?? true,
+          winback_90_enabled: scData.winback_90_enabled ?? true,
+          referral_post_visit_enabled: scData.referral_post_visit_enabled ?? true,
+          reengage_enabled: scData.reengage_enabled ?? true,
+        });
+      }
     }
 
     setLoading(false);
@@ -237,6 +266,21 @@ export default function SettingsPage() {
       setTimeout(() => setSmsTemplateMsg(""), 3000);
     } else {
       setSmsTemplateMsg("❌ Failed to save templates.");
+    }
+  };
+
+  const handleSaveSmartCampaigns = async () => {
+    setSmartCampaignSaving(true);
+    setSmartCampaignMsg("");
+    const { error } = await supabase
+      .from("ai_marketing_settings")
+      .upsert({ business_id: businessId, ...smartCampaigns }, { onConflict: "business_id" });
+    setSmartCampaignSaving(false);
+    if (error) {
+      setSmartCampaignMsg("❌ Failed to save campaign settings.");
+    } else {
+      setSmartCampaignMsg("✅ Campaign settings saved!");
+      setTimeout(() => setSmartCampaignMsg(""), 3000);
     }
   };
 
@@ -769,6 +813,125 @@ export default function SettingsPage() {
               className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 text-sm"
             >
               {nicheSaving ? "Saving…" : "Save Business Type"}
+            </button>
+          </div>
+        </div>
+
+        {/* Smart Campaigns Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <span className="text-2xl">🤖</span>
+            <h2 className="text-xl font-bold text-gray-900">Automated Smart Campaigns</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-5">
+            Automated text messages sent to your customers at the right time — all on autopilot.
+            All campaigns are <strong>on by default</strong>. Toggle any off to disable it.
+          </p>
+
+          <div className="space-y-3">
+            {([
+              {
+                key: "appt_reminder_enabled" as const,
+                label: "Appointment Reminder",
+                desc: "Sent 24 hours before each appointment to reduce no-shows.",
+                icon: "⏰",
+              },
+              {
+                key: "winback_30_enabled" as const,
+                label: "Win-Back — 30 Days (Friendly Check-In)",
+                desc: "Sent when a customer hasn't booked in 30 days. A friendly nudge to come back.",
+                icon: "👋",
+              },
+              {
+                key: "winback_60_enabled" as const,
+                label: "Win-Back — 60 Days (Discount Offer)",
+                desc: "Sent at 60 days inactive. Offers a 10% discount code to bring them back.",
+                icon: "🎁",
+              },
+              {
+                key: "winback_90_enabled" as const,
+                label: "Win-Back — 90 Days (Last Chance)",
+                desc: "Sent at 90 days inactive. A final personalized offer to re-engage the customer.",
+                icon: "🚨",
+              },
+              {
+                key: "referral_post_visit_enabled" as const,
+                label: "Referral Nudge (After Visit)",
+                desc: "Sent 3 days after a completed appointment, asking happy customers to refer friends.",
+                icon: "🙌",
+              },
+              {
+                key: "reengage_enabled" as const,
+                label: "Re-Engagement Nudge",
+                desc: "Sent when a customer is overdue based on their personal visit pattern (e.g. usually every 2 weeks but hasn't booked in 3).",
+                icon: "📅",
+              },
+            ] as { key: keyof typeof smartCampaigns; label: string; desc: string; icon: string }[]).map(({ key, label, desc, icon }) => (
+              <div key={key} className={`flex items-start justify-between p-4 rounded-xl border-2 transition ${
+                smartCampaigns[key] ? "border-green-200 bg-green-50" : "border-gray-200 bg-gray-50"
+              }`}>
+                <div className="flex items-start gap-3 flex-1 mr-4">
+                  <span className="text-xl mt-0.5">{icon}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-xs font-medium ${
+                    smartCampaigns[key] ? "text-green-700" : "text-gray-500"
+                  }`}>{smartCampaigns[key] ? "On" : "Off"}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSmartCampaigns({ ...smartCampaigns, [key]: !smartCampaigns[key] })}
+                    style={{
+                      width: "44px",
+                      height: "24px",
+                      backgroundColor: smartCampaigns[key] ? "#16a34a" : "#d1d5db",
+                      borderRadius: "12px",
+                      position: "relative",
+                      transition: "background-color 0.2s",
+                      border: "none",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "2px",
+                        left: smartCampaigns[key] ? "22px" : "2px",
+                        width: "20px",
+                        height: "20px",
+                        backgroundColor: "white",
+                        borderRadius: "10px",
+                        transition: "left 0.2s",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      }}
+                    />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-blue-50 rounded-lg p-4 mt-5">
+            <p className="text-sm text-blue-800">
+              <strong>💡 Tip:</strong> Message templates for each campaign can be customized in the
+              <strong> SMS Message Templates</strong> section above.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between mt-5">
+            <p className={`text-sm font-medium ${
+              smartCampaignMsg.startsWith("✅") ? "text-green-600" : "text-red-600"
+            }`}>{smartCampaignMsg}</p>
+            <button
+              onClick={handleSaveSmartCampaigns}
+              disabled={smartCampaignSaving}
+              className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 text-sm"
+            >
+              {smartCampaignSaving ? "Saving…" : "Save Campaign Settings"}
             </button>
           </div>
         </div>
