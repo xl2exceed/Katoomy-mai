@@ -105,7 +105,7 @@ CREATE POLICY "Business owner can view their auto_campaign_log"
   USING (
     business_id IN (
       SELECT id FROM "public"."businesses"
-      WHERE auth.uid() = owner_id
+      WHERE auth.uid() = owner_user_id
     )
   );
 
