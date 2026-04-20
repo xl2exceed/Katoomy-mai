@@ -159,39 +159,25 @@ const ROUTE_METADATA = {
   "/admin/growth": {
     title: "AI Growth Hub",
     description:
-      "A suite of AI-powered growth tools including business performance insights, automated win-back campaigns for inactive customers, and a social media post generator.",
+      "The AI Growth Hub gives you AI-powered analysis of your business performance. It includes AI Business Insights and Automation Settings.",
     tips: [],
   },
   "/admin/growth/insights": {
     title: "AI Business Insights",
     description:
-      "AI-generated analysis of your business performance with prioritized action items across revenue, bookings, customers, and marketing.",
-    tips: ["Insights are cached and refreshed on a configurable schedule."],
-  },
-  "/admin/growth/winback": {
-    title: "Win-Back Campaigns",
-    description:
-      "Automatically identify customers who haven't visited recently and send them a personalized win-back SMS to bring them back.",
-    tips: [],
-  },
-  "/admin/growth/referral": {
-    title: "Growth Referral Campaigns",
-    description:
-      "Send referral invitation messages to existing customers encouraging them to refer friends.",
-    tips: [],
-  },
-  "/admin/growth/social": {
-    title: "Social Media Post Generator",
-    description:
-      "Generate ready-to-post social media content for Instagram, Facebook, Twitter, TikTok, and LinkedIn. Posts can be approved, scheduled, or published.",
-    tips: [],
+      "AI-generated analysis of your business performance with prioritized action items across revenue, bookings, customers, and marketing. Insights are grouped by priority — high, medium, and low — so you know what to focus on first.",
+    tips: ["Insights are automatically refreshed on a schedule you can configure in Automation Settings.", "You can also force a manual refresh at any time from this page."],
   },
   "/admin/growth/settings": {
-    title: "AI Growth Settings",
+    title: "Automation Settings (AI Growth Hub)",
     description:
-      "Configure how often AI insights are refreshed and which growth features are enabled.",
-    tips: [],
+      "Configure how often your AI Business Insights are automatically refreshed. You can turn insights on or off and set the refresh interval in hours.",
+    tips: ["A shorter refresh interval means more up-to-date insights but uses more AI credits."],
   },
+  // HIDDEN — not accessible to app users, do not include in knowledge base
+  // "/admin/growth/winback": hidden
+  // "/admin/growth/referral": hidden
+  // "/admin/growth/social": hidden
   "/admin/notifications": {
     title: "Messages & SMS Notifications",
     description:
@@ -379,6 +365,16 @@ const ROUTE_METADATA = {
   },
 };
 
+// ─── Blocked Routes ──────────────────────────────────────────────────────────
+// Routes listed here are hidden from app users and must NEVER appear in the
+// AI help assistant knowledge base, even if the page files still exist in code.
+// Add any future hidden/disabled features here to keep them permanently excluded.
+const BLOCKED_ROUTES = new Set([
+  "/admin/growth/winback",      // Old Growth Hub win-back — replaced by Automated Smart Campaigns in Settings
+  "/admin/growth/referral",     // Hidden Growth Hub referral sender — not accessible to users
+  "/admin/growth/social",       // Social media post generator — disabled, not accessible to users
+]);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
@@ -451,6 +447,9 @@ function extractCluesFromSource(source) {
  */
 function buildFeatureEntry(route, source, index) {
   const meta = ROUTE_METADATA[route];
+
+  // Skip permanently blocked routes (hidden/disabled features)
+  if (BLOCKED_ROUTES.has(route)) return null;
 
   // Skip login, auth, redirect, and utility pages from the knowledge base
   const skipPatterns = [
