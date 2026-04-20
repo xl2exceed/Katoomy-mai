@@ -211,8 +211,15 @@ const ROUTE_METADATA = {
   "/admin/settings": {
     title: "Settings",
     description:
-      "Configure loyalty program settings (points per appointment, referral rewards), notification preferences (which automated messages are sent), and default booking behavior.",
-    tips: [],
+      "The Settings page is where you control all of your business preferences. It has several sections: loyalty program settings (points per appointment, referral rewards), notification preferences, SMS message templates, and the Automated Smart Campaigns section.",
+    tips: [
+      "The Automated Smart Campaigns section is at the bottom of the Settings page. This is where you turn automatic texts on or off and edit the message that gets sent for each campaign type.",
+      "To change the message for an automated win-back text: go to Settings, scroll down to Automated Smart Campaigns, find the win-back campaign you want to edit (30-day, 60-day, or 90-day), click the 'Edit message' arrow to expand it, change the text, then click Save Campaign Settings.",
+      "To change the referral nudge message: go to Settings, scroll to Automated Smart Campaigns, expand the Referral Nudge card, edit the message, and save.",
+      "To change the re-engagement message: go to Settings, scroll to Automated Smart Campaigns, expand the Re-Engagement card, edit the message, and save.",
+      "To turn any automated campaign on or off: go to Settings, scroll to Automated Smart Campaigns, and toggle the switch next to the campaign you want to enable or disable.",
+      "The win-back template in the Campaigns section is separate — that one is only used when you manually send a win-back blast from the Campaigns page. The automated win-back messages are edited in the Settings page under Automated Smart Campaigns.",
+    ],
   },
   "/admin/carwash": {
     title: "Car Wash Settings",
