@@ -556,7 +556,7 @@ export default function CustomerInfoPage() {
           {/* SMS consent — two separate optional checkboxes, shown if not already consented */}
           {!alreadyConsented && (
             <div className="space-y-3 py-1 bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Text Message Preferences (Optional)</p>
+              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Text Message Consent</p>
 
               {/* Transactional SMS — optional */}
               <label className="flex items-start gap-3 cursor-pointer">
@@ -567,10 +567,8 @@ export default function CustomerInfoPage() {
                   className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
                 />
                 <span className="text-xs text-gray-600 leading-relaxed">
-                  <span className="font-medium text-gray-700">Appointment texts (optional):</span>{" "}
-                  I agree to receive appointment confirmations, reminders, and service-related text messages from {business?.name} via Katoomy. Message frequency varies based on your appointment activity. Reply STOP to unsubscribe. Message and data rates may apply.{" "}
-                  <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>{" "}·{" "}
-                  <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>
+                  <span className="font-medium text-gray-700">Appointment texts:</span>{" "}
+                  I agree to receive appointment confirmations, reminders, and service-related text messages from {business?.name} via Katoomy. Message frequency varies based on your appointment activity. Reply STOP to unsubscribe. Message and data rates may apply.
                 </span>
               </label>
 
@@ -583,14 +581,12 @@ export default function CustomerInfoPage() {
                   className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
                 />
                 <span className="text-xs text-gray-600 leading-relaxed">
-                  <span className="font-medium text-gray-700">Promotional texts (optional):</span>{" "}
-                  I agree to receive promotional offers, discounts, and marketing messages from {business?.name} via Katoomy. Message frequency varies. Reply STOP to unsubscribe. Message and data rates may apply.{" "}
-                  <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>{" "}·{" "}
-                  <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>
+                  <span className="font-medium text-gray-700">Promotional texts:</span>{" "}
+                  I agree to receive promotional offers, discounts, and marketing messages from {business?.name} via Katoomy. Message frequency varies. Reply STOP to unsubscribe. Message and data rates may apply.
                 </span>
               </label>
 
-              {/* Privacy Policy — required */}
+              {/* Privacy Policy — optional */}
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -601,14 +597,14 @@ export default function CustomerInfoPage() {
                 <span className="text-xs text-gray-600">
                   I have read and agree to the{" "}
                   <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>{" "}and{" "}
-                  <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>. *
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>.
                 </span>
               </label>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
               type="email"
               value={email}
@@ -755,7 +751,7 @@ export default function CustomerInfoPage() {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
         <button
           onClick={handleSubmit}
-          disabled={submitting || !name.trim() || !phone.trim() || (!alreadyConsented && !agreedToPrivacy)}
+          disabled={submitting || !name.trim() || !phone.trim()}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting

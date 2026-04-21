@@ -37,8 +37,8 @@ export default function BookingOptInDemoPage() {
   const bookingTime  = "10:30 AM";
   const durationMins = 45;
 
-  // Only privacy policy is required to submit — SMS checkboxes are optional
-  const canSubmit = name.trim() && phone.replace(/\D/g, "").length === 10 && agreedToPrivacy;
+  // Only name and phone are required to submit — all checkboxes are optional
+  const canSubmit = name.trim() && phone.replace(/\D/g, "").length === 10;
 
   function handleSubmit() {
     if (!canSubmit) return;
@@ -138,7 +138,7 @@ export default function BookingOptInDemoPage() {
           {/* Two-checkbox SMS consent section — both optional */}
           <div className="space-y-3 py-1 bg-gray-50 rounded-xl p-4 border border-gray-200">
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-              Text Message Preferences (Optional)
+              Text Message Consent
             </p>
 
             {/* Checkbox 1: Transactional SMS — optional, unchecked by default */}
@@ -150,16 +150,10 @@ export default function BookingOptInDemoPage() {
                 className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
               />
               <span className="text-xs text-gray-600 leading-relaxed">
-                <span className="font-medium text-gray-700">Appointment texts (optional): </span>
+                <span className="font-medium text-gray-700">Appointment texts: </span>
                 I agree to receive appointment confirmations, reminders, and service-related text
                 messages from {BUSINESS_NAME} via Katoomy. Message frequency varies based on your
-                appointment activity. Reply STOP to unsubscribe. Message and data rates may apply.{" "}
-                <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                  Privacy Policy
-                </a>{" "}·{" "}
-                <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                  Terms of Service
-                </a>
+                appointment activity. Reply STOP to unsubscribe. Message and data rates may apply.
               </span>
             </label>
 
@@ -172,20 +166,14 @@ export default function BookingOptInDemoPage() {
                 className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
               />
               <span className="text-xs text-gray-600 leading-relaxed">
-                <span className="font-medium text-gray-700">Promotional texts (optional): </span>
+                <span className="font-medium text-gray-700">Promotional texts: </span>
                 I agree to receive promotional offers, discounts, and marketing messages from{" "}
                 {BUSINESS_NAME} via Katoomy. Message frequency varies. Reply STOP to unsubscribe.
-                Message and data rates may apply.{" "}
-                <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                  Privacy Policy
-                </a>{" "}·{" "}
-                <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                  Terms of Service
-                </a>
+                Message and data rates may apply.
               </span>
             </label>
 
-            {/* Privacy Policy — required, standalone, not bundled with SMS */}
+            {/* Privacy Policy — optional, standalone, not bundled with SMS */}
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -200,13 +188,13 @@ export default function BookingOptInDemoPage() {
                 </a>{" "}and{" "}
                 <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">
                   Terms of Service
-                </a>. *
+                </a>.
               </span>
             </label>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
               type="email"
               value={email}
