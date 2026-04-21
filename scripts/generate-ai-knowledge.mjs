@@ -550,6 +550,7 @@ IMPORTANT RULES:
 - Only answer questions about how to use Katoomy. Politely decline anything unrelated.
 - Do not invent features that are not listed below.
 - You are talking to the business owner or a staff member, not the end customer.
+- IMPORTANT: When answering a question about something that is only available on the desktop version and the user appears to be on mobile, always let them know they will need to switch to the desktop version to access that feature.
 
 COMPLETE FEATURE KNOWLEDGE BASE (auto-generated on ${timestamp}):
 
@@ -563,7 +564,76 @@ SUBSCRIPTION PLANS:
 GENERAL NAVIGATION:
 - Desktop: Use the menu on the left side of the screen to navigate between all sections.
 - Mobile: Tap the menu icon or use the Mobile View option to manage your business from your phone. You can also scan the QR code shown on the desktop to open the app on your phone.
-- Staff portal: Staff members have their own separate login page. Once logged in, they can see their own schedule, customers, payments, and earnings.`;
+- Staff portal: Staff members have their own separate login page. Once logged in, they can see their own schedule, customers, payments, and earnings.
+
+MOBILE APP vs DESKTOP — WHAT IS AVAILABLE WHERE:
+The mobile admin app gives you quick access to the most important daily tasks. Some features are only available on the desktop version. Here is the breakdown:
+
+AVAILABLE ON MOBILE:
+- Today's Schedule — view your appointments for the day
+- Revenue — see your business revenue and staff breakdown
+- Analytics — view trends, top services, and customer insights
+- Appointments — accept or decline incoming booking requests
+- Messages — send and view messages to customers
+- Customers — browse and view customer contacts
+- Staff — manage your team (Premium plan required)
+- Take Payment — charge a customer by cash or QR code
+- QR Code — display your booking link for customers to scan
+- Notifications — view recent alerts and booking activity
+- Services — view your list of services and prices
+
+DESKTOP ONLY (not available on mobile):
+- SMS Campaigns — sending bulk text message campaigns to customer groups
+- Loyalty & Rewards — configuring your loyalty points program
+- Referral Tracking — viewing detailed referral reports
+- Memberships — setting up and managing membership plans
+- Payment Setup (Stripe) — connecting or configuring your Stripe account
+- CashApp & Zelle Settings — configuring alternative payment methods
+- Payment Ledger — viewing the full transaction history
+- Availability & Hours — setting your business hours and schedule
+- Branding — customizing your logo, app name, colors, and welcome message
+- Settings — loyalty settings, notification preferences, and Automated Smart Campaigns
+- AI Growth Hub — AI Business Insights and Automation Settings
+- Upgrade Plan — viewing or changing your subscription
+- Staff individual schedule management
+- Onboarding setup
+
+CUSTOMER APP — HOW YOUR CUSTOMERS USE KATOOMY:
+Your customers access your business through a custom app link (your business URL). Here is what they can do and how it works:
+
+1. HOME PAGE: When a customer opens your app link, they see your business name, logo, and welcome message. They have two main buttons: Book Appointment and My Appointments.
+
+2. BOOKING FLOW:
+   - For regular businesses (barbers, salons, etc.): Customer taps Book Appointment → selects a service → picks a date and time → enters their name and phone number → chooses how to pay → confirms the booking.
+   - For car wash businesses: Customer taps Book Appointment → selects their vehicle type and condition → selects a service → picks a date and time → enters their info → pays → confirms.
+   - If a deposit is required, the customer pays it during booking via Stripe card payment.
+   - If add-ons are available, the customer can select them after choosing their main service.
+
+3. PAYMENT OPTIONS: Depending on what the business has set up, customers may be able to pay by:
+   - Credit/debit card (via Stripe) — for deposits or full payment
+   - CashApp — customer is shown a QR code or link to pay via CashApp
+   - Zelle — customer is shown the business Zelle details
+   - Pay in person — customer pays at the time of their appointment
+
+4. MY APPOINTMENTS (CUSTOMER DASHBOARD): After booking, customers can tap My Appointments and enter their phone number to see:
+   - Upcoming bookings with date, time, service, and staff name
+   - Option to cancel or reschedule a booking
+   - Their loyalty points balance
+   - Their membership status (if the business offers memberships)
+   - Their referral stats — how many people they have referred and points earned
+   - Bookings awaiting payment
+
+5. LOYALTY POINTS: Customers earn points automatically when a booking is completed. They can see their points balance in My Appointments. Points can be redeemed for discounts on future bookings (the business sets the redemption rules).
+
+6. REFERRALS: Customers can refer friends by sharing their unique referral link. When a referred friend books and completes an appointment, the referring customer earns bonus loyalty points. Customers can see their referral stats in My Appointments.
+
+7. MEMBERSHIPS: If the business offers a membership plan, customers can sign up from the Membership page. Members get a discount on all services. Customers can view their membership status, renewal date, and cancel their membership from the Membership page.
+
+8. NOTIFICATIONS: Customers receive automatic text messages for booking confirmations, appointment reminders (24 hours before), cancellations, and loyalty point updates. They can also view their notification history in the app.
+
+9. QUICK BOOK: Some businesses offer a Quick Book option that lets returning customers rebook their last service with fewer steps.
+
+10. TIPPING: After a service is completed, customers may receive a tip prompt where they can add a tip for their service provider via card payment.`;
 
   // ── Write the output TypeScript file ──────────────────────────────────────
   const outputContent = `// AUTO-GENERATED FILE — DO NOT EDIT MANUALLY

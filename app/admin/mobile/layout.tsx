@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import AdminSwRegistrar from "@/components/AdminSwRegistrar";
 import AdminPwaInstallPrompt from "@/components/AdminPwaInstallPrompt";
+import AiHelpWidget from "@/components/AiHelpWidget";
 
 export const metadata: Metadata = {
   manifest: "/admin-manifest.webmanifest",
@@ -23,6 +24,7 @@ export default function AdminMobileLayout({
       <AdminSwRegistrar />
       <AdminPwaInstallPrompt />
       {children}
+      <AiHelpWidget />
     </>
   );
 }
