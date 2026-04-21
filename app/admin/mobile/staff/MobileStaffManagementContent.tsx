@@ -58,6 +58,15 @@ const DAYS_OF_WEEK: Array<keyof WorkingHours> = [
   'sunday',
 ];
 
+function darkenHex(hex: string, amount = 40): string {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean, 16);
+  const r = Math.max(0, (num >> 16) - amount);
+  const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+  const b = Math.max(0, (num & 0xff) - amount);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default function MobileStaffPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -65,6 +74,7 @@ export default function MobileStaffPage() {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [brandColor, setBrandColor] = useState("#3B82F6");
   
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -107,7 +117,7 @@ export default function MobileStaffPage() {
       // Get business for current user
       const { data: business } = await supabase
         .from('businesses')
-        .select('id')
+        .select('id, primary_color')
         .eq('owner_user_id', user.id)
         .maybeSingle();
 
@@ -118,6 +128,7 @@ export default function MobileStaffPage() {
       }
 
       setBusinessId(business.id);
+      if (business.primary_color) setBrandColor(business.primary_color);
 
       // Load staff
       await loadStaff(business.id);
@@ -371,9 +382,11 @@ export default function MobileStaffPage() {
     }
   }, [message]);
 
+  const bgStyle = { background: `linear-gradient(135deg, ${brandColor} 0%, ${darkenHex(brandColor)} 100%)` };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={bgStyle}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
           <p className="mt-4 text-white">Loading staff...</p>
@@ -383,7 +396,7 @@ export default function MobileStaffPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-600 pb-24">
+    <div className="min-h-screen pb-24" style={bgStyle}>
       {/* Header */}
       <div className="bg-white/10 backdrop-blur-sm border-b border-white/20">
         <div className="px-4 py-6">

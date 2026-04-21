@@ -69,6 +69,15 @@ const STATUS_STYLES: Record<string, string> = {
   failed:      "bg-red-100 text-red-800",
 };
 
+function darkenHex(hex: string, amount = 40): string {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean, 16);
+  const r = Math.max(0, (num >> 16) - amount);
+  const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+  const b = Math.max(0, (num & 0xff) - amount);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default function MobileMessagesPage() {
   const [activeTab, setActiveTab] = useState<"send" | "stats">("send");
 
@@ -78,6 +87,7 @@ export default function MobileMessagesPage() {
   const [messageType, setMessageType] = useState<MessageType>("all");
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [brandColor, setBrandColor] = useState("#3B82F6");
   const [sendProgress, setSendProgress] = useState<{ current: number; total: number } | null>(null);
   const [sendResults, setSendResults] = useState<SendResult[]>([]);
   const [settings, setSettings] = useState<NotificationSettings>({ channels: ["email", "sms"] });
@@ -105,12 +115,13 @@ export default function MobileMessagesPage() {
 
     const bizResult = await supabase
       .from("businesses")
-      .select("id")
+      .select("id, primary_color")
       .eq("owner_user_id", user.id)
       .single();
 
     if (bizResult.data) {
       setBusinessId(bizResult.data.id);
+      if (bizResult.data.primary_color) setBrandColor(bizResult.data.primary_color);
       const { data: notifData } = await supabase
         .from("notification_settings")
         .select("*")
@@ -402,13 +413,13 @@ export default function MobileMessagesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 sticky top-0 z-10">
+      <div className="text-white p-6 sticky top-0 z-10" style={{ background: `linear-gradient(to right, ${brandColor}, ${darkenHex(brandColor)})` }}>
         <Link href="/admin/mobile/menu" className="inline-flex items-center text-white mb-4">
           <span className="text-2xl mr-2">←</span>
           <span className="font-medium">Back to Menu</span>
         </Link>
         <h1 className="text-2xl font-bold">Messages</h1>
-        <p className="text-blue-100 mt-1">Send SMS to customers</p>
+        <p className="text-white/70 mt-1">Send SMS to customers</p>
       </div>
 
       {/* Tab Switcher */}

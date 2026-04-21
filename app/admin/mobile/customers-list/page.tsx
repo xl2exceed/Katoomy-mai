@@ -12,10 +12,20 @@ interface Customer {
   email: string | null;
 }
 
+function darkenHex(hex: string, amount = 40): string {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean, 16);
+  const r = Math.max(0, (num >> 16) - amount);
+  const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+  const b = Math.max(0, (num & 0xff) - amount);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default function MobileCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [brandColor, setBrandColor] = useState("#3B82F6");
   const supabase = createClient();
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editName, setEditName] = useState("");
@@ -33,10 +43,11 @@ export default function MobileCustomersPage() {
     if (!user) return;
     const biz = await supabase
       .from("businesses")
-      .select("id")
+      .select("id, primary_color")
       .eq("owner_user_id", user.id)
       .single();
     if (biz.data) {
+      if (biz.data.primary_color) setBrandColor(biz.data.primary_color);
       const cust = await supabase
         .from("customers")
         .select("id, full_name, phone, email")
@@ -95,9 +106,11 @@ export default function MobileCustomersPage() {
     );
   });
 
+  const bgStyle = { background: `linear-gradient(to right, ${brandColor}, ${darkenHex(brandColor)})` };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 sticky top-0 z-10 shadow-lg">
+      <div className="text-white p-6 sticky top-0 z-10 shadow-lg" style={bgStyle}>
         <Link
           href="/admin/mobile/menu"
           className="inline-flex items-center text-white mb-4"
@@ -106,7 +119,7 @@ export default function MobileCustomersPage() {
           <span className="font-medium">Back to Menu</span>
         </Link>
         <h1 className="text-2xl font-bold">Customers</h1>
-        <p className="text-blue-100 mt-1">{customers.length} total customers</p>
+        <p className="text-white/70 mt-1">{customers.length} total customers</p>
       </div>
 
       <div className="p-4">

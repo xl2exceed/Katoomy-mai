@@ -15,9 +15,19 @@ interface NotificationEntry {
   read: boolean;
 }
 
+function darkenHex(hex: string, amount = 40): string {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean, 16);
+  const r = Math.max(0, (num >> 16) - amount);
+  const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+  const b = Math.max(0, (num & 0xff) - amount);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default function MobileNotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [brandColor, setBrandColor] = useState("#3B82F6");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   const supabase = createClient();
@@ -35,7 +45,7 @@ export default function MobileNotificationsPage() {
 
     const { data: business } = await supabase
       .from("businesses")
-      .select("id")
+      .select("id, primary_color")
       .eq("owner_user_id", user.id)
       .single();
 
@@ -43,6 +53,8 @@ export default function MobileNotificationsPage() {
       setLoading(false);
       return;
     }
+
+    if (business.primary_color) setBrandColor(business.primary_color);
 
     const { data } = await supabase
       .from("notification_log")
@@ -88,15 +100,15 @@ export default function MobileNotificationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white">
+      <div className="p-6 text-white" style={{ background: `linear-gradient(to right, ${brandColor}, ${darkenHex(brandColor)})` }}>
         <Link
           href="/admin/mobile/menu"
-          className="text-blue-100 text-sm mb-3 block"
+          className="text-white/70 text-sm mb-3 block"
         >
           ← Back to Menu
         </Link>
         <h1 className="text-2xl font-bold">Notifications</h1>
-        <p className="text-blue-100 text-sm mt-1">
+        <p className="text-white/70 text-sm mt-1">
           Recent alerts and booking updates
         </p>
       </div>

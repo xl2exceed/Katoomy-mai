@@ -5,9 +5,19 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import Image from "next/image";
 
+function darkenHex(hex: string, amount = 40): string {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean, 16);
+  const r = Math.max(0, (num >> 16) - amount);
+  const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+  const b = Math.max(0, (num & 0xff) - amount);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default function MobileQRCodePage() {
   const [businessSlug, setBusinessSlug] = useState("");
   const [businessName, setBusinessName] = useState("");
+  const [brandColor, setBrandColor] = useState("#3B82F6");
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -23,13 +33,14 @@ export default function MobileQRCodePage() {
 
     const bizResult = await supabase
       .from("businesses")
-      .select("slug, name")
+      .select("slug, name, primary_color")
       .eq("owner_user_id", user.id)
       .single();
 
     if (bizResult.data) {
       setBusinessSlug(bizResult.data.slug);
       setBusinessName(bizResult.data.name);
+      if (bizResult.data.primary_color) setBrandColor(bizResult.data.primary_color);
     }
     setLoading(false);
   };
@@ -66,7 +77,7 @@ export default function MobileQRCodePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
+      <div className="text-white p-6" style={{ background: `linear-gradient(to right, ${brandColor}, ${darkenHex(brandColor)})` }}>
         <Link
           href="/admin/mobile/menu"
           className="inline-flex items-center text-white mb-4"
@@ -75,7 +86,7 @@ export default function MobileQRCodePage() {
           <span className="font-medium">Back to Menu</span>
         </Link>
         <h1 className="text-2xl font-bold">QR Code</h1>
-        <p className="text-blue-100 mt-1">Share your booking link</p>
+        <p className="text-white/70 mt-1">Share your booking link</p>
       </div>
 
       <div className="p-4">
