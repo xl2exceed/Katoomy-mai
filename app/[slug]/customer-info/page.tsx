@@ -73,7 +73,8 @@ export default function CustomerInfoPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
-  const [agreedToSms, setAgreedToSms] = useState(false);
+  const [agreedToTransactional, setAgreedToTransactional] = useState(false);
+  const [agreedToMarketing, setAgreedToMarketing] = useState(false);
   const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
   const [alreadyConsented, setAlreadyConsented] = useState(false);
 
@@ -206,7 +207,8 @@ export default function CustomerInfoPage() {
           setPrefilled(true);
           if (existingCustomer.sms_consent) {
             setAlreadyConsented(true);
-            setAgreedToSms(true);
+            setAgreedToTransactional(true);
+            setAgreedToMarketing(true);
             setAgreedToPrivacy(true);
           }
         }
@@ -332,7 +334,8 @@ export default function CustomerInfoPage() {
         slug,
         staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
         referredByCode: referredByCode || undefined,
-        smsConsent: true,
+        smsTransactionalConsent: agreedToTransactional,
+        smsMarketingConsent: agreedToMarketing,
         ...carwashPayload,
       }),
     });
@@ -379,7 +382,8 @@ export default function CustomerInfoPage() {
           defaultBookingStatus,
           staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
           referredByCode: referredByCode || undefined,
-          smsConsent: true,
+          smsTransactionalConsent: agreedToTransactional,
+          smsMarketingConsent: agreedToMarketing,
           ...carwashPayload,
         }),
       });
@@ -406,8 +410,9 @@ export default function CustomerInfoPage() {
       alert("Please enter your name and phone number");
       return;
     }
-    if (!alreadyConsented && (!agreedToSms || !agreedToPrivacy)) {
-      alert("Please check both consent boxes to continue.");
+    // Privacy policy agreement is still required; SMS consent is optional
+    if (!alreadyConsented && !agreedToPrivacy) {
+      alert("Please read and agree to the Privacy Policy to continue.");
       return;
     }
     if (!business || !service) return;
@@ -548,21 +553,44 @@ export default function CustomerInfoPage() {
             />
           </div>
 
-          {/* SMS + Privacy consent — only shown if not already consented */}
+          {/* SMS consent — two separate optional checkboxes, shown if not already consented */}
           {!alreadyConsented && (
-            <div className="space-y-3 py-1">
+            <div className="space-y-3 py-1 bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Text Message Preferences (Optional)</p>
+
+              {/* Transactional SMS — optional */}
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={agreedToSms}
-                  onChange={e => setAgreedToSms(e.target.checked)}
+                  checked={agreedToTransactional}
+                  onChange={e => setAgreedToTransactional(e.target.checked)}
                   className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
                 />
                 <span className="text-xs text-gray-600 leading-relaxed">
-                  I agree to receive SMS text messages from Katoomy on behalf of {business?.name} including appointment reminders, booking confirmations, marketing and promotional offers. Message and data rates may apply. Message frequency varies. Reply STOP to opt out at any time. Reply HELP for help.{" "}
-                  <a href="/sms-terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">View our SMS Terms &amp; Conditions.</a>
+                  <span className="font-medium text-gray-700">Appointment texts (optional):</span>{" "}
+                  I agree to receive appointment confirmations, reminders, and service-related text messages from {business?.name} via Katoomy. Message frequency varies based on your appointment activity. Reply STOP to unsubscribe. Message and data rates may apply.{" "}
+                  <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>{" "}·{" "}
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>
                 </span>
               </label>
+
+              {/* Marketing SMS — optional */}
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToMarketing}
+                  onChange={e => setAgreedToMarketing(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
+                />
+                <span className="text-xs text-gray-600 leading-relaxed">
+                  <span className="font-medium text-gray-700">Promotional texts (optional):</span>{" "}
+                  I agree to receive promotional offers, discounts, and marketing messages from {business?.name} via Katoomy. Message frequency varies. Reply STOP to unsubscribe. Message and data rates may apply.{" "}
+                  <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>{" "}·{" "}
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>
+                </span>
+              </label>
+
+              {/* Privacy Policy — required */}
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -572,7 +600,8 @@ export default function CustomerInfoPage() {
                 />
                 <span className="text-xs text-gray-600">
                   I have read and agree to the{" "}
-                  <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>.
+                  <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>{" "}and{" "}
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>. *
                 </span>
               </label>
             </div>
@@ -726,7 +755,7 @@ export default function CustomerInfoPage() {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
         <button
           onClick={handleSubmit}
-          disabled={submitting || !name.trim() || !phone.trim() || (!alreadyConsented && (!agreedToSms || !agreedToPrivacy))}
+          disabled={submitting || !name.trim() || !phone.trim() || (!alreadyConsented && !agreedToPrivacy)}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting

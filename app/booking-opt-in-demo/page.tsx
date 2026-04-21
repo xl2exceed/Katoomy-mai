@@ -2,6 +2,10 @@
 
 // app/booking-opt-in-demo/page.tsx
 // 10DLC compliance demo — mirrors the real customer-info booking page exactly.
+// Demonstrates the two-checkbox opt-in flow required by US carriers:
+//   1. Transactional SMS (optional) — confirmations, reminders
+//   2. Marketing SMS (optional)     — promotions, offers
+//   3. Privacy Policy (required)    — standalone, not bundled with SMS
 // No database connections. All data is static/local state only.
 
 import { useState } from "react";
@@ -17,22 +21,24 @@ function formatPhone(value: string) {
 }
 
 export default function BookingOptInDemoPage() {
-  const [name, setName]                   = useState("");
-  const [phone, setPhone]                 = useState("");
-  const [email, setEmail]                 = useState("");
-  const [notes, setNotes]                 = useState("");
-  const [agreedToSms, setAgreedToSms]     = useState(false);
-  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
-  const [paymentChoice, setPaymentChoice] = useState<"full" | "cash">("full");
-  const [submitted, setSubmitted]         = useState(false);
+  const [name, setName]                             = useState("");
+  const [phone, setPhone]                           = useState("");
+  const [email, setEmail]                           = useState("");
+  const [notes, setNotes]                           = useState("");
+  const [agreedToTransactional, setAgreedToTransactional] = useState(false);
+  const [agreedToMarketing, setAgreedToMarketing]   = useState(false);
+  const [agreedToPrivacy, setAgreedToPrivacy]       = useState(false);
+  const [paymentChoice, setPaymentChoice]           = useState<"full" | "cash">("full");
+  const [submitted, setSubmitted]                   = useState(false);
 
-  const serviceName    = "Haircut & Style";
-  const priceCents     = 4500;
-  const bookingDate    = "Saturday, April 19";
-  const bookingTime    = "10:30 AM";
-  const durationMins   = 45;
+  const serviceName  = "Haircut & Style";
+  const priceCents   = 4500;
+  const bookingDate  = "Saturday, April 19";
+  const bookingTime  = "10:30 AM";
+  const durationMins = 45;
 
-  const canSubmit = name.trim() && phone.replace(/\D/g, "").length === 10 && agreedToSms && agreedToPrivacy;
+  // Only privacy policy is required to submit — SMS checkboxes are optional
+  const canSubmit = name.trim() && phone.replace(/\D/g, "").length === 10 && agreedToPrivacy;
 
   function handleSubmit() {
     if (!canSubmit) return;
@@ -47,14 +53,23 @@ export default function BookingOptInDemoPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking Confirmed!</h2>
           <p className="text-gray-600 text-sm mb-1">{serviceName}</p>
           <p className="text-gray-600 text-sm mb-4">{bookingDate} at {bookingTime}</p>
-          <p className="text-gray-500 text-xs">
-            A confirmation SMS will be sent to {phone}. Reply STOP at any time to opt out.
-          </p>
+          {agreedToTransactional && (
+            <p className="text-gray-500 text-xs mb-2">
+              A confirmation SMS will be sent to {phone}. Reply STOP at any time to unsubscribe.
+            </p>
+          )}
+          {!agreedToTransactional && (
+            <p className="text-gray-500 text-xs mb-2">
+              You did not opt in to SMS — no text messages will be sent.
+            </p>
+          )}
           <button
             onClick={() => {
               setSubmitted(false);
               setName(""); setPhone(""); setEmail(""); setNotes("");
-              setAgreedToSms(false); setAgreedToPrivacy(false);
+              setAgreedToTransactional(false);
+              setAgreedToMarketing(false);
+              setAgreedToPrivacy(false);
               setPaymentChoice("full");
             }}
             className="mt-6 px-6 py-2 rounded-xl text-white text-sm font-semibold"
@@ -120,22 +135,57 @@ export default function BookingOptInDemoPage() {
             />
           </div>
 
-          {/* SMS + Privacy consent */}
-          <div className="space-y-3 py-1">
+          {/* Two-checkbox SMS consent section — both optional */}
+          <div className="space-y-3 py-1 bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+              Text Message Preferences (Optional)
+            </p>
+
+            {/* Checkbox 1: Transactional SMS — optional, unchecked by default */}
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
-                checked={agreedToSms}
-                onChange={e => setAgreedToSms(e.target.checked)}
+                checked={agreedToTransactional}
+                onChange={e => setAgreedToTransactional(e.target.checked)}
                 className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
               />
               <span className="text-xs text-gray-600 leading-relaxed">
-                I agree to receive SMS text messages from Katoomy on behalf of {BUSINESS_NAME} including appointment reminders, booking confirmations, marketing and promotional offers. Message and data rates may apply. Message frequency varies. Reply STOP to opt out at any time. Reply HELP for help.{" "}
-                <a href="/sms-terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                  View our SMS Terms &amp; Conditions.
+                <span className="font-medium text-gray-700">Appointment texts (optional): </span>
+                I agree to receive appointment confirmations, reminders, and service-related text
+                messages from {BUSINESS_NAME} via Katoomy. Message frequency varies based on your
+                appointment activity. Reply STOP to unsubscribe. Message and data rates may apply.{" "}
+                <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                  Privacy Policy
+                </a>{" "}·{" "}
+                <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                  Terms of Service
                 </a>
               </span>
             </label>
+
+            {/* Checkbox 2: Marketing SMS — optional, unchecked by default */}
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreedToMarketing}
+                onChange={e => setAgreedToMarketing(e.target.checked)}
+                className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-600"
+              />
+              <span className="text-xs text-gray-600 leading-relaxed">
+                <span className="font-medium text-gray-700">Promotional texts (optional): </span>
+                I agree to receive promotional offers, discounts, and marketing messages from{" "}
+                {BUSINESS_NAME} via Katoomy. Message frequency varies. Reply STOP to unsubscribe.
+                Message and data rates may apply.{" "}
+                <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                  Privacy Policy
+                </a>{" "}·{" "}
+                <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                  Terms of Service
+                </a>
+              </span>
+            </label>
+
+            {/* Privacy Policy — required, standalone, not bundled with SMS */}
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -147,7 +197,10 @@ export default function BookingOptInDemoPage() {
                 I have read and agree to the{" "}
                 <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">
                   Privacy Policy
-                </a>.
+                </a>{" "}and{" "}
+                <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                  Terms of Service
+                </a>. *
               </span>
             </label>
           </div>
@@ -213,7 +266,7 @@ export default function BookingOptInDemoPage() {
         <div className="h-32" />
       </div>
 
-      {/* Submit Button */}
+      {/* Submit Button — enabled as long as name, phone, and privacy policy are filled */}
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
         <button
           onClick={handleSubmit}
@@ -221,8 +274,11 @@ export default function BookingOptInDemoPage() {
           className="w-full text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: PRIMARY_COLOR }}
         >
-          Submit →
+          Book Appointment →
         </button>
+        <p className="text-center text-xs text-gray-400 mt-2">
+          SMS opt-in is optional. You can book without checking any text message boxes.
+        </p>
       </div>
     </div>
   );

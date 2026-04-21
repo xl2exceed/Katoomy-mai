@@ -30,8 +30,19 @@ export async function POST(req: NextRequest) {
       addonIds,
       customerAddress,
       travelFeeCents,
+      // Legacy field kept for backward compat — new fields below take precedence
       smsConsent,
+      smsTransactionalConsent,
+      smsMarketingConsent,
     } = await req.json();
+
+    // Resolve consent: new split fields take precedence over legacy smsConsent
+    const hasTransactionalConsent = smsTransactionalConsent !== undefined
+      ? Boolean(smsTransactionalConsent)
+      : Boolean(smsConsent);
+    const hasMarketingConsent = smsMarketingConsent !== undefined
+      ? Boolean(smsMarketingConsent)
+      : Boolean(smsConsent);
 
     if (
       !businessId ||
@@ -51,19 +62,30 @@ export async function POST(req: NextRequest) {
     // Upsert customer
     const { data: existingCustomer } = await supabaseAdmin
       .from("customers")
-      .select("id, sms_consent")
+      .select("id, sms_consent, sms_transactional_consent, sms_marketing_consent")
       .eq("business_id", businessId)
       .eq("phone", cleanPhone)
       .maybeSingle();
 
+    const now = new Date().toISOString();
     let customerId: string;
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
       const updatePayload: Record<string, unknown> = { full_name: customerName, email: customerEmail || null };
-      if (smsConsent && !existingCustomer.sms_consent) {
+      // Only upgrade consent — never downgrade an existing opt-in
+      if (hasTransactionalConsent && !existingCustomer.sms_transactional_consent) {
+        updatePayload.sms_transactional_consent = true;
+        updatePayload.sms_transactional_consent_at = now;
+      }
+      if (hasMarketingConsent && !existingCustomer.sms_marketing_consent) {
+        updatePayload.sms_marketing_consent = true;
+        updatePayload.sms_marketing_consent_at = now;
+      }
+      // Keep legacy sms_consent in sync for backward compat
+      if ((hasTransactionalConsent || hasMarketingConsent) && !existingCustomer.sms_consent) {
         updatePayload.sms_consent = true;
-        updatePayload.sms_consent_at = new Date().toISOString();
+        updatePayload.sms_consent_at = now;
       }
       await supabaseAdmin.from("customers").update(updatePayload).eq("id", customerId);
     } else {
@@ -81,8 +103,12 @@ export async function POST(req: NextRequest) {
           phone: cleanPhone,
           email: customerEmail || null,
           referral_code: referralCode,
-          sms_consent: smsConsent ? true : false,
-          sms_consent_at: smsConsent ? new Date().toISOString() : null,
+          sms_consent: hasTransactionalConsent || hasMarketingConsent,
+          sms_consent_at: (hasTransactionalConsent || hasMarketingConsent) ? now : null,
+          sms_transactional_consent: hasTransactionalConsent,
+          sms_transactional_consent_at: hasTransactionalConsent ? now : null,
+          sms_marketing_consent: hasMarketingConsent,
+          sms_marketing_consent_at: hasMarketingConsent ? now : null,
         })
         .select()
         .single();

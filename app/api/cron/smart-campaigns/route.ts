@@ -197,7 +197,7 @@ async function processWinbacks(
 
     const { data: customers } = await supabaseAdmin
       .from("customers")
-      .select("id, full_name, phone, last_visit_at")
+      .select("id, full_name, phone, last_visit_at, sms_marketing_consent, sms_consent")
       .eq("business_id", business.id)
       .not("phone", "is", null)
       .not("last_visit_at", "is", null)
@@ -211,6 +211,13 @@ async function processWinbacks(
 
       const phone = normalizePhone(customer.phone);
       if (!phone) { skipped++; continue; }
+
+      // 10DLC compliance: only send marketing messages to customers who opted in.
+      // Fall back to legacy sms_consent for customers who booked before the consent split.
+      const hasMarketingConsent = (customer as { sms_marketing_consent?: boolean | null; sms_consent?: boolean | null }).sms_marketing_consent
+        ?? (customer as { sms_consent?: boolean | null }).sms_consent
+        ?? false;
+      if (!hasMarketingConsent) { skipped++; continue; }
 
       // Check cooldown: don't re-send same tier within 90 days
       const alreadySent = await wasRecentlySent(business.id, customer.id, tier.type, 90);
@@ -267,7 +274,7 @@ async function processReferralNudges(
   // Find bookings completed in the target window
   const { data: recentBookings } = await supabaseAdmin
     .from("bookings")
-    .select("customer_id, customers!inner(id, full_name, phone, referral_code)")
+    .select("customer_id, customers!inner(id, full_name, phone, referral_code, sms_marketing_consent, sms_consent)")
     .eq("business_id", business.id)
     .eq("status", "completed")
     .gt("start_ts", windowStart)
@@ -287,6 +294,12 @@ async function processReferralNudges(
 
     const phone = normalizePhone(cust.phone);
     if (!phone) { skipped++; continue; }
+
+    // 10DLC compliance: only send marketing messages to customers who opted in.
+    const hasMarketingConsent = (cust as unknown as { sms_marketing_consent?: boolean | null; sms_consent?: boolean | null }).sms_marketing_consent
+      ?? (cust as unknown as { sms_consent?: boolean | null }).sms_consent
+      ?? false;
+    if (!hasMarketingConsent) { skipped++; continue; }
 
     // Cooldown: don't send referral nudge more than once per 90 days
     const alreadySent = await wasRecentlySent(business.id, cust.id, "referral_post_visit", 90);
@@ -350,7 +363,7 @@ async function processReengagement(
   // (we'll refine per-customer based on their personal interval)
   const { data: customers } = await supabaseAdmin
     .from("customers")
-    .select("id, full_name, phone, last_visit_at")
+    .select("id, full_name, phone, last_visit_at, sms_marketing_consent, sms_consent")
     .eq("business_id", business.id)
     .not("phone", "is", null)
     .not("last_visit_at", "is", null)
@@ -363,6 +376,12 @@ async function processReengagement(
 
     const phone = normalizePhone(customer.phone);
     if (!phone) { skipped++; continue; }
+
+    // 10DLC compliance: only send marketing messages to customers who opted in.
+    const hasMarketingConsent = (customer as { sms_marketing_consent?: boolean | null; sms_consent?: boolean | null }).sms_marketing_consent
+      ?? (customer as { sms_consent?: boolean | null }).sms_consent
+      ?? false;
+    if (!hasMarketingConsent) { skipped++; continue; }
 
     // Cooldown: don't re-engage more than once per 30 days
     const alreadySent = await wasRecentlySent(business.id, customer.id, "reengage", 30);

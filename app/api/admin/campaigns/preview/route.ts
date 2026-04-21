@@ -41,11 +41,16 @@ export async function resolveAudience(
 ): Promise<{ id: string; full_name: string | null; phone: string }[]> {
   const { data: allCustomers } = await supabaseAdmin
     .from("customers")
-    .select("id, full_name, phone, created_at")
+    .select("id, full_name, phone, created_at, sms_marketing_consent, sms_consent")
     .eq("business_id", businessId)
     .not("phone", "is", null);
 
-  const customers = (allCustomers || []).filter(c => c.phone?.trim());
+  // 10DLC compliance: only include customers who opted in to marketing messages.
+  // Fall back to legacy sms_consent for customers who booked before the consent split.
+  const customers = (allCustomers || []).filter(c =>
+    c.phone?.trim() &&
+    (c.sms_marketing_consent === true || (c.sms_marketing_consent === null && c.sms_consent === true))
+  );
 
   if (audienceType === "all") return customers;
 

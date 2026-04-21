@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
       customerAddress,
       travelFeeCents,
       smsConsent,
+      smsTransactionalConsent,
+      smsMarketingConsent,
     } = await req.json();
 
     if (!businessId || !serviceId || !priceCents || !slug) {
@@ -162,6 +164,8 @@ export async function POST(req: NextRequest) {
           customerAddress: customerAddress || "",
           travelFeeCents: String(travelFeeCents || 0),
           smsConsent: smsConsent ? "true" : "false",
+          smsTransactionalConsent: smsTransactionalConsent ? "true" : "false",
+          smsMarketingConsent: smsMarketingConsent ? "true" : "false",
         },
       },
       {

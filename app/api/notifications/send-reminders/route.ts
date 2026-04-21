@@ -22,6 +22,8 @@ interface ReminderRow {
   customers: {
     full_name: string | null;
     phone: string;
+    sms_transactional_consent: boolean | null;
+    sms_consent: boolean | null; // legacy fallback
   } | null;
   businesses: {
     name: string;
@@ -58,7 +60,9 @@ export async function GET(req: NextRequest) {
       ),
       customers (
         full_name,
-        phone
+        phone,
+        sms_transactional_consent,
+        sms_consent
       ),
       businesses (
         name,
@@ -165,6 +169,18 @@ export async function GET(req: NextRequest) {
         });
       } else if (reminder.channel === "sms") {
         if (!customer?.phone) {
+          await supabase
+            .from("scheduled_notifications")
+            .update({ status: "skipped", sent_at: now.toISOString() })
+            .eq("id", reminder.id);
+          skipped++;
+          continue;
+        }
+
+        // 10DLC compliance: only send SMS reminders to customers who opted in to transactional messages.
+        // Fall back to legacy sms_consent for customers who booked before the consent split.
+        const hasTransactionalConsent = customer.sms_transactional_consent ?? customer.sms_consent ?? false;
+        if (!hasTransactionalConsent) {
           await supabase
             .from("scheduled_notifications")
             .update({ status: "skipped", sent_at: now.toISOString() })
