@@ -31,6 +31,7 @@ export default function StaffDashboardPage() {
   const [staff, setStaff] = useState<StaffRecord | null>(null);
   const [niche, setNiche] = useState("barber");
   const [brandColor, setBrandColor] = useState("#10b981");
+  const [businessLogo, setBusinessLogo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -57,17 +58,18 @@ export default function StaffDashboardPage() {
       if (!staffRecord) { router.push("/staff/login"); return; }
       setStaff(staffRecord);
 
-      // Fetch business niche and brand color
+      // Fetch business niche, brand color, and logo
       const { data: bizData } = await supabase
         .from("businesses")
-        .select("features, primary_color")
+        .select("features, primary_color, logo_url")
         .eq("id", staffRecord.business_id)
         .single();
       if (bizData) {
-        const biz = bizData as typeof bizData & { features?: Record<string, string>; primary_color?: string };
+        const biz = bizData as typeof bizData & { features?: Record<string, string>; primary_color?: string; logo_url?: string | null };
         const features = biz.features || {};
         setNiche(features.niche || "barber");
         if (biz.primary_color) setBrandColor(biz.primary_color);
+        if (biz.logo_url) setBusinessLogo(biz.logo_url);
       }
 
       setLoading(false);
@@ -132,6 +134,16 @@ export default function StaffDashboardPage() {
             height={80}
             className="rounded-full object-cover mx-auto mb-3 border-4 border-white/30"
           />
+        ) : businessLogo ? (
+          <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center mx-auto mb-3 shadow-lg overflow-hidden">
+            <Image
+              src={businessLogo}
+              alt="Business logo"
+              width={72}
+              height={72}
+              className="object-contain w-full h-full"
+            />
+          </div>
         ) : (
           <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3 border-4 border-white/30">
             <span className="text-3xl font-bold text-white">{staff.full_name.charAt(0).toUpperCase()}</span>
