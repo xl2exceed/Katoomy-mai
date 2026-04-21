@@ -9,10 +9,23 @@ import Link from "next/link";
 import { useStaffFeature } from "@/lib/hooks/useStaffFeature";
 import AdminPushPermissionPrompt from "@/components/AdminPushPermissionPrompt";
 
+function darkenHex(hex: string, amount = 40): string {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean.length === 3
+    ? clean.split("").map((c) => c + c).join("")
+    : clean, 16);
+  const r = Math.max(0, (num >> 16) - amount);
+  const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+  const b = Math.max(0, (num & 0xff) - amount);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default function MobileMenuPage() {
   const [businessName, setBusinessName] = useState("");
   const [businessId, setBusinessId] = useState("");
   const [niche, setNiche] = useState("barber");
+  const [brandColor, setBrandColor] = useState("#3B82F6");
+  const [businessLogo, setBusinessLogo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
@@ -35,15 +48,18 @@ export default function MobileMenuPage() {
 
     const { data: business } = await supabase
       .from("businesses")
-      .select("name, id, features")
+      .select("name, id, features, primary_color, logo_url")
       .eq("owner_user_id", user.id)
       .single();
 
     if (business) {
       setBusinessName(business.name);
       setBusinessId(business.id);
-      const features = (business as typeof business & { features?: Record<string, string> }).features || {};
+      const biz = business as typeof business & { features?: Record<string, string>; primary_color?: string; logo_url?: string | null };
+      const features = biz.features || {};
       setNiche(features.niche || "barber");
+      if (biz.primary_color) setBrandColor(biz.primary_color);
+      if (biz.logo_url) setBusinessLogo(biz.logo_url);
     }
 
     setLoading(false);
@@ -158,20 +174,22 @@ export default function MobileMenuPage() {
     // },
   ];
 
+  const bgStyle = { background: `linear-gradient(135deg, ${brandColor} 0%, ${darkenHex(brandColor)} 100%)` };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={bgStyle}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-600 p-4">
+    <div className="min-h-screen p-4" style={bgStyle}>
       {/* Header */}
       <div className="text-center text-white mb-8 pt-8">
         <h1 className="text-3xl font-bold mb-2">{businessName}</h1>
-        <p className="text-blue-100">Business Manager</p>
+        <p className="text-white/70">Business Manager</p>
       </div>
 
       {/* Menu Grid */}
