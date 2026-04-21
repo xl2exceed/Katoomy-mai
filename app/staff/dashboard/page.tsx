@@ -15,10 +15,22 @@ interface StaffRecord {
   business_id: string;
 }
 
+function darkenHex(hex: string, amount = 40): string {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean.length === 3
+    ? clean.split("").map((c) => c + c).join("")
+    : clean, 16);
+  const r = Math.max(0, (num >> 16) - amount);
+  const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+  const b = Math.max(0, (num & 0xff) - amount);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default function StaffDashboardPage() {
   const router = useRouter();
   const [staff, setStaff] = useState<StaffRecord | null>(null);
   const [niche, setNiche] = useState("barber");
+  const [brandColor, setBrandColor] = useState("#10b981");
   const [loading, setLoading] = useState(true);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -45,15 +57,17 @@ export default function StaffDashboardPage() {
       if (!staffRecord) { router.push("/staff/login"); return; }
       setStaff(staffRecord);
 
-      // Fetch business niche for icon
+      // Fetch business niche and brand color
       const { data: bizData } = await supabase
         .from("businesses")
-        .select("features")
+        .select("features, primary_color")
         .eq("id", staffRecord.business_id)
         .single();
       if (bizData) {
-        const features = (bizData as typeof bizData & { features?: Record<string, string> }).features || {};
+        const biz = bizData as typeof bizData & { features?: Record<string, string>; primary_color?: string };
+        const features = biz.features || {};
         setNiche(features.niche || "barber");
+        if (biz.primary_color) setBrandColor(biz.primary_color);
       }
 
       setLoading(false);
@@ -92,9 +106,13 @@ export default function StaffDashboardPage() {
     setPasswordSaving(false);
   };
 
+  const bgStyle = {
+    background: `linear-gradient(135deg, ${brandColor} 0%, ${darkenHex(brandColor)} 100%)`,
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={bgStyle}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
       </div>
     );
@@ -103,7 +121,7 @@ export default function StaffDashboardPage() {
   if (!staff) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-500 to-teal-600 p-4">
+    <div className="min-h-screen p-4" style={bgStyle}>
       {/* Header */}
       <div className="text-center text-white mb-8 pt-8">
         {staff.photo_url ? (
@@ -120,7 +138,7 @@ export default function StaffDashboardPage() {
           </div>
         )}
         <h1 className="text-2xl font-bold">{staff.full_name}</h1>
-        {staff.role && <p className="text-emerald-100 text-sm mt-1">{staff.role}</p>}
+        {staff.role && <p className="text-white/70 text-sm mt-1">{staff.role}</p>}
       </div>
 
       {/* Tile Grid */}
