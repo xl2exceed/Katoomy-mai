@@ -195,7 +195,7 @@ export default function CustomerInfoPage() {
       if (savedPhone) {
         const { data: existingCustomer } = await supabase
           .from("customers")
-          .select("full_name, phone, email, sms_consent")
+          .select("full_name, phone, email, sms_consent, sms_transactional_consent, sms_marketing_consent")
           .eq("business_id", businessData.id)
           .eq("phone", savedPhone)
           .single();
@@ -205,10 +205,20 @@ export default function CustomerInfoPage() {
           setPhone(formatPhone(existingCustomer.phone || ""));
           setEmail(existingCustomer.email || "");
           setPrefilled(true);
-          if (existingCustomer.sms_consent) {
+          // Hide consent section if customer has already opted in via either
+          // the new split fields or the legacy sms_consent field.
+          const hasConsented =
+            existingCustomer.sms_transactional_consent === true ||
+            existingCustomer.sms_marketing_consent === true ||
+            existingCustomer.sms_consent === true;
+          if (hasConsented) {
             setAlreadyConsented(true);
-            setAgreedToTransactional(true);
-            setAgreedToMarketing(true);
+            setAgreedToTransactional(
+              existingCustomer.sms_transactional_consent === true || existingCustomer.sms_consent === true
+            );
+            setAgreedToMarketing(
+              existingCustomer.sms_marketing_consent === true || existingCustomer.sms_consent === true
+            );
             setAgreedToPrivacy(true);
           }
         }
