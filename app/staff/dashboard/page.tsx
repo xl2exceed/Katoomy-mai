@@ -135,13 +135,12 @@ export default function StaffDashboardPage() {
             className="rounded-full object-cover mx-auto mb-3 border-4 border-white/30"
           />
         ) : businessLogo ? (
-          <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center mx-auto mb-3 shadow-lg overflow-hidden">
-            <Image
+          <div className="w-20 h-20 rounded-2xl bg-white mx-auto mb-3 shadow-lg overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={businessLogo}
               alt="Business logo"
-              width={72}
-              height={72}
-              className="object-contain w-full h-full"
+              className="w-full h-full object-contain"
             />
           </div>
         ) : (
