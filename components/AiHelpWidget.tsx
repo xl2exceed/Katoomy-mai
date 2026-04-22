@@ -424,7 +424,7 @@ export default function AiHelpWidget() {
               onKeyDown={handleKeyDown}
               placeholder="Ask a question..."
               disabled={loading}
-              className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 bg-gray-50"
+              className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 bg-gray-50 text-gray-900 placeholder-gray-400"
               maxLength={500}
             />
             <button
