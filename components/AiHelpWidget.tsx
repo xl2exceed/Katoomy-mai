@@ -203,14 +203,14 @@ export default function AiHelpWidget() {
         window.removeEventListener("pointerup", onUp);
 
         if (isDragging.current) {
-          // Snap to smart position after drag
+          // Keep the button exactly where the user dropped it
           const vw = window.innerWidth;
           const vh = window.innerHeight;
           const nx = clamp(ev.clientX - dragOffset.current.x, EDGE_MARGIN, vw - BTN_SIZE - EDGE_MARGIN);
           const ny = clamp(ev.clientY - dragOffset.current.y, EDGE_MARGIN, vh - BTN_SIZE - EDGE_MARGIN);
-          const snapped = smartPosition(nx, ny);
-          setPos(snapped);
-          localStorage.setItem(POS_KEY, JSON.stringify(snapped));
+          const finalPos = { x: nx, y: ny };
+          setPos(finalPos);
+          localStorage.setItem(POS_KEY, JSON.stringify(finalPos));
         }
       };
 
