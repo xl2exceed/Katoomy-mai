@@ -283,12 +283,32 @@ export default function CustomerHelpWidget() {
     background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
   };
 
+  // Panel dimensions
+  const PANEL_WIDTH  = 384;
+  const PANEL_HEIGHT = 520;
+  const vw = typeof window !== "undefined" ? window.innerWidth  : 1200;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+
+  // Horizontal: keep panel inside viewport
+  const panelLeft = Math.max(
+    EDGE_MARGIN,
+    Math.min(pos.x, vw - Math.min(PANEL_WIDTH, vw - EDGE_MARGIN * 2) - EDGE_MARGIN),
+  );
+
+  // Vertical: open upward from button if near bottom, downward if near top
+  const spaceBelow = vh - pos.y - BTN_SIZE;
+  const panelH     = Math.min(PANEL_HEIGHT, vh - EDGE_MARGIN * 2);
+  const panelTop   = spaceBelow >= panelH + EDGE_MARGIN
+    ? pos.y + BTN_SIZE + 8
+    : Math.max(EDGE_MARGIN, pos.y - panelH - 8);
+
   const panelStyle: React.CSSProperties = {
     position: "fixed",
-    left: pos.x,
-    top:  pos.y,
+    left: panelLeft,
+    top:  panelTop,
     zIndex: 50,
-    maxHeight: "min(520px, calc(100vh - 2rem))",
+    maxHeight: `${panelH}px`,
+    width: `min(${PANEL_WIDTH}px, calc(100vw - ${EDGE_MARGIN * 2}px))`,
   };
 
   return (
@@ -312,7 +332,7 @@ export default function CustomerHelpWidget() {
       {open && (
         <div
           style={panelStyle}
-          className="w-80 sm:w-96 flex flex-col rounded-2xl shadow-2xl overflow-hidden border border-purple-100 bg-white"
+          className="flex flex-col rounded-2xl shadow-2xl overflow-hidden border border-purple-100 bg-white"
         >
           {/* Header */}
           <div

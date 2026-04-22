@@ -294,12 +294,33 @@ export default function AiHelpWidget() {
   // Don't render until position is calculated (avoids flash at 0,0)
   if (pos === null) return null;
 
+  // Panel dimensions
+  const PANEL_WIDTH  = 384; // sm:w-96 = 384px (falls back to 320px on small screens)
+  const PANEL_HEIGHT = 560;
+  const vw = typeof window !== "undefined" ? window.innerWidth  : 1200;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+
+  // Horizontal: keep panel inside viewport
+  const panelLeft = Math.max(
+    EDGE_MARGIN,
+    Math.min(pos.x, vw - Math.min(PANEL_WIDTH, vw - EDGE_MARGIN * 2) - EDGE_MARGIN),
+  );
+
+  // Vertical: open upward from button if near bottom, downward if near top
+  const spaceBelow = vh - pos.y - BTN_SIZE;
+  const spaceAbove = pos.y;
+  const panelH     = Math.min(PANEL_HEIGHT, vh - EDGE_MARGIN * 2);
+  const panelTop   = spaceBelow >= panelH + EDGE_MARGIN
+    ? pos.y + BTN_SIZE + 8          // enough room below → open downward
+    : Math.max(EDGE_MARGIN, pos.y - panelH - 8); // not enough → open upward
+
   const panelStyle: React.CSSProperties = {
     position: "fixed",
-    left: pos.x,
-    top:  pos.y,
+    left: panelLeft,
+    top:  panelTop,
     zIndex: 50,
-    maxHeight: "min(560px, calc(100vh - 2rem))",
+    maxHeight: `${panelH}px`,
+    width: `min(${PANEL_WIDTH}px, calc(100vw - ${EDGE_MARGIN * 2}px))`,
   };
 
   const btnStyle: React.CSSProperties = {
@@ -338,7 +359,7 @@ export default function AiHelpWidget() {
       {open && (
         <div
           style={panelStyle}
-          className="w-80 sm:w-96 flex flex-col rounded-2xl shadow-2xl overflow-hidden border border-gray-200 bg-white"
+          className="flex flex-col rounded-2xl shadow-2xl overflow-hidden border border-gray-200 bg-white"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-blue-600 text-white">
