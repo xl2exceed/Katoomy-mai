@@ -464,8 +464,9 @@ export async function POST(req: NextRequest) {
     try {
       const nowTs = new Date();
       const reminders: object[] = [];
+      const apptStartTs = new Date(startISO || `${bookingDate}T${bookingTime}:00`);
 
-      const reminder24h = new Date(startDateTime.getTime() - 24 * 60 * 60 * 1000);
+      const reminder24h = new Date(apptStartTs.getTime() - 24 * 60 * 60 * 1000);
       if (reminder24h > nowTs) {
         reminders.push({
           booking_id: bookingId,
@@ -478,7 +479,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const reminder2h = new Date(startDateTime.getTime() - 2 * 60 * 60 * 1000);
+      const reminder2h = new Date(apptStartTs.getTime() - 2 * 60 * 60 * 1000);
       if (reminder2h > nowTs) {
         reminders.push({
           booking_id: bookingId,
