@@ -37,7 +37,7 @@ const ROUTE_METADATA = {
     tips: ["Navigate using the left sidebar on desktop or the mobile menu on phones."],
   },
   "/admin/bookings": {
-    title: "Schedule & Bookings",
+    title: "My Schedule",
     description:
       "View and manage all appointments. Filter by date or staff member. Click any booking to see details, update its status (confirmed, completed, no-show, cancelled), or collect payment.",
     tips: [
@@ -61,7 +61,7 @@ const ROUTE_METADATA = {
     tips: ["Buffer time prevents double-booking and gives you transition time between clients."],
   },
   "/admin/staff": {
-    title: "Staff Management (Premium)",
+    title: "Staff",
     description:
       "Add and manage team members. Each staff member gets their own login, schedule, and service assignments. Track individual performance and revenue. This is a Premium plan feature.",
     tips: [
@@ -76,13 +76,13 @@ const ROUTE_METADATA = {
     tips: [],
   },
   "/admin/customers": {
-    title: "Customer Directory",
+    title: "Customers",
     description:
       "Browse and search all customers. View each customer's contact info, booking history, total spend, loyalty points, and referral activity. You can also manually add or edit customer records.",
     tips: ["Use the search bar to quickly find a customer by name or phone number."],
   },
   "/admin/stripe": {
-    title: "Payment Setup (Stripe)",
+    title: "Payment Setup",
     description:
       "Connect your Stripe account to accept credit and debit card payments online. Set up deposit requirements — either a flat fee or a percentage of the service price — that customers must pay when booking.",
     tips: [
@@ -91,7 +91,7 @@ const ROUTE_METADATA = {
     ],
   },
   "/admin/payment-settings": {
-    title: "Payment Settings (CashApp & Zelle)",
+    title: "Payment Settings",
     description:
       "Enable CashApp and Zelle as payment options. Enter your CashTag or Zelle phone/email so customers can pay you directly. Choose whether the platform fee is passed to the customer or absorbed by the business.",
     tips: ["CashApp fee mode defaults to the customer paying the fee."],
@@ -124,7 +124,7 @@ const ROUTE_METADATA = {
     ],
   },
   "/admin/campaigns": {
-    title: "SMS Campaigns",
+    title: "Campaigns",
     description:
       "Send bulk SMS messages to targeted customer groups. Choose from audiences like all customers, at-risk customers, members, new customers, or top spenders. Use pre-built templates for win-backs, promotions, or write a custom message.",
     tips: [
@@ -133,7 +133,7 @@ const ROUTE_METADATA = {
     ],
   },
   "/admin/loyalty": {
-    title: "Loyalty & Rewards",
+    title: "Rewards",
     description:
       "Set up a points-based loyalty program. Configure how many points customers earn per booking and how they can redeem points for discounts. Enable or disable the program at any time.",
     tips: [
@@ -142,7 +142,7 @@ const ROUTE_METADATA = {
     ],
   },
   "/admin/referrals": {
-    title: "Referral Tracking",
+    title: "Referrals",
     description:
       "View all customer referrals — who referred whom, the referral status, and how many reward points were awarded. Filter by status (pending, completed).",
     tips: ["Configure referral reward points in Settings."],
@@ -179,7 +179,7 @@ const ROUTE_METADATA = {
   // "/admin/growth/referral": hidden
   // "/admin/growth/social": hidden
   "/admin/notifications": {
-    title: "Messages & SMS Notifications",
+    title: "Messages",
     description:
       "Send individual or broadcast messages to customers. View the history of all automated notifications sent (booking confirmations, appointment reminders, cancellations, loyalty updates).",
     tips: [
@@ -238,7 +238,7 @@ const ROUTE_METADATA = {
     ],
   },
   "/admin/mobile/menu": {
-    title: "Mobile App (Admin)",
+    title: "Mobile View",
     description:
       "A mobile-optimized view of the admin portal for managing your business on the go. Access today's schedule, revenue, analytics, appointments, messages, customers, staff, notifications, and services from your phone.",
     tips: [
@@ -247,113 +247,113 @@ const ROUTE_METADATA = {
     ],
   },
   "/admin/mobile/schedule": {
-    title: "Mobile Schedule",
+    title: "Today's Schedule (Mobile)",
     description: "View today's appointments in a mobile-friendly format.",
     tips: [],
   },
   "/admin/mobile/revenue": {
-    title: "Mobile Revenue",
+    title: "Revenue (Mobile)",
     description: "View business revenue and staff breakdown from your phone.",
     tips: [],
   },
   "/admin/mobile/analytics": {
-    title: "Mobile Analytics",
+    title: "Analytics (Mobile)",
     description: "View booking trends, top services, and customer insights from your phone.",
     tips: [],
   },
   "/admin/mobile/appointments": {
-    title: "Mobile Appointments",
+    title: "Appointments (Mobile)",
     description: "Accept or decline incoming booking requests from your phone.",
     tips: [],
   },
   "/admin/mobile/messages": {
-    title: "Mobile Messages",
+    title: "Messages (Mobile)",
     description: "Send and view customer messages from your phone.",
     tips: [],
   },
   "/admin/mobile/customers-list": {
-    title: "Mobile Customer List",
+    title: "Customers (Mobile)",
     description: "Browse your customer directory from your phone.",
     tips: [],
   },
   "/admin/mobile/staff": {
-    title: "Mobile Staff Management",
+    title: "Staff (Mobile)",
     description: "View and manage staff members from your phone.",
     tips: [],
   },
   "/admin/mobile/services": {
-    title: "Mobile Services",
+    title: "Services (Mobile)",
     description: "View your service list and prices from your phone.",
     tips: [],
   },
   "/admin/mobile/membership": {
-    title: "Mobile Memberships",
+    title: "Memberships (Mobile)",
     description: "View membership plans and active members from your phone.",
     tips: [],
   },
   "/admin/mobile/referrals": {
-    title: "Mobile Referrals",
+    title: "Referrals (Mobile)",
     description: "View referral activity from your phone.",
     tips: [],
   },
   "/admin/mobile/notifications": {
-    title: "Mobile Notifications",
+    title: "Notifications (Mobile)",
     description: "View recent alerts and updates from your phone.",
     tips: [],
   },
   "/admin/mobile/take-payment": {
-    title: "Mobile Take Payment",
+    title: "Take Payment (Mobile)",
     description: "Charge a customer for a service or custom amount from your phone.",
     tips: [],
   },
   "/admin/mobile/qr-code": {
-    title: "Mobile QR Code",
+    title: "QR Code (Mobile)",
     description: "Display your business booking QR code from your phone for customers to scan.",
     tips: [],
   },
   "/staff/dashboard": {
-    title: "Staff Dashboard",
+    title: "Dashboard (Staff Portal)",
     description:
       "The staff member's home screen after login. Shows their upcoming appointments and quick access to all staff tools.",
     tips: [],
   },
   "/staff/schedule": {
-    title: "Staff Schedule",
+    title: "Schedule (Staff Portal)",
     description:
       "Staff members can view their own upcoming appointments, filter by date, and update booking statuses.",
     tips: [],
   },
   "/staff/services": {
-    title: "Staff Services",
+    title: "Services (Staff Portal)",
     description: "Staff members can view the list of services offered by the business.",
     tips: [],
   },
   "/staff/customers": {
-    title: "Staff Customer List",
+    title: "Customers (Staff Portal)",
     description:
       "Staff members can browse and search the customer directory and edit basic customer information.",
     tips: [],
   },
   "/staff/payment": {
-    title: "Staff Take Payment",
+    title: "Take Payment (Staff Portal)",
     description:
       "Staff members can look up a customer by phone number and generate a payment QR code or charge them for a service.",
     tips: [],
   },
   "/staff/revenue": {
-    title: "Staff Revenue",
+    title: "Revenue (Staff Portal)",
     description:
       "Staff members can view their own personal revenue breakdown — service income and tips — filtered by today, week, month, or all time.",
     tips: [],
   },
   "/staff/qr-code": {
-    title: "Staff QR Code",
+    title: "QR Code (Staff Portal)",
     description:
       "Staff members can display the business booking QR code for customers to scan and book.",
     tips: [],
   },
   "/staff/notifications": {
-    title: "Staff Notifications",
+    title: "Notifications (Staff Portal)",
     description:
       "Staff members can view recent booking activity — new requests, confirmations, cancellations — assigned to them.",
     tips: [],
@@ -583,12 +583,12 @@ AVAILABLE ON MOBILE:
 - Services — view your list of services and prices
 
 DESKTOP ONLY (not available on mobile):
-- SMS Campaigns — sending bulk text message campaigns to customer groups
-- Loyalty & Rewards — configuring your loyalty points program
-- Referral Tracking — viewing detailed referral reports
+- Campaigns — sending bulk text message campaigns to customer groups
+- Rewards — configuring your loyalty points program
+- Referrals — viewing detailed referral reports
 - Memberships — setting up and managing membership plans
-- Payment Setup (Stripe) — connecting or configuring your Stripe account
-- CashApp & Zelle Settings — configuring alternative payment methods
+- Payment Setup — connecting or configuring your Stripe account
+- Payment Settings — configuring CashApp and Zelle payment options
 - Payment Ledger — viewing the full transaction history
 - Availability & Hours — setting your business hours and schedule
 - Branding — customizing your logo, app name, colors, and welcome message
