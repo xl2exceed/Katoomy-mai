@@ -196,12 +196,20 @@ export async function GET(req: NextRequest) {
           appt_time: apptTime,
         });
 
+        // Normalize to E.164 (Twilio requires +1XXXXXXXXXX for US numbers)
+        const digitsOnly = customer.phone.replace(/\D/g, "");
+        const e164Phone = digitsOnly.startsWith("1") && digitsOnly.length === 11
+          ? `+${digitsOnly}`
+          : digitsOnly.length === 10
+          ? `+1${digitsOnly}`
+          : `+${digitsOnly}`;
+
         const { error: smsError } = await supabase
           .from("scheduled_messages")
           .insert({
             business_id: reminder.business_id,
             customer_id: reminder.customer_id,
-            to_number: customer.phone,
+            to_number: e164Phone,
             body: smsBody,
             run_at: now.toISOString(),
             status: "scheduled",

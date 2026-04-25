@@ -460,19 +460,40 @@ export async function POST(req: NextRequest) {
       read: false,
     });
 
-    // Schedule reminders
+    // Schedule reminders — insert directly so we don't depend on NEXT_PUBLIC_APP_URL
     try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/schedule-reminder`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            appointment_id: bookingId,
-            business_id: businessId,
-          }),
-        },
-      );
+      const nowTs = new Date();
+      const reminders: object[] = [];
+
+      const reminder24h = new Date(startDateTime.getTime() - 24 * 60 * 60 * 1000);
+      if (reminder24h > nowTs) {
+        reminders.push({
+          booking_id: bookingId,
+          business_id: businessId,
+          customer_id: customerId,
+          type: "reminder_24h",
+          channel: "sms",
+          scheduled_for: reminder24h.toISOString(),
+          status: "pending",
+        });
+      }
+
+      const reminder2h = new Date(startDateTime.getTime() - 2 * 60 * 60 * 1000);
+      if (reminder2h > nowTs) {
+        reminders.push({
+          booking_id: bookingId,
+          business_id: businessId,
+          customer_id: customerId,
+          type: "reminder_2h",
+          channel: "push",
+          scheduled_for: reminder2h.toISOString(),
+          status: "pending",
+        });
+      }
+
+      if (reminders.length > 0) {
+        await supabaseAdmin.from("scheduled_notifications").insert(reminders);
+      }
     } catch (reminderErr) {
       console.error("Failed to schedule reminder (non-fatal):", reminderErr);
     }
