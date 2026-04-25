@@ -24,7 +24,7 @@ export default function AdminMobileLayout({
       <AdminSwRegistrar />
       <AdminPwaInstallPrompt />
       {children}
-      <AiHelpWidget />
+      <AiHelpWidget portal="admin-mobile" />
     </>
   );
 }

@@ -20,7 +20,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
       <StaffSwRegistrar />
       <StaffPwaInstallPrompt />
       {children}
-      <AiHelpWidget />
+      <AiHelpWidget portal="staff" />
     </>
   );
 }

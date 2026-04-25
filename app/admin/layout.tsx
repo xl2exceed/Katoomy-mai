@@ -64,7 +64,7 @@ export default async function AdminLayout({
     return (
       <>
         {children}
-        <AiHelpWidget />
+        <AiHelpWidget portal="admin-desktop" />
       </>
     );
   }
@@ -73,7 +73,7 @@ export default async function AdminLayout({
     <div className="h-screen flex overflow-hidden">
       <Sidebar businessId={businessId} plan={plan} status={status} niche={niche} />
       <main className="flex-1 overflow-y-auto">{children}</main>
-      <AiHelpWidget />
+      <AiHelpWidget portal="admin-desktop" />
     </div>
   );
 }

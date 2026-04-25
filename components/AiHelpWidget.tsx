@@ -68,7 +68,11 @@ function smartPosition(
 
 // ─── component ────────────────────────────────────────────────────────────────
 
-export default function AiHelpWidget() {
+interface AiHelpWidgetProps {
+  portal?: "admin-desktop" | "admin-mobile" | "staff";
+}
+
+export default function AiHelpWidget({ portal = "admin-desktop" }: AiHelpWidgetProps) {
   const [open,   setOpen]   = useState(false);
   const [hidden, setHidden] = useState(false);
 
@@ -249,7 +253,7 @@ export default function AiHelpWidget() {
       const res  = await fetch("/api/ai-help", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, portal }),
       });
       const data = await res.json();
 
