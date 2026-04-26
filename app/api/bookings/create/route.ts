@@ -304,19 +304,21 @@ export async function POST(req: NextRequest) {
       const nowTs = new Date();
       const reminders: object[] = [];
 
+      // 24h SMS: if appt is < 24h away but still in the future, send immediately
       const reminder24h = new Date(startTs.getTime() - 24 * 60 * 60 * 1000);
-      if (reminder24h > nowTs) {
+      if (startTs > nowTs) {
         reminders.push({
           booking_id: booking.id,
           business_id: businessId,
           customer_id: customerId,
           type: "reminder_24h",
           channel: "sms",
-          scheduled_for: reminder24h.toISOString(),
+          scheduled_for: reminder24h > nowTs ? reminder24h.toISOString() : nowTs.toISOString(),
           status: "pending",
         });
       }
 
+      // 2h push: only schedule if there's still time
       const reminder2h = new Date(startTs.getTime() - 2 * 60 * 60 * 1000);
       if (reminder2h > nowTs) {
         reminders.push({

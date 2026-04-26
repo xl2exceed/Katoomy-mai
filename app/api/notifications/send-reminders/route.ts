@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/webpush";
 import { getSmsTemplate, fillSmsTemplate } from "@/lib/smsTemplates";
-import { getTwilio, getFromNumber } from "@/lib/twilio";
+
+export const runtime = "nodejs";
 
 interface ReminderRow {
   id: string;
@@ -29,6 +30,7 @@ interface ReminderRow {
   businesses: {
     name: string;
     slug: string;
+    timezone: string | null;
   } | null;
 }
 
@@ -67,7 +69,8 @@ export async function GET(req: NextRequest) {
       ),
       businesses (
         name,
-        slug
+        slug,
+        timezone
       )
     `,
     )
@@ -89,6 +92,9 @@ export async function GET(req: NextRequest) {
 
   const dueReminders = rawReminders as unknown as ReminderRow[];
 
+  // Base URL for internal API calls — matches the running deployment
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy-mai.vercel.app";
+
   let sent = 0;
   let failed = 0;
   let skipped = 0;
@@ -108,12 +114,15 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
+    // Format appointment time in the business's local timezone (not UTC)
+    const tz = business?.timezone || "America/New_York";
     const apptTime = new Date(booking.start_ts).toLocaleString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
+      timeZone: tz,
     });
 
     const serviceName = booking.services?.name || "appointment";
@@ -197,36 +206,23 @@ export async function GET(req: NextRequest) {
           appt_time: apptTime,
         });
 
-        // Normalize to E.164 (Twilio requires +1XXXXXXXXXX for US numbers)
-        const digitsOnly = customer.phone.replace(/\D/g, "");
-        const e164Phone = digitsOnly.startsWith("1") && digitsOnly.length === 11
-          ? `+${digitsOnly}`
-          : digitsOnly.length === 10
-          ? `+1${digitsOnly}`
-          : `+${digitsOnly}`;
-
-        // Send directly via Twilio — no intermediate queue so there's no
-        // timing gap between send-reminders and a separate run-due cron
-        const { client: twilioClient, mode: twilioMode } = getTwilio();
-        const fromNumber = getFromNumber(twilioMode);
-        const twilioMsg = await twilioClient.messages.create({
-          to: e164Phone,
-          from: fromNumber,
-          body: smsBody,
+        // Call /api/sms/send — same path used by cancellations (proven to work).
+        // It handles E.164 normalization, Twilio send, and sms_messages logging internally.
+        const smsRes = await fetch(`${appUrl}/api/sms/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: customer.phone,
+            body: smsBody,
+            business_id: reminder.business_id,
+            customer_id: reminder.customer_id,
+          }),
         });
 
-        // Log to sms_messages so it shows in the messages tab
-        await supabase.from("sms_messages").insert({
-          business_id: reminder.business_id,
-          customer_id: reminder.customer_id,
-          direction: "outbound",
-          from_number: fromNumber,
-          to_number: e164Phone,
-          body: smsBody,
-          provider: "twilio",
-          provider_message_id: twilioMsg.sid,
-          status: twilioMsg.status ?? "queued",
-        });
+        if (!smsRes.ok) {
+          const errData = await smsRes.json().catch(() => ({}));
+          throw new Error(`sms/send failed: ${JSON.stringify(errData)}`);
+        }
       }
 
       await supabase
