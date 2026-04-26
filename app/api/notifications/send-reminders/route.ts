@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/webpush";
 import { getSmsTemplate, fillSmsTemplate } from "@/lib/smsTemplates";
+import { getTwilio, getFromNumber } from "@/lib/twilio";
 
 interface ReminderRow {
   id: string;
@@ -204,21 +205,28 @@ export async function GET(req: NextRequest) {
           ? `+1${digitsOnly}`
           : `+${digitsOnly}`;
 
-        const { error: smsError } = await supabase
-          .from("scheduled_messages")
-          .insert({
-            business_id: reminder.business_id,
-            customer_id: reminder.customer_id,
-            to_number: e164Phone,
-            body: smsBody,
-            run_at: now.toISOString(),
-            status: "scheduled",
-          });
+        // Send directly via Twilio — no intermediate queue so there's no
+        // timing gap between send-reminders and a separate run-due cron
+        const { client: twilioClient, mode: twilioMode } = getTwilio();
+        const fromNumber = getFromNumber(twilioMode);
+        const twilioMsg = await twilioClient.messages.create({
+          to: e164Phone,
+          from: fromNumber,
+          body: smsBody,
+        });
 
-        if (smsError) {
-          console.error("Failed to insert scheduled_message:", smsError);
-          throw new Error(smsError.message);
-        }
+        // Log to sms_messages so it shows in the messages tab
+        await supabase.from("sms_messages").insert({
+          business_id: reminder.business_id,
+          customer_id: reminder.customer_id,
+          direction: "outbound",
+          from_number: fromNumber,
+          to_number: e164Phone,
+          body: smsBody,
+          provider: "twilio",
+          provider_message_id: twilioMsg.sid,
+          status: twilioMsg.status ?? "queued",
+        });
       }
 
       await supabase
