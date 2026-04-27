@@ -158,7 +158,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="p-6 max-w-6xl mx-auto space-y-8 bg-white min-h-screen">
       <div className="flex flex-col gap-4">
         {isMobileRoute && (
           <a href="/admin/mobile/menu" className="text-sm text-gray-500">
