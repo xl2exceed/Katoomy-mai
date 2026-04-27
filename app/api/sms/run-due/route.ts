@@ -11,7 +11,6 @@ export async function POST(req: Request) {
   const supabase = supabaseAdmin;
 
   try {
-    // 1. Find all scheduled messages that are due to be sent
     const { data: dueMessages, error: fetchError } = await supabase
       .from("scheduled_messages")
       .select("*")
@@ -39,86 +38,67 @@ export async function POST(req: Request) {
 
     console.log(`Found ${dueMessages.length} messages to send`);
 
-    const results = {
-      processed: dueMessages.length,
-      sent: 0,
-      failed: 0,
-    };
-
-    // Get Twilio config once (outside the loop)
     const mode = (process.env.TWILIO_MODE || "TEST") as "TEST" | "LIVE";
-    const { client: twilio } = getTwilio(); // No arguments!
-    const fromNumber = getFromNumber(mode); // Pass mode here!
+    const { client: twilio } = getTwilio();
+    const fromNumber = getFromNumber(mode);
 
-    // 2. Process each message
-    for (const msg of dueMessages) {
-      try {
-        // Mark as processing
-        await supabase
-          .from("scheduled_messages")
-          .update({ status: "processing" })
-          .eq("id", msg.id);
+    // Process all messages in parallel
+    const outcomes = await Promise.all(
+      dueMessages.map(async (msg) => {
+        try {
+          await supabase
+            .from("scheduled_messages")
+            .update({ status: "processing" })
+            .eq("id", msg.id);
 
-        // Send via Twilio
-        const twilioMessage = await twilio.messages.create({
-          to: msg.to_number,
-          from: fromNumber,
-          body: msg.body,
-        });
-
-        console.log(
-          `✅ Sent message ${msg.id} - Twilio SID: ${twilioMessage.sid}`,
-        );
-
-        // Log to sms_messages
-        const { data: smsRecord, error: smsError } = await supabase
-          .from("sms_messages")
-          .insert({
-            business_id: msg.business_id,
-            direction: "outbound",
-            to_number: msg.to_number,
-            from_number: fromNumber,
+          const twilioMessage = await twilio.messages.create({
+            to: msg.to_number,
+            from: fromNumber,
             body: msg.body,
-            status: twilioMessage.status || "queued",
-            provider: "twilio",
-            provider_message_id: twilioMessage.sid,
-          })
-          .select()
-          .single();
+          });
 
-        if (smsError) {
-          console.error("Error logging SMS:", smsError);
+          const { data: smsRecord, error: smsError } = await supabase
+            .from("sms_messages")
+            .insert({
+              business_id: msg.business_id,
+              direction: "outbound",
+              to_number: msg.to_number,
+              from_number: fromNumber,
+              body: msg.body,
+              status: twilioMessage.status || "queued",
+              provider: "twilio",
+              provider_message_id: twilioMessage.sid,
+            })
+            .select()
+            .single();
+
+          if (smsError) {
+            console.error("Error logging SMS:", smsError);
+          }
+
+          await supabase
+            .from("scheduled_messages")
+            .update({ status: "sent", sent_message_id: smsRecord?.id || null })
+            .eq("id", msg.id);
+
+          return "sent";
+        } catch (error) {
+          console.error(`❌ Failed to send message ${msg.id}:`, error);
+          await supabase
+            .from("scheduled_messages")
+            .update({ status: "failed" })
+            .eq("id", msg.id);
+          return "failed";
         }
+      }),
+    );
 
-        // Update scheduled message to 'sent'
-        await supabase
-          .from("scheduled_messages")
-          .update({
-            status: "sent",
-            sent_message_id: smsRecord?.id || null,
-          })
-          .eq("id", msg.id);
+    const sent = outcomes.filter((r) => r === "sent").length;
+    const failed = outcomes.filter((r) => r === "failed").length;
 
-        results.sent++;
-      } catch (error) {
-        console.error(`❌ Failed to send message ${msg.id}:`, error);
+    console.log("Processing complete:", { processed: dueMessages.length, sent, failed });
 
-        // Mark as failed
-        await supabase
-          .from("scheduled_messages")
-          .update({ status: "failed" })
-          .eq("id", msg.id);
-
-        results.failed++;
-      }
-    }
-
-    console.log("Processing complete:", results);
-
-    return NextResponse.json({
-      success: true,
-      ...results,
-    });
+    return NextResponse.json({ success: true, processed: dueMessages.length, sent, failed });
   } catch (error) {
     console.error("Error in run-due:", error);
     return NextResponse.json(
