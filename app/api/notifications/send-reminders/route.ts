@@ -43,7 +43,6 @@ export async function GET(req: NextRequest) {
 
   const supabase = supabaseAdmin;
   const now = new Date();
-  const windowEnd = new Date(now.getTime() + 60 * 60 * 1000);
 
   const { data: rawReminders, error: fetchError } = await supabase
     .from("scheduled_notifications")
@@ -75,7 +74,7 @@ export async function GET(req: NextRequest) {
     `,
     )
     .eq("status", "pending")
-    .lte("scheduled_for", windowEnd.toISOString())
+    .lte("scheduled_for", now.toISOString())
     .order("scheduled_for", { ascending: true });
 
   if (fetchError) {
