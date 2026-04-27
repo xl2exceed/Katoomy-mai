@@ -32,8 +32,6 @@ export async function GET(req: NextRequest) {
   const delayDays = settings?.referral_delay_days ?? 7;
   const cooldownDays = settings?.referral_cooldown_days ?? 90;
 
-  // Customers who visited between (now - delayDays - 3) and (now - delayDays)
-  // i.e. they visited ~delayDays ago — time to ask for a referral
   const windowEnd = new Date(Date.now() - delayDays * 86400000).toISOString();
   const windowStart = new Date(Date.now() - (delayDays + 3) * 86400000).toISOString();
   const cooloff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
@@ -48,7 +46,6 @@ export async function GET(req: NextRequest) {
 
   if (!candidates?.length) return NextResponse.json({ customers: [], total: 0, delayDays });
 
-  // Filter out those who received a referral reminder within cooldown
   const ids = candidates.map((c) => c.id);
   const { data: recentLog } = await supabaseAdmin
     .from("referral_reminder_log")
@@ -63,6 +60,106 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ customers: eligible, total: eligible.length, delayDays });
 }
 
+async function runReferralForBusiness(businessId: string): Promise<{ sent: number; failed: number; skipped: number }> {
+  const { data: biz } = await supabaseAdmin
+    .from("businesses")
+    .select("name, slug")
+    .eq("id", businessId)
+    .single();
+
+  const { data: settings } = await supabaseAdmin
+    .from("ai_marketing_settings")
+    .select("*")
+    .eq("business_id", businessId)
+    .single();
+
+  if (!settings?.referral_enabled) return { sent: 0, failed: 0, skipped: 1 };
+
+  const delayDays = settings.referral_delay_days ?? 7;
+  const cooldownDays = settings.referral_cooldown_days ?? 90;
+  const template = settings.referral_template ?? await getSmsTemplate(businessId, "referral");
+  const businessName = biz?.name ?? "";
+  const businessSlug = biz?.slug ?? "";
+
+  const windowEnd = new Date(Date.now() - delayDays * 86400000).toISOString();
+  const windowStart = new Date(Date.now() - (delayDays + 3) * 86400000).toISOString();
+  const cooloff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
+
+  const { data: candidates } = await supabaseAdmin
+    .from("customers")
+    .select("id, full_name, phone")
+    .eq("business_id", businessId)
+    .not("phone", "is", null)
+    .gte("last_visit_at", windowStart)
+    .lte("last_visit_at", windowEnd);
+
+  if (!candidates?.length) return { sent: 0, failed: 0, skipped: 0 };
+
+  const ids = candidates.map((c) => c.id);
+  const { data: recent } = await supabaseAdmin
+    .from("referral_reminder_log")
+    .select("customer_id")
+    .eq("business_id", businessId)
+    .gt("sent_at", cooloff)
+    .in("customer_id", ids);
+
+  const recentSet = new Set((recent ?? []).map((r) => r.customer_id));
+  const targets = candidates.filter((c) => !recentSet.has(c.id));
+
+  if (!targets.length) return { sent: 0, failed: 0, skipped: 0 };
+
+  const { client: twilioClient } = getTwilio();
+  const { mode } = getTwilio();
+  const fromNumber = getFromNumber(mode);
+  const referralLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://katoomy.com"}/${businessSlug}/refer`;
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const customer of targets) {
+    if (!customer.phone) { failed++; continue; }
+
+    const message = fillTemplate(template, {
+      customer_name: customer.full_name?.split(" ")[0] ?? "there",
+      business_name: businessName,
+      referral_link: referralLink,
+    });
+
+    try {
+      await twilioClient.messages.create({
+        body: message,
+        from: fromNumber,
+        to: customer.phone,
+      });
+
+      await supabaseAdmin.from("referral_reminder_log").insert({
+        business_id: businessId,
+        customer_id: customer.id,
+        customer_name: customer.full_name,
+        customer_phone: customer.phone,
+        message_body: message,
+        status: "sent",
+      });
+
+      sent++;
+    } catch (err) {
+      console.error(`[referral] Failed to send to ${customer.phone}:`, err);
+      await supabaseAdmin.from("referral_reminder_log").insert({
+        business_id: businessId,
+        customer_id: customer.id,
+        customer_name: customer.full_name,
+        customer_phone: customer.phone,
+        message_body: message,
+        status: "failed",
+        error_message: String(err),
+      });
+      failed++;
+    }
+  }
+
+  return { sent, failed, skipped: 0 };
+}
+
 export async function POST(req: NextRequest) {
   const isAuto = req.nextUrl.searchParams.get("run") === "auto";
 
@@ -71,6 +168,10 @@ export async function POST(req: NextRequest) {
     if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+  } else {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json().catch(() => ({}));
@@ -79,6 +180,34 @@ export async function POST(req: NextRequest) {
     businessId?: string;
   };
 
+  // Auto mode — loop over all businesses if no specific businessId provided
+  if (isAuto) {
+    if (bodyBusinessId) {
+      const result = await runReferralForBusiness(bodyBusinessId);
+      return NextResponse.json({ ...result, total: result.sent + result.failed });
+    }
+
+    // No businessId — run for all businesses with referral enabled
+    const { data: allSettings } = await supabaseAdmin
+      .from("ai_marketing_settings")
+      .select("business_id")
+      .eq("referral_enabled", true);
+
+    if (!allSettings?.length) return NextResponse.json({ sent: 0, failed: 0, skipped: 0 });
+
+    const results = await Promise.all(
+      allSettings.map((s) => runReferralForBusiness(s.business_id))
+    );
+
+    const totals = results.reduce(
+      (acc, r) => ({ sent: acc.sent + r.sent, failed: acc.failed + r.failed, skipped: acc.skipped + r.skipped }),
+      { sent: 0, failed: 0, skipped: 0 }
+    );
+
+    return NextResponse.json({ ...totals, businesses: allSettings.length });
+  }
+
+  // Manual mode — derive business from session
   let businessId = bodyBusinessId;
   let businessName = "";
   let businessSlug = "";
@@ -106,65 +235,31 @@ export async function POST(req: NextRequest) {
     businessSlug = biz?.slug ?? "";
   }
 
+  if (!customerIds?.length) {
+    return NextResponse.json({ error: "No customers selected" }, { status: 400 });
+  }
+
   const { data: settings } = await supabaseAdmin
     .from("ai_marketing_settings")
     .select("*")
     .eq("business_id", businessId)
     .single();
 
-  if (!settings?.referral_enabled) {
-    return NextResponse.json({ skipped: true, reason: "Referral reminders disabled" });
-  }
-
-  const delayDays = settings.referral_delay_days ?? 7;
-  const cooldownDays = settings.referral_cooldown_days ?? 90;
-  // Priority: Growth Hub template field → sms_templates settings → built-in default
-  const template = settings.referral_template ?? await getSmsTemplate(businessId!, "referral");
-
-  let targets: { id: string; full_name: string | null; phone: string }[] = [];
-
-  if (isAuto) {
-    const windowEnd = new Date(Date.now() - delayDays * 86400000).toISOString();
-    const windowStart = new Date(Date.now() - (delayDays + 3) * 86400000).toISOString();
-    const cooloff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
-
-    const { data: candidates } = await supabaseAdmin
-      .from("customers")
-      .select("id, full_name, phone")
-      .eq("business_id", businessId)
-      .not("phone", "is", null)
-      .gte("last_visit_at", windowStart)
-      .lte("last_visit_at", windowEnd);
-
-    if (!candidates?.length) return NextResponse.json({ sent: 0, failed: 0 });
-
-    const ids = candidates.map((c) => c.id);
-    const { data: recent } = await supabaseAdmin
-      .from("referral_reminder_log")
-      .select("customer_id")
-      .eq("business_id", businessId)
-      .gt("sent_at", cooloff)
-      .in("customer_id", ids);
-
-    const recentSet = new Set((recent ?? []).map((r) => r.customer_id));
-    targets = candidates.filter((c) => !recentSet.has(c.id));
-  } else {
-    if (!customerIds?.length) {
-      return NextResponse.json({ error: "No customers selected" }, { status: 400 });
-    }
-    const { data: selected } = await supabaseAdmin
-      .from("customers")
-      .select("id, full_name, phone")
-      .eq("business_id", businessId)
-      .in("id", customerIds);
-    targets = selected ?? [];
-  }
-
-  if (!targets.length) return NextResponse.json({ sent: 0, failed: 0 });
-
-  const { client: twilioClient, mode } = getTwilio();
-  const fromNumber = getFromNumber(mode);
+  const template = settings?.referral_template ?? await getSmsTemplate(businessId!, "referral");
   const referralLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://katoomy.com"}/${businessSlug}/refer`;
+
+  const { data: selected } = await supabaseAdmin
+    .from("customers")
+    .select("id, full_name, phone")
+    .eq("business_id", businessId)
+    .in("id", customerIds);
+
+  const targets = selected ?? [];
+  if (!targets.length) return NextResponse.json({ sent: 0, failed: 0, skipped: 0 });
+
+  const { client: twilioClient } = getTwilio();
+  const { mode } = getTwilio();
+  const fromNumber = getFromNumber(mode);
 
   let sent = 0;
   let failed = 0;

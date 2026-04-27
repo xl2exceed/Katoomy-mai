@@ -24,7 +24,6 @@ export async function GET(req: NextRequest) {
     .single();
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
-  // Get settings
   const { data: settings } = await supabaseAdmin
     .from("ai_marketing_settings")
     .select("winback_inactive_days, winback_cooldown_days")
@@ -36,7 +35,6 @@ export async function GET(req: NextRequest) {
   const cutoff = new Date(Date.now() - inactiveDays * 86400000).toISOString();
   const cooloffDate = new Date(Date.now() - cooldownDays * 86400000).toISOString();
 
-  // Find customers whose last booking is older than the threshold
   const { data: customers } = await supabaseAdmin
     .from("customers")
     .select("id, full_name, phone, email, last_visit_at")
@@ -48,7 +46,6 @@ export async function GET(req: NextRequest) {
 
   if (!customers) return NextResponse.json({ customers: [], total: 0 });
 
-  // Filter out customers who received a win-back text within the cooldown window
   const customerIds = customers.map((c) => c.id);
   const { data: recentlySent } = await supabaseAdmin
     .from("scheduled_messages")
@@ -64,117 +61,55 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ customers: eligible, total: eligible.length, inactiveDays });
 }
 
-// POST — send win-back texts
-export async function POST(req: NextRequest) {
-  const isAuto = req.nextUrl.searchParams.get("run") === "auto";
+async function runWinbackForBusiness(businessId: string): Promise<{ sent: number; failed: number; skipped: number }> {
+  const { data: biz } = await supabaseAdmin
+    .from("businesses")
+    .select("name, slug")
+    .eq("id", businessId)
+    .single();
 
-  // For auto-run, verify cron secret
-  if (isAuto) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  } else {
-    // Manual run — verify user session
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = await req.json().catch(() => ({}));
-  const { customerIds, businessId: bodyBusinessId } = body as {
-    customerIds?: string[];
-    businessId?: string;
-  };
-
-  // Resolve business
-  let businessId = bodyBusinessId;
-  let businessName = "";
-  let businessSlug = "";
-
-  if (!businessId) {
-    // For manual calls without businessId, derive from session
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { data: biz } = await supabaseAdmin
-      .from("businesses")
-      .select("id, name, slug")
-      .eq("owner_user_id", user.id)
-      .single();
-    if (!biz) return NextResponse.json({ error: "Business not found" }, { status: 404 });
-    businessId = biz.id;
-    businessName = biz.name;
-    businessSlug = biz.slug;
-  } else {
-    const { data: biz } = await supabaseAdmin
-      .from("businesses")
-      .select("name, slug")
-      .eq("id", businessId)
-      .single();
-    businessName = biz?.name ?? "";
-    businessSlug = biz?.slug ?? "";
-  }
-
-  // Get settings
   const { data: settings } = await supabaseAdmin
     .from("ai_marketing_settings")
     .select("*")
     .eq("business_id", businessId)
     .single();
 
-  if (!settings?.winback_enabled) {
-    return NextResponse.json({ skipped: true, reason: "Win-back disabled" });
-  }
+  if (!settings?.winback_enabled) return { sent: 0, failed: 0, skipped: 1 };
 
   const inactiveDays = settings.winback_inactive_days ?? 60;
   const cooldownDays = settings.winback_cooldown_days ?? 30;
-  // Priority: Growth Hub template field → sms_templates settings → built-in default
-  const template = settings.winback_template ?? await getSmsTemplate(businessId!, "winback");
+  const template = settings.winback_template ?? await getSmsTemplate(businessId, "winback");
+  const businessName = biz?.name ?? "";
+  const businessSlug = biz?.slug ?? "";
 
-  // For auto-run, find all eligible customers
-  let targets: { id: string; full_name: string | null; phone: string }[] = [];
+  const cutoff = new Date(Date.now() - inactiveDays * 86400000).toISOString();
+  const cooloff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
 
-  if (isAuto) {
-    const cutoff = new Date(Date.now() - inactiveDays * 86400000).toISOString();
-    const cooloff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
+  const { data: inactive } = await supabaseAdmin
+    .from("customers")
+    .select("id, full_name, phone")
+    .eq("business_id", businessId)
+    .not("phone", "is", null)
+    .lt("last_visit_at", cutoff);
 
-    const { data: inactive } = await supabaseAdmin
-      .from("customers")
-      .select("id, full_name, phone")
-      .eq("business_id", businessId)
-      .not("phone", "is", null)
-      .lt("last_visit_at", cutoff);
+  if (!inactive?.length) return { sent: 0, failed: 0, skipped: 0 };
 
-    if (!inactive?.length) return NextResponse.json({ sent: 0, failed: 0 });
+  const ids = inactive.map((c) => c.id);
+  const { data: recent } = await supabaseAdmin
+    .from("scheduled_messages")
+    .select("customer_id")
+    .eq("business_id", businessId)
+    .eq("message_type", "winback")
+    .gt("created_at", cooloff)
+    .in("customer_id", ids);
 
-    const ids = inactive.map((c) => c.id);
-    const { data: recent } = await supabaseAdmin
-      .from("scheduled_messages")
-      .select("customer_id")
-      .eq("business_id", businessId)
-      .eq("message_type", "winback")
-      .gt("created_at", cooloff)
-      .in("customer_id", ids);
+  const recentSet = new Set((recent ?? []).map((r) => r.customer_id));
+  const targets = inactive.filter((c) => !recentSet.has(c.id));
 
-    const recentSet = new Set((recent ?? []).map((r) => r.customer_id));
-    targets = inactive.filter((c) => !recentSet.has(c.id));
-  } else {
-    // Manual: use provided customerIds
-    if (!customerIds?.length) {
-      return NextResponse.json({ error: "No customers selected" }, { status: 400 });
-    }
-    const { data: selected } = await supabaseAdmin
-      .from("customers")
-      .select("id, full_name, phone")
-      .eq("business_id", businessId)
-      .in("id", customerIds);
-    targets = selected ?? [];
-  }
+  if (!targets.length) return { sent: 0, failed: 0, skipped: 0 };
 
-  if (!targets.length) return NextResponse.json({ sent: 0, failed: 0, skipped: 0 });
-
-  const { client: twilioClient, mode } = getTwilio();
+  const { client: twilioClient } = getTwilio();
+  const { mode } = getTwilio();
   const fromNumber = getFromNumber(mode);
   const bookingLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://katoomy.com"}/${businessSlug}`;
 
@@ -197,7 +132,146 @@ export async function POST(req: NextRequest) {
         to: customer.phone,
       });
 
-      // Log in scheduled_messages for tracking
+      await supabaseAdmin.from("scheduled_messages").insert({
+        business_id: businessId,
+        customer_id: customer.id,
+        message_type: "winback",
+        message_body: message,
+        status: "sent",
+        scheduled_for: new Date().toISOString(),
+      });
+
+      sent++;
+    } catch (err) {
+      console.error(`[winback] Failed to send to ${customer.phone}:`, err);
+      failed++;
+    }
+  }
+
+  return { sent, failed, skipped: 0 };
+}
+
+// POST — send win-back texts
+export async function POST(req: NextRequest) {
+  const isAuto = req.nextUrl.searchParams.get("run") === "auto";
+
+  if (isAuto) {
+    const auth = req.headers.get("authorization");
+    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const { customerIds, businessId: bodyBusinessId } = body as {
+    customerIds?: string[];
+    businessId?: string;
+  };
+
+  // Auto mode — loop over all businesses if no specific businessId provided
+  if (isAuto) {
+    if (bodyBusinessId) {
+      const result = await runWinbackForBusiness(bodyBusinessId);
+      return NextResponse.json({ ...result, total: result.sent + result.failed });
+    }
+
+    // No businessId — run for all businesses with winback enabled
+    const { data: allSettings } = await supabaseAdmin
+      .from("ai_marketing_settings")
+      .select("business_id")
+      .eq("winback_enabled", true);
+
+    if (!allSettings?.length) return NextResponse.json({ sent: 0, failed: 0, skipped: 0 });
+
+    const results = await Promise.all(
+      allSettings.map((s) => runWinbackForBusiness(s.business_id))
+    );
+
+    const totals = results.reduce(
+      (acc, r) => ({ sent: acc.sent + r.sent, failed: acc.failed + r.failed, skipped: acc.skipped + r.skipped }),
+      { sent: 0, failed: 0, skipped: 0 }
+    );
+
+    return NextResponse.json({ ...totals, businesses: allSettings.length });
+  }
+
+  // Manual mode — derive business from session
+  let businessId = bodyBusinessId;
+  let businessName = "";
+  let businessSlug = "";
+
+  if (!businessId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { data: biz } = await supabaseAdmin
+      .from("businesses")
+      .select("id, name, slug")
+      .eq("owner_user_id", user.id)
+      .single();
+    if (!biz) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+    businessId = biz.id;
+    businessName = biz.name;
+    businessSlug = biz.slug;
+  } else {
+    const { data: biz } = await supabaseAdmin
+      .from("businesses")
+      .select("name, slug")
+      .eq("id", businessId)
+      .single();
+    businessName = biz?.name ?? "";
+    businessSlug = biz?.slug ?? "";
+  }
+
+  if (!customerIds?.length) {
+    return NextResponse.json({ error: "No customers selected" }, { status: 400 });
+  }
+
+  const { data: settings } = await supabaseAdmin
+    .from("ai_marketing_settings")
+    .select("*")
+    .eq("business_id", businessId)
+    .single();
+
+  const template = settings?.winback_template ?? await getSmsTemplate(businessId!, "winback");
+
+  const { data: selected } = await supabaseAdmin
+    .from("customers")
+    .select("id, full_name, phone")
+    .eq("business_id", businessId)
+    .in("id", customerIds);
+
+  const targets = selected ?? [];
+  if (!targets.length) return NextResponse.json({ sent: 0, failed: 0, skipped: 0 });
+
+  const { client: twilioClient } = getTwilio();
+  const { mode } = getTwilio();
+  const fromNumber = getFromNumber(mode);
+  const bookingLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://katoomy.com"}/${businessSlug}`;
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const customer of targets) {
+    if (!customer.phone) { failed++; continue; }
+
+    const message = fillTemplate(template, {
+      customer_name: customer.full_name?.split(" ")[0] ?? "there",
+      business_name: businessName,
+      booking_link: bookingLink,
+    });
+
+    try {
+      await twilioClient.messages.create({
+        body: message,
+        from: fromNumber,
+        to: customer.phone,
+      });
+
       await supabaseAdmin.from("scheduled_messages").insert({
         business_id: businessId,
         customer_id: customer.id,
