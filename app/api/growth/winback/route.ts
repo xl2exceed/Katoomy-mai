@@ -48,11 +48,12 @@ export async function GET(req: NextRequest) {
 
   const customerIds = customers.map((c) => c.id);
   const { data: recentlySent } = await supabaseAdmin
-    .from("scheduled_messages")
+    .from("auto_campaign_log")
     .select("customer_id")
     .eq("business_id", business.id)
-    .eq("message_type", "winback")
-    .gt("created_at", cooloffDate)
+    .eq("campaign_type", "winback")
+    .eq("status", "sent")
+    .gt("sent_at", cooloffDate)
     .in("customer_id", customerIds);
 
   const recentIds = new Set((recentlySent ?? []).map((r) => r.customer_id));
@@ -96,11 +97,12 @@ async function runWinbackForBusiness(businessId: string): Promise<{ sent: number
 
   const ids = inactive.map((c) => c.id);
   const { data: recent } = await supabaseAdmin
-    .from("scheduled_messages")
+    .from("auto_campaign_log")
     .select("customer_id")
     .eq("business_id", businessId)
-    .eq("message_type", "winback")
-    .gt("created_at", cooloff)
+    .eq("campaign_type", "winback")
+    .eq("status", "sent")
+    .gt("sent_at", cooloff)
     .in("customer_id", ids);
 
   const recentSet = new Set((recent ?? []).map((r) => r.customer_id));
@@ -132,18 +134,27 @@ async function runWinbackForBusiness(businessId: string): Promise<{ sent: number
         to: customer.phone,
       });
 
-      await supabaseAdmin.from("scheduled_messages").insert({
+      await supabaseAdmin.from("auto_campaign_log").insert({
         business_id: businessId,
         customer_id: customer.id,
-        message_type: "winback",
+        customer_phone: customer.phone,
+        campaign_type: "winback",
         message_body: message,
         status: "sent",
-        scheduled_for: new Date().toISOString(),
       });
 
       sent++;
     } catch (err) {
       console.error(`[winback] Failed to send to ${customer.phone}:`, err);
+      await supabaseAdmin.from("auto_campaign_log").insert({
+        business_id: businessId,
+        customer_id: customer.id,
+        customer_phone: customer.phone,
+        campaign_type: "winback",
+        message_body: message,
+        status: "failed",
+        error_message: String(err),
+      });
       failed++;
     }
   }
@@ -272,13 +283,13 @@ export async function POST(req: NextRequest) {
         to: customer.phone,
       });
 
-      await supabaseAdmin.from("scheduled_messages").insert({
+      await supabaseAdmin.from("auto_campaign_log").insert({
         business_id: businessId,
         customer_id: customer.id,
-        message_type: "winback",
+        customer_phone: customer.phone,
+        campaign_type: "winback",
         message_body: message,
         status: "sent",
-        scheduled_for: new Date().toISOString(),
       });
 
       sent++;
