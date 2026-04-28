@@ -187,9 +187,9 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
                     <span className="text-gray-700 text-sm flex items-center gap-1">
                       {icon === "share" ? (
                         <svg xmlns="http://www.w3.org/2000/svg" className="inline w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="17 13 17 21 7 21 7 13" />
-                          <line x1="12" y1="3" x2="12" y2="15" />
-                          <polyline points="9 6 12 3 15 6" />
+                          <rect x="5" y="11" width="14" height="11" rx="2" />
+                          <line x1="12" y1="2" x2="12" y2="15" />
+                          <polyline points="9 5 12 2 15 5" />
                         </svg>
                       ) : icon} {text}
                     </span>
