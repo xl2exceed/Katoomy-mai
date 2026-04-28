@@ -3,6 +3,12 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+const METHOD_LABELS: Record<string, string> = {
+  cash_app: "Cash App",
+  zelle: "Zelle",
+  cash: "cash",
+};
+
 export default function CashAppSuccessPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -10,6 +16,8 @@ export default function CashAppSuccessPage() {
   const totalCents = parseInt(searchParams.get("totalCents") ?? "0", 10);
   const businessName = searchParams.get("businessName") ?? "the business";
   const referralCode = searchParams.get("referralCode");
+  const paymentMethod = searchParams.get("paymentMethod") ?? "";
+  const methodLabel = METHOD_LABELS[paymentMethod] ?? "payment";
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -25,7 +33,7 @@ export default function CashAppSuccessPage() {
 
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Sent!</h1>
           <p className="text-gray-600 text-sm mb-1">
-            Your Cash App payment of{" "}
+            Your {methodLabel} payment of{" "}
             <span className="font-bold text-gray-900">${(totalCents / 100).toFixed(2)}</span>{" "}
             has been submitted.
           </p>

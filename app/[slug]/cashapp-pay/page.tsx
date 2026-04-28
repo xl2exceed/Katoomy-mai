@@ -112,6 +112,7 @@ export default function ExternalPayPage() {
       const qs = new URLSearchParams({
         totalCents: String(totalCents),
         businessName: settings?.businessName ?? "",
+        paymentMethod: selectedMethod ?? "",
       });
       router.push(`/${slug}/cashapp-success?${qs.toString()}`);
     } catch {
