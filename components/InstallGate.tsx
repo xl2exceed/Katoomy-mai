@@ -173,7 +173,7 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
               </div>
               <ol className="space-y-2">
                 {[
-                  { step: "1", text: "Tap the Share button at the bottom of Safari", icon: "⬆️" },
+                  { step: "1", text: "Tap the Share button in Safari", icon: "share" },
                   { step: "2", text: 'Tap "Add to Home Screen"', icon: "➕" },
                   { step: "3", text: 'Tap "Add" in the top right', icon: "✅" },
                 ].map(({ step, text, icon }) => (
@@ -184,7 +184,13 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
                     >
                       {step}
                     </span>
-                    <span className="text-gray-700 text-sm">{icon} {text}</span>
+                    <span className="text-gray-700 text-sm flex items-center gap-1">
+                      {icon === "share" ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="inline w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13M8 7l4-4 4 4" />
+                        </svg>
+                      ) : icon} {text}
+                    </span>
                   </li>
                 ))}
               </ol>
@@ -242,7 +248,7 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
               ) : (
                 <ol className="space-y-3">
                   {[
-                    { step: "1", text: "Tap the Share button at the bottom of Safari", icon: "⬆️" },
+                    { step: "1", text: "Tap the Share button in Safari", icon: "share" },
                     { step: "2", text: 'Scroll down and tap "Add to Home Screen"', icon: "➕" },
                     { step: "3", text: 'Tap "Add" in the top right corner', icon: "✅" },
                   ].map(({ step, text, icon }) => (
@@ -253,7 +259,13 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
                       >
                         {step}
                       </span>
-                      <span className="text-gray-700 text-sm flex-1">{icon} {text}</span>
+                      <span className="text-gray-700 text-sm flex-1 flex items-center gap-1">
+                        {icon === "share" ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13M8 7l4-4 4 4" />
+                          </svg>
+                        ) : icon} {text}
+                      </span>
                     </li>
                   ))}
                 </ol>
