@@ -569,7 +569,7 @@ export default function DashboardPage() {
           {/* Customer Info */}
           <div className="bg-white bg-opacity-20 rounded-xl p-4 text-gray-900">
             <p className="text-lg font-semibold">{customer?.full_name}</p>
-            <p className="text-sm opacity-90">{customer?.phone}</p>
+            <p className="text-sm opacity-90">{customer?.phone ? customer.phone.replace(/\D/g, "").replace(/^1?(\d{3})(\d{3})(\d{4})$/, "($1) $2-$3") : ""}</p>
             {customer?.email && (
               <p className="text-sm opacity-90">{customer.email}</p>
             )}
