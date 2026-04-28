@@ -1,7 +1,8 @@
 "use client";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const METHOD_LABELS: Record<string, string> = {
   cash_app: "Cash App",
@@ -12,12 +13,28 @@ const METHOD_LABELS: Record<string, string> = {
 export default function CashAppSuccessPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const slug = params.slug as string;
   const totalCents = parseInt(searchParams.get("totalCents") ?? "0", 10);
   const businessName = searchParams.get("businessName") ?? "the business";
   const referralCode = searchParams.get("referralCode");
   const paymentMethod = searchParams.get("paymentMethod") ?? "";
   const methodLabel = METHOD_LABELS[paymentMethod] ?? "payment";
+  const [countdown, setCountdown] = useState(10);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          router.push(`/${slug}/dashboard`);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [slug, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -53,6 +70,9 @@ export default function CashAppSuccessPage() {
           >
             Back to Home
           </Link>
+          <p className="text-gray-400 text-xs mt-3">
+            Redirecting in {countdown} second{countdown !== 1 ? "s" : ""}...
+          </p>
         </div>
 
         {/* Referral Card */}
