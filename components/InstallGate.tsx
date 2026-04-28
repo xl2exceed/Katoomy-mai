@@ -74,7 +74,9 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
   const isIos = useMemo(() => {
     if (typeof window === "undefined") return false;
     const ua = window.navigator.userAgent.toLowerCase();
-    return /iphone|ipad|ipod/.test(ua) && !ua.includes("chrome");
+    // iPadOS 13+ reports as Macintosh — detect via touch support fallback
+    const isIpadOS = ua.includes("macintosh") && navigator.maxTouchPoints > 1;
+    return (/iphone|ipad|ipod/.test(ua) || isIpadOS) && !ua.includes("chrome");
   }, []);
 
   useEffect(() => {
@@ -168,7 +170,7 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
           <div className="fixed bottom-0 inset-x-0 z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl p-5 max-w-md mx-auto border border-gray-100">
               <div className="flex justify-between items-center mb-3">
-                <p className="font-bold text-gray-900">Install on iPhone</p>
+                <p className="font-bold text-gray-900">Install on iPhone / iPad</p>
                 <button onClick={() => setShowFloatingInstall(false)} className="text-gray-400 text-xl">×</button>
               </div>
               <ol className="space-y-2">
