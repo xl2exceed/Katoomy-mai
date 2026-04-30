@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     .from("businesses")
     .select("id, features")
     .eq("owner_user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (error || !business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     .from("businesses")
     .select("id, features")
     .eq("owner_user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 

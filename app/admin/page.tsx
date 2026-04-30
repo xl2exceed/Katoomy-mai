@@ -19,7 +19,7 @@ export default async function AdminDashboard() {
     .from("businesses")
     .select("*, onboarding_state(*)")
     .eq("owner_user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!business) {
     // Create a new business for this user

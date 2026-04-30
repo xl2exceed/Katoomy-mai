@@ -23,6 +23,17 @@ export async function POST(req: NextRequest) {
     .replace(/^-+|-+$/g, "");
   if (!slug) slug = `business-${Date.now()}`;
 
+  // Check if user already has a business (prevent duplicates)
+  const { data: existingBusiness } = await supabaseAdmin
+    .from("businesses")
+    .select("id, slug")
+    .eq("owner_user_id", userId)
+    .maybeSingle();
+
+  if (existingBusiness) {
+    return NextResponse.json({ businessId: existingBusiness.id, slug: existingBusiness.slug });
+  }
+
   // Ensure slug is unique
   const { data: existing } = await supabaseAdmin
     .from("businesses")
@@ -44,6 +55,7 @@ export async function POST(req: NextRequest) {
       owner_phone: phone || null,
       owner_email: email,
       subscription_plan: "free",
+      features: { niche: "barber" },
     })
     .select("id, slug")
     .single();

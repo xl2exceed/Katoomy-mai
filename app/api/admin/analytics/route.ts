@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     .from("businesses")
     .select("id")
     .eq("owner_user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
