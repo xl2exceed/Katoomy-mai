@@ -45,13 +45,15 @@ export default async function AdminDashboard() {
         current_step: "manual_setup",
         status: "in_progress",
       });
-
-      redirect("/admin/branding");
     }
+
+    // Always redirect to branding for new businesses (or if insert failed)
+    redirect("/admin/branding");
   }
 
+  // At this point business is guaranteed to be non-null
   // Check if onboarding is complete
-  const onboardingState = business.onboarding_state?.[0];
+  const onboardingState = business!.onboarding_state?.[0];
   if (!onboardingState || onboardingState.status !== "completed") {
     redirect("/admin/branding");
   }
