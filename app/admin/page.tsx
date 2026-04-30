@@ -22,32 +22,7 @@ export default async function AdminDashboard() {
     .maybeSingle();
 
   if (!business) {
-    // Create a new business for this user
-    const slug = `biz-${user.id.replace(/-/g, "").slice(0, 12)}`;
-    const { data: newBusiness } = await supabase
-      .from("businesses")
-      .insert({
-        owner_user_id: user.id,
-        slug,
-        name: "My Business",
-        app_name: "My Business",
-      })
-      .select()
-      .single();
-
-    if (newBusiness) {
-      await supabase.from("business_features").insert({
-        business_id: newBusiness.id,
-      });
-
-      await supabase.from("onboarding_state").insert({
-        business_id: newBusiness.id,
-        current_step: "manual_setup",
-        status: "in_progress",
-      });
-    }
-
-    // Always redirect to branding for new businesses (or if insert failed)
+    // No business found - redirect to branding (business should have been created during signup)
     redirect("/admin/branding");
   }
 
