@@ -52,5 +52,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Create companion rows that the admin dashboard expects to exist
+  await supabaseAdmin.from("business_features").insert({
+    business_id: business.id,
+    deposits_enabled: false,
+    loyalty_enabled: false,
+    referrals_enabled: false,
+    feedback_enabled: false,
+  });
+
+  await supabaseAdmin.from("onboarding_state").insert({
+    business_id: business.id,
+    current_step: "branding",
+    completed_steps: [],
+    answers: {},
+    status: "in_progress",
+  });
+
   return NextResponse.json({ businessId: business.id, slug: business.slug });
 }
