@@ -40,8 +40,8 @@ export default function UpgradePage() {
       price: { monthly: 29, annual: 290 },
       description: "For growing businesses",
       priceId: {
-        monthly: "price_1SvgSt2ZLPWWwYJoW6kOuHYc",
-        annual: "price_1SyPO62ZLPWWwYJodrDkNnW2",
+        monthly: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID!,
+        annual: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_ANNUAL_PRICE_ID!,
       },
       features: [
         "Everything in Free, plus:",
@@ -59,8 +59,8 @@ export default function UpgradePage() {
       price: { monthly: 79, annual: 790 },
       description: "For established businesses",
       priceId: {
-        monthly: "price_1SvgTS2ZLPWWwYJo9xKnC3j4",
-        annual: "price_1SyPNC2ZLPWWwYJoRbCE94iK",
+        monthly: process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID!,
+        annual: process.env.NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID!,
       },
       features: [
         "Everything in Premium, plus:",
