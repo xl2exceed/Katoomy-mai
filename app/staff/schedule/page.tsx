@@ -142,23 +142,23 @@ export default function StaffSchedulePage() {
 
     const { data: s } = await supabase
       .from("staff")
-      .select("id, business_id, businesses(slug)")
+      .select("id, business_id")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (!s) { router.push("/staff/login"); return; }
-    const slug = (s.businesses as unknown as { slug: string } | null)?.slug || "";
-    setBusinessSlug(slug);
     setStaffId(s.id);
     setBusinessId(s.business_id);
     setAuthToken(session?.access_token || "");
 
-    // Fetch business niche and add-on names for carwash display
+    // Fetch business slug, niche and add-on names
     const { data: bizData } = await supabase
       .from("businesses")
-      .select("features")
+      .select("slug, features")
       .eq("id", s.business_id)
       .maybeSingle();
+    const slug = (bizData as { slug?: string } | null)?.slug || "";
+    setBusinessSlug(slug);
     const features = (bizData as { features?: Record<string, string> } | null)?.features || {};
     const detectedNiche = features.niche || "barber";
     setNiche(detectedNiche);
