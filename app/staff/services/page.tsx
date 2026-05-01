@@ -24,6 +24,10 @@ export default function StaffServicesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/staff/login"); return; }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { router.push("/staff/login"); return; }
+
       const { data: staff } = await supabase
         .from("staff")
         .select("business_id")
@@ -32,7 +36,9 @@ export default function StaffServicesPage() {
 
       if (!staff?.business_id) { router.push("/staff/login"); return; }
 
-      const res = await fetch(`/api/businesses/${staff.business_id}/services`);
+      const res = await fetch(`/api/businesses/${staff.business_id}/services`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         const data = await res.json();
         setServices(data.services || []);
