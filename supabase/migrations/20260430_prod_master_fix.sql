@@ -9,6 +9,7 @@
 -- 1. HELPER FUNCTIONS
 -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+DROP FUNCTION IF EXISTS public.is_business_owner(uuid);
 CREATE OR REPLACE FUNCTION public.is_business_owner(p_business_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (
