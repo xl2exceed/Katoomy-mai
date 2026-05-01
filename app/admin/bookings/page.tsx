@@ -104,7 +104,7 @@ export default function BookingsPage() {
       .from("businesses")
       .select("id")
       .eq("owner_user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (business) {
       setBusinessId(business.id);
