@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { formatPhone } from '@/lib/utils/formatPhone';
+import { compressImage } from '@/lib/utils/compressImage';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -216,16 +217,16 @@ export default function MobileStaffPage() {
 
     setUploadingPhoto(true);
     try {
-      // Generate unique filename
-      const fileExt = photoFile.name.split('.').pop();
-      const fileName = `${businessId}/staff/${Date.now()}.${fileExt}`;
+      const compressed = await compressImage(photoFile, 800, 0.85);
+      const fileName = `${businessId}/staff/${Date.now()}.jpg`;
 
       // Upload to Supabase storage
       const { error } = await supabase.storage
         .from('business-assets')
-        .upload(fileName, photoFile, {
+        .upload(fileName, compressed, {
           cacheControl: '3600',
           upsert: false,
+          contentType: 'image/jpeg',
         });
 
       if (error) throw error;

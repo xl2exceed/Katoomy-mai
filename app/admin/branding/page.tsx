@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatPhone, digitsOnlyPhone } from "@/lib/utils/formatPhone";
+import { compressImage } from "@/lib/utils/compressImage";
 
 import Image from "next/image";
 
@@ -82,13 +83,13 @@ export default function BrandingPage() {
     setUploadingLogo(true);
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${business.id}-${new Date().getTime()}.${fileExt}`;
+      const compressed = await compressImage(file, 1200, 0.85);
+      const fileName = `${business.id}-${new Date().getTime()}.jpg`;
       const filePath = `logos/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("business-assets")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, compressed, { upsert: true, contentType: "image/jpeg" });
 
       if (uploadError) {
         alert(`Upload failed: ${uploadError.message}`);

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatPhone } from "@/lib/utils/formatPhone";
+import { compressImage } from "@/lib/utils/compressImage";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -308,11 +309,11 @@ export default function StaffManagementPage() {
     if (!photoFile || !businessId) return null;
     setUploadingPhoto(true);
     try {
-      const fileExt = photoFile.name.split(".").pop();
-      const fileName = `${businessId}/staff/${Date.now()}.${fileExt}`;
+      const compressed = await compressImage(photoFile, 800, 0.85);
+      const fileName = `${businessId}/staff/${Date.now()}.jpg`;
       const { error } = await supabase.storage
         .from("business-assets")
-        .upload(fileName, photoFile, { cacheControl: "3600", upsert: false });
+        .upload(fileName, compressed, { cacheControl: "3600", upsert: false, contentType: "image/jpeg" });
       if (error) throw error;
       const { data: publicData } = supabase.storage
         .from("business-assets")
