@@ -68,13 +68,14 @@ export async function POST(req: NextRequest) {
     try {
       const [{ data: customer }, { data: biz }] = await Promise.all([
         supabaseAdmin.from('customers').select('phone, full_name').eq('id', booking.customer_id).single(),
-        supabaseAdmin.from('businesses').select('name').eq('id', booking.business_id).single(),
+        supabaseAdmin.from('businesses').select('name, timezone').eq('id', booking.business_id).single(),
       ]);
       if (customer?.phone) {
+        const tz = (biz as { timezone?: string } | null)?.timezone || 'America/New_York';
         const apptTime = updatedBooking?.start_ts
           ? new Date(updatedBooking.start_ts).toLocaleString('en-US', {
               weekday: 'short', month: 'short', day: 'numeric',
-              hour: 'numeric', minute: '2-digit',
+              hour: 'numeric', minute: '2-digit', timeZone: tz,
             })
           : 'your upcoming appointment';
         const servicesArr = updatedBooking?.services as unknown as { name: string }[] | null;

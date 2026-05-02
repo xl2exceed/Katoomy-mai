@@ -42,12 +42,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Use pre-formatted string from browser (local timezone) to avoid Vercel UTC offset
+    const tz = (biz as { timezone?: string } | null)?.timezone || "America/New_York";
     const apptTime = apptTimeStr || new Date(startTs).toLocaleString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
+      timeZone: tz,
     });
 
     const notificationTitle = "Appointment Cancelled";
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
     try {
       const [{ data: customer }, { data: biz }] = await Promise.all([
         supabaseAdmin.from("customers").select("phone").eq("id", customerId).single(),
-        supabaseAdmin.from("businesses").select("name").eq("id", businessId).single(),
+        supabaseAdmin.from("businesses").select("name, timezone").eq("id", businessId).single(),
       ]);
       if (customer?.phone) {
         const bizName = biz?.name || "us";
