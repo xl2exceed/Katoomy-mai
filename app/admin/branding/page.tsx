@@ -112,7 +112,7 @@ export default function BrandingPage() {
       }
 
       setBusiness({ ...business, logo_url: publicUrl });
-      alert(`Logo uploaded successfully!\n\nURL: ${publicUrl}`);
+      alert("Logo uploaded successfully!");
     } catch (error) {
       console.error("Error uploading logo:", error);
       alert(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
