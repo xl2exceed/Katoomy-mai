@@ -41,16 +41,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use pre-formatted string from browser (local timezone) to avoid Vercel UTC offset
-    const tz = (biz as { timezone?: string } | null)?.timezone || "America/New_York";
-    const apptTime = apptTimeStr || new Date(startTs).toLocaleString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: tz,
-    });
+    // Use pre-formatted string from browser (local timezone) to avoid Vercel UTC offset.
+    // If apptTimeStr is missing, fetch business timezone for server-side formatting.
+    let apptTime = apptTimeStr || "";
+    if (!apptTime && startTs) {
+      const { data: bizTz } = await supabaseAdmin
+        .from("businesses").select("timezone").eq("id", businessId).maybeSingle();
+      const tz = (bizTz as { timezone?: string } | null)?.timezone || "America/New_York";
+      apptTime = new Date(startTs).toLocaleString("en-US", {
+        weekday: "short", month: "short", day: "numeric",
+        hour: "numeric", minute: "2-digit", timeZone: tz,
+      });
+    }
 
     const notificationTitle = "Appointment Cancelled";
     const notificationBody = `${customerName || "A customer"} cancelled their ${apptTime} appointment.`;
@@ -107,7 +109,7 @@ export async function POST(req: NextRequest) {
     try {
       const [{ data: customer }, { data: biz }] = await Promise.all([
         supabaseAdmin.from("customers").select("phone").eq("id", customerId).single(),
-        supabaseAdmin.from("businesses").select("name, timezone").eq("id", businessId).single(),
+        supabaseAdmin.from("businesses").select("name").eq("id", businessId).single(),
       ]);
       if (customer?.phone) {
         const bizName = biz?.name || "us";
