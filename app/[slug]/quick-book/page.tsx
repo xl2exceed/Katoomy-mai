@@ -689,7 +689,7 @@ export default function QuickBookPage() {
           <Row
             label="Service"
             value={defaults.services.name}
-            sub={`$${(servicePriceCents / 100).toFixed(2)}`}
+            sub={`$${((servicePriceCents + platformFee) / 100).toFixed(2)}`}
             onEdit={() => {
               seedSessionForEdit();
               router.push(`/${slug}/services?from=quick-book`);
@@ -761,20 +761,14 @@ export default function QuickBookPage() {
             />
           )}
 
-          {/* Platform fee + Total */}
-          <div className="px-5 py-4 bg-gray-50 space-y-2">
-            {platformFee > 0 && (
-              <div className="flex justify-between items-center text-sm text-gray-500">
-                <span>Platform fee</span>
-                <span>${(platformFee / 100).toFixed(2)}</span>
-              </div>
-            )}
+          {/* Total */}
+          <div className="px-5 py-4 bg-gray-50">
             <div className="flex justify-between items-center">
               <span className="font-bold text-gray-900">Total</span>
               <span className="font-bold text-xl" style={{ color }}>${(displayTotalCents / 100).toFixed(2)}</span>
             </div>
             {depositSettings?.enabled && (
-              <p className="text-xs text-orange-600 font-medium text-right">
+              <p className="text-xs text-orange-600 font-medium mt-1 text-right">
                 Deposit due today: ${(getDepositCents(totalPriceCents) / 100).toFixed(2)}
               </p>
             )}
