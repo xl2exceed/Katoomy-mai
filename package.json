@@ -11,6 +11,7 @@
     "generate-knowledge": "node scripts/generate-ai-knowledge.mjs"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.3.0",
     "@stripe/stripe-js": "^8.6.1",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.0",
