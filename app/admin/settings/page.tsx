@@ -151,7 +151,7 @@ export default function SettingsPage() {
         .from("deposit_settings")
         .select("enabled")
         .eq("business_id", business.id)
-        .single();
+        .maybeSingle();
 
       if (depositData) setDepositEnabled(depositData.enabled);
 
@@ -159,7 +159,7 @@ export default function SettingsPage() {
         .from("notification_settings")
         .select("*")
         .eq("business_id", business.id)
-        .single();
+        .maybeSingle();
       if (notifData) setNotifSettings(notifData as NotificationSettings);
 
       const { data: tmplData } = await supabase

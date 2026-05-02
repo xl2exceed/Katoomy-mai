@@ -146,7 +146,7 @@ export default function MobileSettingsPage() {
         .from("deposit_settings")
         .select("enabled")
         .eq("business_id", businessData.id)
-        .single();
+        .maybeSingle();
 
       if (depositData) setDepositEnabled(depositData.enabled);
     }
