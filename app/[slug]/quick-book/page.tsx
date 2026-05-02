@@ -761,14 +761,20 @@ export default function QuickBookPage() {
             />
           )}
 
-          {/* Total */}
-          <div className="px-5 py-4 bg-gray-50">
+          {/* Platform fee + Total */}
+          <div className="px-5 py-4 bg-gray-50 space-y-2">
+            {platformFee > 0 && (
+              <div className="flex justify-between items-center text-sm text-gray-500">
+                <span>Platform fee</span>
+                <span>${(platformFee / 100).toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span className="font-bold text-gray-900">Total</span>
               <span className="font-bold text-xl" style={{ color }}>${(displayTotalCents / 100).toFixed(2)}</span>
             </div>
             {depositSettings?.enabled && (
-              <p className="text-xs text-orange-600 font-medium mt-1 text-right">
+              <p className="text-xs text-orange-600 font-medium text-right">
                 Deposit due today: ${(getDepositCents(totalPriceCents) / 100).toFixed(2)}
               </p>
             )}
