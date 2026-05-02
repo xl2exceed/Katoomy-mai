@@ -43,6 +43,11 @@ export async function POST(req: NextRequest) {
 
   if (existing) slug = `${slug}-${Date.now()}`;
 
+  // Default billing: monthly, first bill 30 days after signup
+  const firstBillingDate = new Date();
+  firstBillingDate.setMonth(firstBillingDate.getMonth() + 1);
+  const nextBillingDate = firstBillingDate.toISOString().split("T")[0];
+
   const { data: business, error } = await supabaseAdmin
     .from("businesses")
     .insert({
@@ -56,6 +61,8 @@ export async function POST(req: NextRequest) {
       owner_email: email,
       subscription_plan: "free",
       features: { niche: "barber" },
+      billing_interval: "monthly",
+      next_billing_date: nextBillingDate,
     })
     .select("id, slug")
     .single();
