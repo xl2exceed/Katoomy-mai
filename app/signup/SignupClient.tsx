@@ -172,8 +172,18 @@ export default function SignupClient({
         password: formData.password,
         options: { data: { full_name: formData.ownerName } },
       });
-      if (authError) throw authError;
+      if (authError) {
+        const msg = authError.message?.toLowerCase() ?? "";
+        if (msg.includes("already registered") || msg.includes("already in use") || msg.includes("email address is already")) {
+          throw new Error("Email address is already in use. Sign up with a different email address.");
+        }
+        throw authError;
+      }
       if (!authData.user) throw new Error("Failed to create account");
+      // Supabase silently returns a fake user with no identities for duplicate emails
+      if ((authData.user.identities?.length ?? 0) === 0) {
+        throw new Error("Email address is already in use. Sign up with a different email address.");
+      }
 
       // Step 1b: Create business record
       const bizRes = await fetch("/api/auth/create-business", {
@@ -493,11 +503,7 @@ export default function SignupClient({
                   disabled={loading}
                   className="w-full py-4 bg-[#8B5CF6] text-white rounded-lg font-bold text-lg hover:bg-[#7C3AED] transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading
-                    ? "Creating Account..."
-                    : selectedPlan === "free"
-                      ? "Continue to Payment Setup"
-                      : "Continue to Payment"}
+                  {loading ? "Creating Account..." : "Continue"}
                 </button>
 
                 <p className="text-xs text-gray-500 text-center">
