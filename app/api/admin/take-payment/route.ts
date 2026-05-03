@@ -161,8 +161,9 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   const platformFee = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
 
-  // ── Cash payment ──────────────────────────────────────────────────────────
-  if (mode === "cash") {
+  // ── Cash / Cash App / Zelle payment ─────────────────────────────────────
+  if (mode === "cash" || mode === "cashapp" || mode === "zelle") {
+    const methodLabel = mode === "cashapp" ? "Cash App" : mode === "zelle" ? "Zelle" : "Cash";
     let cashBookingId: string;
 
     if (existingBookingId) {
@@ -184,7 +185,7 @@ export async function POST(req: NextRequest) {
           status: "completed",
           total_price_cents: service.price_cents + platformFee,
           payment_status: "cash_paid",
-          customer_notes: "Walk-in — admin collected cash",
+          customer_notes: `Walk-in — admin collected ${methodLabel}`,
         })
         .select()
         .single();
@@ -195,10 +196,6 @@ export async function POST(req: NextRequest) {
 
     await awardLoyaltyOnPayment(businessId, customerId, cashBookingId);
 
-    // Record in alternative payment ledger.
-    // The DB trigger may have already inserted a row when payment_status was set —
-    // check first so we never create duplicates. If it exists, update it with
-    // richer data. If not, insert fresh.
     const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
     const { data: existingLedger } = await supabaseAdmin
@@ -214,13 +211,13 @@ export async function POST(req: NextRequest) {
       service_amount_cents: chargeAmountCents + platformFee,
       tip_cents: 0,
       platform_fee_cents: platformFee,
-      payment_method: "cash",
+      payment_method: mode,
       fee_absorbed_by: feeAbsorbedBy,
       billing_month: billingMonth,
       billing_status: "pending",
       marked_paid_by: null,
       appointment_ts: existingUnpaidBooking?.start_ts ?? now.toISOString(),
-      notes: "Cash payment recorded by admin",
+      notes: `${methodLabel} payment recorded by admin`,
     };
 
     if (existingLedger) {

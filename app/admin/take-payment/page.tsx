@@ -67,6 +67,9 @@ export default function AdminTakePaymentPage() {
   const [customError, setCustomError] = useState("");
   const [customSuccess, setCustomSuccess] = useState("");
 
+  // Tracks which custom payment button is submitting
+  const [customActiveMethod, setCustomActiveMethod] = useState<string | null>(null);
+
   // Discount calculator state
   const [discountPrice, setDiscountPrice] = useState("");
   const [discountPct, setDiscountPct] = useState("");
@@ -136,7 +139,7 @@ export default function AdminTakePaymentPage() {
     setLooking(false);
   }
 
-  async function submitPayment(mode: "card" | "cash") {
+  async function submitPayment(mode: "card" | "cash" | "cashapp" | "zelle") {
     setError("");
     const digits = customerPhone.replace(/\D/g, "");
     if (digits.length < 10) { setError("Enter a valid 10-digit phone number."); return; }
@@ -157,7 +160,8 @@ export default function AdminTakePaymentPage() {
         setQrUrl(data.bookingUrl || data.url);
       } else {
         reset();
-        setCustomSuccess("✅ Cash payment recorded successfully.");
+        const label = mode === "cashapp" ? "Cash App" : mode === "zelle" ? "Zelle" : "Cash";
+        setCustomSuccess(`✅ ${label} payment recorded successfully.`);
         setTimeout(() => setCustomSuccess(""), 4000);
       }
     } catch {
@@ -177,16 +181,17 @@ export default function AdminTakePaymentPage() {
     setCustomTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
   }
 
-  async function submitCustomPayment() {
+  async function submitCustomPayment(method: string) {
     setCustomError("");
     setCustomSuccess("");
-    if (!customServiceName.trim()) { setCustomError("Enter a service or description."); return; }
+    setCustomActiveMethod(method);
+    if (!customServiceName.trim()) { setCustomError("Enter a service or description."); setCustomActiveMethod(null); return; }
     const amountCents = Math.round(parseFloat(customAmount) * 100);
-    if (!amountCents || amountCents <= 0) { setCustomError("Enter a valid amount."); return; }
+    if (!amountCents || amountCents <= 0) { setCustomError("Enter a valid amount."); setCustomActiveMethod(null); return; }
     const tipCents = customTip ? Math.round(parseFloat(customTip) * 100) : 0;
 
     // Credit card: generate a Stripe QR link for the custom amount
-    if (customMethod === "card") {
+    if (method === "card") {
       setCustomBusy(true);
       try {
         const res = await fetch("/api/admin/custom-payment-card", {
@@ -202,12 +207,13 @@ export default function AdminTakePaymentPage() {
           }),
         });
         const data = await res.json();
-        if (!res.ok) { setCustomError(data.error || "Something went wrong."); setCustomBusy(false); return; }
+        if (!res.ok) { setCustomError(data.error || "Something went wrong."); setCustomBusy(false); setCustomActiveMethod(null); return; }
         setCustomQrUrl(data.url);
       } catch {
         setCustomError("Network error. Please try again.");
       }
       setCustomBusy(false);
+      setCustomActiveMethod(null);
       return;
     }
 
@@ -223,7 +229,7 @@ export default function AdminTakePaymentPage() {
           tipCents,
           customerName: customCustomerName,
           customerPhone: customerPhone.replace(/\D/g, ""),
-          paymentMethod: customMethod,
+          paymentMethod: method,
           appointmentTs,
           bookingId: linkedBookingId,
         }),
@@ -237,12 +243,14 @@ export default function AdminTakePaymentPage() {
         bc.close();
       } catch { /* BroadcastChannel not supported */ }
       reset();
-      setCustomSuccess("✅ Payment recorded successfully.");
+      const label = method === "cashapp" ? "Cash App" : method === "zelle" ? "Zelle" : "Cash";
+      setCustomSuccess(`✅ ${label} payment recorded successfully.`);
       setTimeout(() => setCustomSuccess(""), 4000);
     } catch {
       setCustomError("Network error. Please try again.");
     }
     setCustomBusy(false);
+    setCustomActiveMethod(null);
   }
 
   function calcDigit(d: string) {
@@ -449,15 +457,25 @@ export default function AdminTakePaymentPage() {
         {error && <p className="text-red-600 text-sm">{error}</p>}
 
         {lookup && (
-          <div className="space-y-3 pt-1">
+          <div className="space-y-2 pt-1">
             <button onClick={() => submitPayment("card")} disabled={busy}
               className="w-full py-4 bg-purple-600 text-white rounded-xl font-bold text-lg disabled:opacity-60 active:scale-95 transition">
-              {busy ? "Generating..." : "Generate QR Payment"}
+              {busy ? "Processing..." : "Generate QR Payment"}
             </button>
-            <button onClick={() => submitPayment("cash")} disabled={busy}
-              className="w-full py-3 bg-white text-gray-800 border-2 border-gray-300 rounded-xl font-semibold text-base disabled:opacity-60 active:scale-95 transition">
-              Mark Cash Paid
-            </button>
+            <div className="grid grid-cols-3 gap-2">
+              <button onClick={() => submitPayment("cash")} disabled={busy}
+                className="py-3 bg-gray-800 text-white rounded-xl font-bold text-sm disabled:opacity-60 active:scale-95 transition">
+                💵 Cash
+              </button>
+              <button onClick={() => submitPayment("cashapp")} disabled={busy}
+                className="py-3 bg-green-600 text-white rounded-xl font-bold text-sm disabled:opacity-60 active:scale-95 transition">
+                💚 Cash App
+              </button>
+              <button onClick={() => submitPayment("zelle")} disabled={busy}
+                className="py-3 bg-violet-600 text-white rounded-xl font-bold text-sm disabled:opacity-60 active:scale-95 transition">
+                💜 Zelle
+              </button>
+            </div>
           </div>
         )}
 
@@ -502,18 +520,6 @@ export default function AdminTakePaymentPage() {
                   className="w-full pl-7 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base text-gray-900 bg-white"
                 />
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Payment Method</label>
-              <select
-                value={customMethod} onChange={(e) => setCustomMethod(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base text-gray-900 bg-white"
-              >
-                <option value="cash">Cash</option>
-                <option value="cashapp">Cash App</option>
-                <option value="zelle">Zelle / Other</option>
-                <option value="card">Credit Card</option>
-              </select>
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-1">Customer Name (optional)</label>
@@ -573,11 +579,23 @@ export default function AdminTakePaymentPage() {
           ) : (
             <>
               {customError && <p className="text-red-600 text-sm">{customError}</p>}
-              <button
-                onClick={submitCustomPayment} disabled={customBusy}
-                className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-base disabled:opacity-60 active:scale-95 transition"
-              >
-                {customBusy ? (customMethod === "card" ? "Generating..." : "Recording...") : (customMethod === "card" ? "Generate QR for Custom Amount" : "Record Payment")}
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => submitCustomPayment("cash")} disabled={customBusy}
+                  className="py-3 bg-gray-800 text-white rounded-xl font-bold text-sm disabled:opacity-60 active:scale-95 transition">
+                  {customBusy && customActiveMethod === "cash" ? "..." : "💵 Cash"}
+                </button>
+                <button onClick={() => submitCustomPayment("cashapp")} disabled={customBusy}
+                  className="py-3 bg-green-600 text-white rounded-xl font-bold text-sm disabled:opacity-60 active:scale-95 transition">
+                  {customBusy && customActiveMethod === "cashapp" ? "..." : "💚 Cash App"}
+                </button>
+                <button onClick={() => submitCustomPayment("zelle")} disabled={customBusy}
+                  className="py-3 bg-violet-600 text-white rounded-xl font-bold text-sm disabled:opacity-60 active:scale-95 transition">
+                  {customBusy && customActiveMethod === "zelle" ? "..." : "💜 Zelle"}
+                </button>
+              </div>
+              <button onClick={() => submitCustomPayment("card")} disabled={customBusy}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-base disabled:opacity-60 active:scale-95 transition">
+                {customBusy && customActiveMethod === "card" ? "Generating QR..." : "💳 Generate QR (Credit Card)"}
               </button>
             </>
           )}
