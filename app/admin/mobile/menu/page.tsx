@@ -165,13 +165,12 @@ export default function MobileMenuPage() {
       href: "/admin/mobile/services",
       description: "View service prices",
     },
-    // HIDDEN ON MOBILE — uncomment to restore
-    // {
-    //   title: "Settings",
-    //   icon: "⚙️",
-    //   href: "/admin/mobile/settings",
-    //   description: "Loyalty & referral settings",
-    // },
+    {
+      title: "Settings",
+      icon: "⚙️",
+      href: "/admin/mobile/settings",
+      description: "Loyalty & referral settings",
+    },
   ];
 
   const bgStyle = { background: `linear-gradient(135deg, ${brandColor} 0%, ${darkenHex(brandColor)} 100%)` };
