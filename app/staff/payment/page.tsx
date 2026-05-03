@@ -684,7 +684,7 @@ export default function StaffPaymentPage() {
           <span className="text-gray-400 text-xl">{calcOpen ? "▲" : "▼"}</span>
         </button>
         {calcOpen && (
-          <div className="bg-amber-50 rounded-b-xl border border-t-0 border-amber-200 p-4">
+          <div className="bg-white rounded-b-xl border border-t-0 border-amber-200 p-4">
             <div className="bg-gray-900 rounded-xl px-4 pt-3 pb-4 mb-3">
               <div className="text-gray-400 text-sm h-5 text-right truncate">{calcExpression || " "}</div>
               <div className="text-white text-4xl font-bold text-right mt-1 overflow-hidden">{calcDisplay}</div>
