@@ -190,7 +190,7 @@ async function resolveReport(reportId: string) {
 
     const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
     const platformFeeCents = cashSettings?.fee_mode === "business_absorbs" ? 0 : 100;
-    const ledgerMethod = report.payment_method === "cash_app" ? "cashapp" : report.payment_method === "zelle" ? "other" : "cash";
+    const ledgerMethod = report.payment_method === "cash_app" ? "cashapp" : report.payment_method === "zelle" ? "zelle" : report.payment_method === "cashapp" ? "cashapp" : "cash";
 
     const ledgerPayload = {
       service_amount_cents: report.service_amount_cents,

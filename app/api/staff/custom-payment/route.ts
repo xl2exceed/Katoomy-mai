@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   const validMethods = ["cash", "cashapp", "zelle", "card", "other"];
   const rawMethod = validMethods.includes(paymentMethod) ? paymentMethod : "cash";
-  const method = rawMethod === "zelle" ? "other" : rawMethod;
+  const method = rawMethod;
 
   const ts = appointmentTs ? new Date(appointmentTs) : new Date();
   const billingMonth = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}`;

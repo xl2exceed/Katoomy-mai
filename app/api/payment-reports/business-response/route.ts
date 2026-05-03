@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     const ledgerMethod =
       report.payment_method === "cash_app" ? "cashapp" :
-      report.payment_method === "zelle"    ? "other"   :
+      report.payment_method === "zelle"    ? "zelle"   :
       report.payment_method === "cash"     ? "cash"    : "cashapp";
 
     const ledgerPayload = {
