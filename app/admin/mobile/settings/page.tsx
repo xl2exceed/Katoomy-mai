@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -82,6 +82,20 @@ export default function MobileSettingsPage() {
   const [serviceMode, setServiceMode] = useState("in_shop");
   const [nicheSaving, setNicheSaving] = useState(false);
   const [nicheMsg, setNicheMsg] = useState("");
+
+  // Secret tap: tap "Settings" header 7× to reveal Business Type section
+  const [showNicheSection, setShowNicheSection] = useState(false);
+  const nicheTapCount = useRef(0);
+  const nicheTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function handleSettingsTitleTap() {
+    nicheTapCount.current += 1;
+    if (nicheTapTimer.current) clearTimeout(nicheTapTimer.current);
+    nicheTapTimer.current = setTimeout(() => { nicheTapCount.current = 0; }, 2000);
+    if (nicheTapCount.current >= 7) {
+      nicheTapCount.current = 0;
+      setShowNicheSection(v => !v);
+    }
+  }
 
   useEffect(() => {
     loadSettings();
@@ -234,7 +248,7 @@ export default function MobileSettingsPage() {
           <Link href="/admin/mobile/menu" className="text-2xl">
             ←
           </Link>
-          <h1 className="text-xl font-bold">Settings</h1>
+          <h1 className="text-xl font-bold select-none" onClick={handleSettingsTitleTap}>Settings</h1>
           <div className="w-8"></div>
         </div>
       </div>
@@ -386,8 +400,8 @@ export default function MobileSettingsPage() {
           </div>
         </div>
 
-        {/* Business Type Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        {/* Business Type Card — hidden; tap "Settings" header 7× to reveal */}
+        {showNicheSection && <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <h2 className="text-lg font-bold text-gray-900 mb-1">Business Type</h2>
           <p className="text-sm text-gray-600 mb-4">Select your niche to unlock the right features</p>
 
@@ -459,7 +473,7 @@ export default function MobileSettingsPage() {
           >
             {nicheSaving ? "Saving…" : "Save Business Type"}
           </button>
-        </div>
+        </div>}
 
         {/* Info Box */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

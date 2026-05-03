@@ -37,7 +37,11 @@ export async function POST(req: NextRequest) {
 
   const { niche, service_mode } = await req.json();
 
-  const validNiches = ["barber", "carwash"];
+  const validNiches = [
+    "barber", "salon", "carwash",
+    "nail_salon", "personal_trainer", "massage_therapist",
+    "lawn_care", "tattoo_artist", "esthetician", "pet_groomer",
+  ];
   const validModes = ["in_shop", "mobile", "hybrid"];
   if (!validNiches.includes(niche)) {
     return NextResponse.json({ error: "Invalid niche" }, { status: 400 });

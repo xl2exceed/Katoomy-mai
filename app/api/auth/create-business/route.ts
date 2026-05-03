@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(req: NextRequest) {
-  const { userId, businessName, ownerName, email, phone } = await req.json();
+  const { userId, businessName, ownerName, email, phone, niche } = await req.json();
 
   if (!userId || !businessName || !ownerName || !email) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       owner_phone: phone || null,
       owner_email: email,
       subscription_plan: "free",
-      features: { niche: "barber" },
+      features: { niche: niche || "barber" },
       billing_interval: "monthly",
       next_billing_date: nextBillingDate,
     })

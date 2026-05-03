@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -43,6 +43,20 @@ export default function SettingsPage() {
   const [serviceMode, setServiceMode] = useState("in_shop");
   const [nicheSaving, setNicheSaving] = useState(false);
   const [nicheMsg, setNicheMsg] = useState("");
+
+  // Secret tap: tap "App Settings" title 7× to reveal Business Type section
+  const [showNicheSection, setShowNicheSection] = useState(false);
+  const nicheTapCount = useRef(0);
+  const nicheTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function handleSettingsTitleTap() {
+    nicheTapCount.current += 1;
+    if (nicheTapTimer.current) clearTimeout(nicheTapTimer.current);
+    nicheTapTimer.current = setTimeout(() => { nicheTapCount.current = 0; }, 2000);
+    if (nicheTapCount.current >= 7) {
+      nicheTapCount.current = 0;
+      setShowNicheSection(v => !v);
+    }
+  }
 
   // SMS template state
   const [smsTemplates, setSmsTemplates] = useState({
@@ -326,7 +340,7 @@ export default function SettingsPage() {
           >
             ← Back to Dashboard
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">App Settings</h1>
+          <h1 className="text-3xl font-bold text-gray-900 select-none cursor-default" onClick={handleSettingsTitleTap}>App Settings</h1>
           <p className="text-gray-600 mt-1">Configure your business preferences</p>
         </div>
 
@@ -761,8 +775,8 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Business Type / Niche Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        {/* Business Type / Niche Section — hidden; tap "App Settings" title 7× to reveal */}
+        {showNicheSection && <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-1">Business Type</h2>
           <p className="text-sm text-gray-600 mb-6">Select your business niche to unlock the right features for your industry</p>
 
@@ -835,7 +849,7 @@ export default function SettingsPage() {
               {nicheSaving ? "Saving…" : "Save Business Type"}
             </button>
           </div>
-        </div>
+        </div>}
 
         {/* Smart Campaigns Section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">

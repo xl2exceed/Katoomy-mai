@@ -111,6 +111,8 @@ export default function SignupClient({
   const [logoTaps, setLogoTaps] = useState(0);
   const [showBypass, setShowBypass] = useState(false);
 
+  const [niche, setNiche] = useState("barber");
+
   const [formData, setFormData] = useState({
     businessName: "",
     ownerName: "",
@@ -195,6 +197,7 @@ export default function SignupClient({
           ownerName: formData.ownerName,
           email: formData.email,
           phone: formData.phone || null,
+          niche,
         }),
       });
       const business = await bizRes.json();
@@ -490,6 +493,46 @@ export default function SignupClient({
                     inputMode="numeric"
                     autoComplete="tel"
                   />
+                </div>
+
+                {/* Business Type */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Business Type <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: "barber", label: "Barber Shop", icon: "✂️", active: true },
+                      { value: "salon", label: "Salon", icon: "💇", active: true },
+                      { value: "carwash", label: "Car Wash", icon: "🚗", active: true },
+                      { value: "nail_salon", label: "Nail Salon", icon: "💅", active: false },
+                      { value: "personal_trainer", label: "Personal Trainer", icon: "💪", active: false },
+                      { value: "massage_therapist", label: "Massage", icon: "🧘", active: false },
+                      { value: "lawn_care", label: "Lawn Care", icon: "🌿", active: false },
+                      { value: "tattoo_artist", label: "Tattoo", icon: "🎨", active: false },
+                      { value: "esthetician", label: "Esthetician", icon: "✨", active: false },
+                    ].map(({ value, label, icon, active }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={!active}
+                        onClick={() => active && setNiche(value)}
+                        className={`relative p-2.5 rounded-lg border-2 text-center transition ${
+                          niche === value
+                            ? "border-[#8B5CF6] bg-purple-50"
+                            : active
+                            ? "border-gray-200 hover:border-gray-300"
+                            : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                        }`}
+                      >
+                        <div className="text-xl mb-0.5">{icon}</div>
+                        <div className="text-xs font-semibold text-gray-800 leading-tight">{label}</div>
+                        {!active && (
+                          <span className="absolute top-1 right-1 text-[9px] font-bold text-gray-400 leading-none">Soon</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {error && (
