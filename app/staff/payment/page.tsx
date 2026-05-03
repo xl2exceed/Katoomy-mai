@@ -449,7 +449,7 @@ export default function StaffPaymentPage() {
           {customSuccess}
         </div>
       )}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+      <div className="bg-blue-50 rounded-xl shadow-sm border border-blue-200 p-6 space-y-4">
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">Customer Phone</label>
@@ -569,7 +569,7 @@ export default function StaffPaymentPage() {
       <div className="mt-8">
         <h2 className="text-lg font-bold text-gray-900 mb-1">Custom Payment</h2>
         <p className="text-sm text-gray-500 mb-4">Record a one-off payment for any service or product not in the system.</p>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div className="bg-violet-50 rounded-xl shadow-sm border border-violet-200 p-6 space-y-4">
 
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
@@ -687,7 +687,7 @@ export default function StaffPaymentPage() {
       <div className="mt-8">
         <h2 className="text-lg font-bold text-gray-900 mb-1">Discount Calculator</h2>
         <p className="text-sm text-gray-500 mb-4">Enter the original price and discount — see exactly what to charge.</p>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-emerald-50 rounded-xl shadow-sm border border-emerald-200 p-6">
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Original Price</label>
@@ -719,7 +719,7 @@ export default function StaffPaymentPage() {
             const savings = price * (pct / 100);
             const charge = price - savings;
             return (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-4">
+              <div className="bg-white border border-emerald-300 rounded-xl px-5 py-4">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm text-gray-600">Original price</span>
                   <span className="text-sm font-semibold text-gray-700">${price.toFixed(2)}</span>
@@ -742,13 +742,13 @@ export default function StaffPaymentPage() {
       <div className="mt-8">
         <button
           onClick={() => setCalcOpen(!calcOpen)}
-          className="w-full flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4"
+          className="w-full flex items-center justify-between bg-amber-50 rounded-xl shadow-sm border border-amber-200 px-6 py-4"
         >
           <span className="text-lg font-bold text-gray-900">Calculator</span>
           <span className="text-gray-400 text-xl">{calcOpen ? "▲" : "▼"}</span>
         </button>
         {calcOpen && (
-          <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 p-4">
+          <div className="bg-amber-50 rounded-b-xl border border-t-0 border-amber-200 p-4">
             <div className="bg-gray-900 rounded-xl px-4 pt-3 pb-4 mb-3">
               <div className="text-gray-400 text-sm h-5 text-right truncate">{calcExpression || " "}</div>
               <div className="text-white text-4xl font-bold text-right mt-1 overflow-hidden">{calcDisplay}</div>
