@@ -673,29 +673,29 @@ export default function AdminTakePaymentPage() {
               <div className="text-white text-4xl font-bold text-right mt-1 overflow-hidden">{calcDisplay}</div>
             </div>
             <div className="grid grid-cols-4 gap-2">
-              <button onClick={calcClear} className="col-span-2 py-4 bg-red-50 text-red-700 rounded-xl font-bold text-lg active:scale-95 transition">C</button>
-              <button onClick={calcBack} className="py-4 bg-gray-100 text-gray-700 rounded-xl font-bold text-lg active:scale-95 transition">⌫</button>
-              <button onClick={() => calcOp("/")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl active:scale-95 transition">÷</button>
+              <button onClick={calcClear} className="col-span-2 py-4 bg-red-50 text-red-700 rounded-xl font-bold text-lg border border-black active:scale-95 transition">C</button>
+              <button onClick={calcBack} className="py-4 bg-gray-100 text-gray-700 rounded-xl font-bold text-lg border border-black active:scale-95 transition">⌫</button>
+              <button onClick={() => calcOp("/")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl border border-black active:scale-95 transition">÷</button>
 
-              <button onClick={() => calcDigit("7")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">7</button>
-              <button onClick={() => calcDigit("8")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">8</button>
-              <button onClick={() => calcDigit("9")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">9</button>
-              <button onClick={() => calcOp("*")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl active:scale-95 transition">×</button>
+              <button onClick={() => calcDigit("7")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">7</button>
+              <button onClick={() => calcDigit("8")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">8</button>
+              <button onClick={() => calcDigit("9")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">9</button>
+              <button onClick={() => calcOp("*")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl border border-black active:scale-95 transition">×</button>
 
-              <button onClick={() => calcDigit("4")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">4</button>
-              <button onClick={() => calcDigit("5")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">5</button>
-              <button onClick={() => calcDigit("6")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">6</button>
-              <button onClick={() => calcOp("-")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl active:scale-95 transition">−</button>
+              <button onClick={() => calcDigit("4")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">4</button>
+              <button onClick={() => calcDigit("5")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">5</button>
+              <button onClick={() => calcDigit("6")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">6</button>
+              <button onClick={() => calcOp("-")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl border border-black active:scale-95 transition">−</button>
 
-              <button onClick={() => calcDigit("1")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">1</button>
-              <button onClick={() => calcDigit("2")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">2</button>
-              <button onClick={() => calcDigit("3")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">3</button>
-              <button onClick={() => calcOp("+")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl active:scale-95 transition">+</button>
+              <button onClick={() => calcDigit("1")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">1</button>
+              <button onClick={() => calcDigit("2")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">2</button>
+              <button onClick={() => calcDigit("3")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">3</button>
+              <button onClick={() => calcOp("+")} className="py-4 bg-purple-100 text-purple-700 rounded-xl font-bold text-xl border border-black active:scale-95 transition">+</button>
 
-              <button onClick={calcPercent} className="py-4 bg-blue-50 text-blue-700 rounded-xl font-bold text-lg active:scale-95 transition">%</button>
-              <button onClick={() => calcDigit("0")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">0</button>
-              <button onClick={() => calcDigit(".")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg active:scale-95 transition">.</button>
-              <button onClick={calcEquals} className="py-4 bg-purple-600 text-white rounded-xl font-bold text-xl active:scale-95 transition">=</button>
+              <button onClick={calcPercent} className="py-4 bg-blue-50 text-blue-700 rounded-xl font-bold text-lg border border-black active:scale-95 transition">%</button>
+              <button onClick={() => calcDigit("0")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">0</button>
+              <button onClick={() => calcDigit(".")} className="py-4 bg-gray-50 text-gray-900 rounded-xl font-semibold text-lg border border-black active:scale-95 transition">.</button>
+              <button onClick={calcEquals} className="py-4 bg-purple-600 text-white rounded-xl font-bold text-xl border border-black active:scale-95 transition">=</button>
             </div>
             <p className="text-xs text-gray-400 text-center mt-3">Tip: type price × percent % to calculate a discount (e.g. 33 × 15 %)</p>
           </div>
