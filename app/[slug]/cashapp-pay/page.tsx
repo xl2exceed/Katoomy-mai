@@ -121,9 +121,27 @@ export default function ExternalPayPage() {
     }
   };
 
+  const backUrl = `/${slug}/choose-payment?${new URLSearchParams({
+    ...(bookingId ? { bookingId } : {}),
+    serviceCents: String(serviceCents),
+    tipCents: String(tipCents),
+    source,
+  }).toString()}`;
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 max-w-sm w-full">
+
+        {/* Back button */}
+        <button
+          onClick={() => router.push(backUrl)}
+          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4 transition"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
 
         {/* Header */}
         <div className="text-center mb-5">
