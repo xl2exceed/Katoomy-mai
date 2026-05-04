@@ -704,7 +704,7 @@ function CustomersView({ businessId, pushView }: { businessId: string; pushView:
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-2">
         <h2 className="text-xl font-bold text-white">Customers ({total})</h2>
         <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name..."
           className="flex-1 max-w-xs bg-gray-800 text-white rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500" />
@@ -712,11 +712,12 @@ function CustomersView({ businessId, pushView }: { businessId: string; pushView:
           {(["all", "installed", "not_installed"] as const).map((f) => (
             <button key={f} onClick={() => setFilterInstalled(f)}
               className={`px-3 py-1.5 rounded-md font-medium transition ${filterInstalled === f ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
-              {f === "all" ? "All" : f === "installed" ? `📲 Installed (${installedCount})` : `Not Installed (${customers.length - installedCount})`}
+              {f === "all" ? "All" : f === "installed" ? `📲 Push On (${installedCount})` : `Push Off (${customers.length - installedCount})`}
             </button>
           ))}
         </div>
       </div>
+      <p className="text-xs text-gray-600 mb-4">📲 column = customer enabled push notifications (closest per-customer proxy for app install; overall install count is on the overview)</p>
       {loading ? <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" /></div> : (
         <>
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-auto">
@@ -741,7 +742,7 @@ function CustomersView({ businessId, pushView }: { businessId: string; pushView:
                     <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{c.last_visit_at ? fmtDate(c.last_visit_at) : "—"}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.app_installed ? "bg-violet-900 text-violet-300" : "bg-gray-800 text-gray-600"}`}>
-                        {c.app_installed ? "📲 Installed" : "—"}
+                        {c.app_installed ? "📲 Push On" : "—"}
                       </span>
                     </td>
                     <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${c.sms_consent ? "bg-green-900 text-green-300" : "bg-gray-800 text-gray-500"}`}>{c.sms_consent ? "Opted in" : "—"}</span></td>

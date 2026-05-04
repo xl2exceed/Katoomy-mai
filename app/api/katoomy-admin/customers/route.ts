@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
 
   if (!businessId) return NextResponse.json({ error: "Missing businessId" }, { status: 400 });
 
-  // Run customers query and push subscriptions lookup in parallel
+  // Fetch customers first, then cross-reference push_subscriptions by customer_id
+  // (NOT by business_id — the subscribe route stores business_id as null for many customers)
   let customerQuery = supabaseAdmin
     .from("customers")
     .select("id, full_name, phone, email, created_at, last_visit_at, sms_consent", { count: "exact" })
@@ -35,24 +36,26 @@ export async function GET(req: NextRequest) {
 
   if (q) customerQuery = customerQuery.ilike("full_name", `%${q}%`);
 
-  const [customersResult, pushResult] = await Promise.all([
-    customerQuery,
-    supabaseAdmin
-      .from("push_subscriptions")
-      .select("customer_id")
-      .eq("business_id", businessId)
-      .eq("user_type", "customer")
-      .not("customer_id", "is", null),
-  ]);
+  const customersResult = await customerQuery;
 
   if (customersResult.error) {
     return NextResponse.json({ error: customersResult.error.message }, { status: 500 });
   }
 
-  // Build set of customer IDs with active push subscriptions (= app installed)
-  const installedIds = new Set(
-    (pushResult.data || []).map((p: { customer_id: string }) => p.customer_id)
-  );
+  // Check which of this page's customers have a push subscription
+  const customerIds = (customersResult.data || []).map((c) => c.id);
+  let installedIds = new Set<string>();
+
+  if (customerIds.length > 0) {
+    const { data: pushData } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("customer_id")
+      .in("customer_id", customerIds)
+      .eq("user_type", "customer")
+      .not("customer_id", "is", null);
+
+    installedIds = new Set((pushData || []).map((p: { customer_id: string }) => p.customer_id));
+  }
 
   const customers = (customersResult.data || []).map((c) => ({
     ...c,
