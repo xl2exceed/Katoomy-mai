@@ -59,14 +59,12 @@ export default async function AdminLayout({
     niche = (features?.niche as string) ?? "barber";
   }
 
-  // Mobile routes render without the desktop sidebar
+  // Mobile routes render without the desktop sidebar.
+  // AiHelpWidget is intentionally NOT rendered here — app/admin/mobile/layout.tsx
+  // already renders it with portal="admin-mobile". Rendering it here too would
+  // cause two overlapping widget instances that conflict with each other.
   if (pathname.startsWith("/admin/mobile")) {
-    return (
-      <>
-        {children}
-        <AiHelpWidget portal="admin-desktop" />
-      </>
-    );
+    return <>{children}</>;
   }
 
   return (

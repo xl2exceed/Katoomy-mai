@@ -333,7 +333,11 @@ export default function AiHelpWidget({ portal = "admin-desktop" }: AiHelpWidgetP
     top:  pos.y,
     zIndex: 50,
     opacity: visible ? 1 : 0,
-    pointerEvents: visible ? "auto" : "none",
+    // Keep pointerEvents always "auto" so the button remains clickable and
+    // draggable during the fade-out/fade-in transition. The button is only
+    // 56×56px fixed in a corner, so an invisible-but-clickable state is
+    // preferable to a visible-but-unclickable one.
+    pointerEvents: "auto",
     transition: "opacity 0.4s ease",
     cursor: "grab",
     touchAction: "none",

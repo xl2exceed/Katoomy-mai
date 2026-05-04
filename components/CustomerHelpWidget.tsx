@@ -276,7 +276,7 @@ export default function CustomerHelpWidget() {
     top:  pos.y,
     zIndex: 50,
     opacity: visible ? 1 : 0,
-    pointerEvents: visible ? "auto" : "none",
+    pointerEvents: "auto", // Always enabled — invisible-but-clickable is better than visible-but-unclickable during fade
     transition: "opacity 0.4s ease",
     cursor: "grab",
     touchAction: "none",
