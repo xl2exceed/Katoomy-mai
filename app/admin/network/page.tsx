@@ -107,16 +107,16 @@ export default function NetworkPage() {
 
   // ── Load businessId ──────────────────────────────────────────────────────
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then((res) => {
-      const user = res.data?.user;
+    async function init() {
+      const supabase = createClient();
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user;
       if (!user) return;
-      supabase.from("businesses").select("id").eq("owner_user_id", user.id).maybeSingle()
-        .then((bizRes) => {
-          const id = (bizRes.data as { id: string } | null)?.id;
-          if (id) setBusinessId(id);
-        });
-    });
+      const { data: biz } = await supabase
+        .from("businesses").select("id").eq("owner_user_id", user.id).maybeSingle();
+      if (biz?.id) setBusinessId(biz.id as string);
+    }
+    init();
   }, []);
 
   // ── Load data once businessId is known ──────────────────────────────────
