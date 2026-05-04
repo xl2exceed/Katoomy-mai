@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
     const { businessId, planId, name, description, priceCents, discountPercent } =
       await req.json();
 
-    if (!businessId || !name || !priceCents || discountPercent === undefined) {
+    const resolvedDiscount = discountPercent ?? 0;
+    if (!businessId || !name || !priceCents) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
           name,
           description: description || null,
           price_cents: priceCents,
-          discount_percent: discountPercent,
+          discount_percent: resolvedDiscount,
           stripe_price_id: stripePriceId,
         })
         .eq("id", planId)
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
           name,
           description: description || null,
           price_cents: priceCents,
-          discount_percent: discountPercent,
+          discount_percent: resolvedDiscount,
           stripe_product_id: stripeProductId,
           stripe_price_id: stripePriceId,
           is_active: true,

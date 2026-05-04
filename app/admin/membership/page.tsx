@@ -106,10 +106,10 @@ export default function MembershipAdminPage() {
 
   const handleSave = async () => {
     const priceCents = Math.round(parseFloat(form.price) * 100);
-    const discountPercent = parseInt(form.discount);
+    const discountPercent = form.discount.trim() === "" ? 0 : parseInt(form.discount);
 
-    if (!form.name || isNaN(priceCents) || priceCents <= 0 || isNaN(discountPercent) || discountPercent < 1) {
-      setSaveMessage("❌ Please fill in all fields correctly");
+    if (!form.name || isNaN(priceCents) || priceCents <= 0 || isNaN(discountPercent)) {
+      setSaveMessage("❌ Please enter a valid plan name and monthly price");
       return;
     }
 
@@ -223,17 +223,17 @@ export default function MembershipAdminPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Discount (%)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Discount % <span className="text-gray-400 font-normal">(optional)</span></label>
                 <input
                   type="number"
-                  min="1"
+                  min="0"
                   max="100"
                   value={form.discount}
                   onChange={(e) => setForm((f) => ({ ...f, discount: e.target.value }))}
-                  placeholder="e.g., 15"
+                  placeholder="e.g., 15 — leave blank for no discount"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Applied to all services at booking</p>
+                <p className="text-xs text-gray-500 mt-1">Leave blank for perks-only plans (priority booking, etc.)</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
