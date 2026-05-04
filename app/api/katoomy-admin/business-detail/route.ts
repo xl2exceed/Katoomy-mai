@@ -1,6 +1,5 @@
 // GET /api/katoomy-admin/business-detail?businessId=xxx
 // Returns comprehensive metrics for a single business.
-// Requires X-Katoomy-Email header.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -11,7 +10,6 @@ const supabaseAdmin = createClient(
 );
 
 const ADMIN_TOKEN = process.env.KATOOMY_ADMIN_TOKEN || "katoomy-internal-2026";
-
 function authorize(req: NextRequest) {
   return req.headers.get("x-katoomy-token") === ADMIN_TOKEN;
 }
@@ -31,79 +29,116 @@ export async function GET(req: NextRequest) {
   const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  // Fetch all data in parallel
   const [
     bizResult,
     bookingsResult,
-    customersResult,
     membersResult,
     staffResult,
     disputesResult,
     smsResult,
     reportsResult,
     loyaltyResult,
+    pwaInstallsResult,
+    aiCampaignsResult,
+    availabilityResult,
+    stripeConnectResult,
+    referralsResult,
+    depositResult,
+    customerCountResult,
+    recentCustomersResult,
   ] = await Promise.all([
-    // Business profile
     supabaseAdmin
       .from("businesses")
-      .select("id, name, slug, created_at, features, primary_color")
+      .select("id, name, slug, created_at, features, primary_color, subscription_plan, subscription_status, owner_name, owner_email, phone, timezone")
       .eq("id", businessId)
       .single(),
 
-    // All bookings
     supabaseAdmin
       .from("bookings")
       .select("id, created_at, start_ts, status, payment_status")
       .eq("business_id", businessId),
 
-    // All customers
-    supabaseAdmin
-      .from("customers")
-      .select("id, created_at, full_name, phone")
-      .eq("business_id", businessId)
-      .order("created_at", { ascending: false })
-      .limit(10),
-
-    // Active members
     supabaseAdmin
       .from("member_subscriptions")
       .select("id, created_at, current_period_end, customers(full_name, phone), membership_plans(name, price_cents)")
       .eq("business_id", businessId)
       .eq("status", "active"),
 
-    // Staff
     supabaseAdmin
       .from("staff")
       .select("id, full_name, email, role, created_at")
       .eq("business_id", businessId),
 
-    // Payment disputes / refunds
     supabaseAdmin
       .from("booking_payment_reports")
-      .select("id, created_at, total_amount_cents, refund_amount_cents, payment_method, dispute_status")
+      .select("id, created_at, total_amount_cents, payment_method, dispute_status")
       .eq("business_id", businessId)
       .not("dispute_status", "is", null)
       .order("created_at", { ascending: false })
       .limit(20),
 
-    // SMS count
     supabaseAdmin
       .from("sms_messages")
-      .select("id, created_at, direction")
+      .select("id, direction")
       .eq("business_id", businessId),
 
-    // Payment reports for revenue
     supabaseAdmin
       .from("booking_payment_reports")
-      .select("id, created_at, total_amount_cents, payment_method")
+      .select("id, created_at, total_amount_cents")
       .eq("business_id", businessId),
 
-    // Loyalty settings
+    // Fixed loyalty query with correct column names
     supabaseAdmin
       .from("loyalty_settings")
-      .select("enabled, visits_required, reward_description")
+      .select("enabled, reward_type, reward_value, threshold_points, referral_enabled, earn_on_completion, earn_on_booking")
       .eq("business_id", businessId)
-      .single(),
+      .maybeSingle(),
+
+    supabaseAdmin
+      .from("pwa_installs")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId),
+
+    supabaseAdmin
+      .from("ai_marketing_settings")
+      .select("winback_enabled, referral_enabled, appt_reminder_enabled, reengage_enabled, winback_30_enabled, winback_60_enabled, winback_90_enabled")
+      .eq("business_id", businessId)
+      .maybeSingle(),
+
+    supabaseAdmin
+      .from("availability_rules")
+      .select("day_of_week, start_time, end_time, days_open")
+      .eq("business_id", businessId)
+      .order("day_of_week", { ascending: true }),
+
+    supabaseAdmin
+      .from("stripe_connect_accounts")
+      .select("stripe_account_id, created_at")
+      .eq("business_id", businessId)
+      .maybeSingle(),
+
+    supabaseAdmin
+      .from("referrals")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId),
+
+    supabaseAdmin
+      .from("deposit_settings")
+      .select("enabled, type, amount_cents, percent")
+      .eq("business_id", businessId)
+      .maybeSingle(),
+
+    supabaseAdmin
+      .from("customers")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId),
+
+    supabaseAdmin
+      .from("customers")
+      .select("id, created_at, full_name, phone")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   const biz = bizResult.data;
@@ -113,19 +148,13 @@ export async function GET(req: NextRequest) {
   const reports = reportsResult.data || [];
   const smsMessages = smsResult.data || [];
 
-  // Booking breakdowns
-  const bookingsByPeriod = (start: string) =>
-    bookings.filter((b) => b.start_ts >= start);
-
+  const bookingsByPeriod = (start: string) => bookings.filter((b) => b.start_ts >= start);
   const revenueByPeriod = (start: string) =>
-    reports
-      .filter((r) => r.created_at >= start)
-      .reduce((sum, r) => sum + (r.total_amount_cents || 0), 0) / 100;
+    reports.filter((r) => r.created_at >= start).reduce((s, r) => s + (r.total_amount_cents || 0), 0) / 100;
 
-  const countByStatus = (status: string) =>
-    bookings.filter((b) => b.status === status).length;
+  const countByStatus = (status: string) => bookings.filter((b) => b.status === status).length;
 
-  const detail = {
+  return NextResponse.json({
     business: biz,
     stats: {
       totalBookings: bookings.length,
@@ -133,28 +162,18 @@ export async function GET(req: NextRequest) {
       noShows: countByStatus("no_show"),
       cancelledBookings: countByStatus("cancelled"),
       allTimeRevenue: reports.reduce((s, r) => s + (r.total_amount_cents || 0), 0) / 100,
-      totalCustomers: (await supabaseAdmin.from("customers").select("id", { count: "exact", head: true }).eq("business_id", businessId)).count || 0,
+      totalCustomers: customerCountResult.count || 0,
+      appInstalls: pwaInstallsResult.count || 0,
+      totalReferrals: referralsResult.count || 0,
     },
     periods: {
-      today: {
-        bookings: bookingsByPeriod(startOfToday).length,
-        revenue: revenueByPeriod(startOfToday),
-      },
-      week: {
-        bookings: bookingsByPeriod(startOfWeek).length,
-        revenue: revenueByPeriod(startOfWeek),
-      },
-      month: {
-        bookings: bookingsByPeriod(startOfMonth).length,
-        revenue: revenueByPeriod(startOfMonth),
-      },
-      allTime: {
-        bookings: bookings.length,
-        revenue: reports.reduce((s, r) => s + (r.total_amount_cents || 0), 0) / 100,
-      },
+      today: { bookings: bookingsByPeriod(startOfToday).length, revenue: revenueByPeriod(startOfToday) },
+      week: { bookings: bookingsByPeriod(startOfWeek).length, revenue: revenueByPeriod(startOfWeek) },
+      month: { bookings: bookingsByPeriod(startOfMonth).length, revenue: revenueByPeriod(startOfMonth) },
+      allTime: { bookings: bookings.length, revenue: reports.reduce((s, r) => s + (r.total_amount_cents || 0), 0) / 100 },
     },
     members: membersResult.data || [],
-    recentCustomers: customersResult.data || [],
+    recentCustomers: recentCustomersResult.data || [],
     staff: staffResult.data || [],
     disputes: disputesResult.data || [],
     sms: {
@@ -163,7 +182,10 @@ export async function GET(req: NextRequest) {
       received: smsMessages.filter((s) => s.direction === "inbound").length,
     },
     loyalty: loyaltyResult.data || null,
-  };
-
-  return NextResponse.json(detail);
+    appInstalls: pwaInstallsResult.count || 0,
+    automatedCampaigns: aiCampaignsResult.data || null,
+    availability: availabilityResult.data || [],
+    stripeConnect: stripeConnectResult.data || null,
+    depositSettings: depositResult.data || null,
+  });
 }
