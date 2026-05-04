@@ -1,4 +1,5 @@
 // GET /api/katoomy-admin/customers?businessId=&q=&limit=50&offset=0
+// Returns customers with app_installed flag (has push subscription).
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -24,17 +25,39 @@ export async function GET(req: NextRequest) {
 
   if (!businessId) return NextResponse.json({ error: "Missing businessId" }, { status: 400 });
 
-  let query = supabaseAdmin
+  // Run customers query and push subscriptions lookup in parallel
+  let customerQuery = supabaseAdmin
     .from("customers")
     .select("id, full_name, phone, email, created_at, last_visit_at, sms_consent", { count: "exact" })
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (q) query = query.ilike("full_name", `%${q}%`);
+  if (q) customerQuery = customerQuery.ilike("full_name", `%${q}%`);
 
-  const { data, error, count } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const [customersResult, pushResult] = await Promise.all([
+    customerQuery,
+    supabaseAdmin
+      .from("push_subscriptions")
+      .select("customer_id")
+      .eq("business_id", businessId)
+      .eq("user_type", "customer")
+      .not("customer_id", "is", null),
+  ]);
 
-  return NextResponse.json({ customers: data || [], total: count || 0 });
+  if (customersResult.error) {
+    return NextResponse.json({ error: customersResult.error.message }, { status: 500 });
+  }
+
+  // Build set of customer IDs with active push subscriptions (= app installed)
+  const installedIds = new Set(
+    (pushResult.data || []).map((p: { customer_id: string }) => p.customer_id)
+  );
+
+  const customers = (customersResult.data || []).map((c) => ({
+    ...c,
+    app_installed: installedIds.has(c.id),
+  }));
+
+  return NextResponse.json({ customers, total: customersResult.count || 0 });
 }

@@ -676,7 +676,8 @@ function BusinessOverview({ detail, pushView }: { detail: BusinessDetail; pushVi
 // ─────────────────────────────────────────────────────────────────────────────
 function CustomersView({ businessId, pushView }: { businessId: string; pushView: (v: View) => void }) {
   const [search, setSearch] = useState("");
-  const [customers, setCustomers] = useState<Array<{ id: string; full_name: string | null; phone: string; email: string | null; created_at: string; last_visit_at: string | null; sms_consent: boolean }>>([]);
+  const [filterInstalled, setFilterInstalled] = useState<"all" | "installed" | "not_installed">("all");
+  const [customers, setCustomers] = useState<Array<{ id: string; full_name: string | null; phone: string; email: string | null; created_at: string; last_visit_at: string | null; sms_consent: boolean; app_installed: boolean }>>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -690,39 +691,60 @@ function CustomersView({ businessId, pushView }: { businessId: string; pushView:
   }, [businessId]);
 
   useEffect(() => { load("", 0); }, [load]);
-
   useEffect(() => {
     const t = setTimeout(() => { setOffset(0); load(search, 0); }, 400);
     return () => clearTimeout(t);
   }, [search, load]);
 
+  const filtered = filterInstalled === "all" ? customers
+    : filterInstalled === "installed" ? customers.filter((c) => c.app_installed)
+    : customers.filter((c) => !c.app_installed);
+
+  const installedCount = customers.filter((c) => c.app_installed).length;
+
   return (
     <div className="p-6">
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <h2 className="text-xl font-bold text-white">Customers ({total})</h2>
         <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name..."
           className="flex-1 max-w-xs bg-gray-800 text-white rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+        <div className="flex bg-gray-800 rounded-lg p-0.5 text-xs">
+          {(["all", "installed", "not_installed"] as const).map((f) => (
+            <button key={f} onClick={() => setFilterInstalled(f)}
+              className={`px-3 py-1.5 rounded-md font-medium transition ${filterInstalled === f ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
+              {f === "all" ? "All" : f === "installed" ? `📲 Installed (${installedCount})` : `Not Installed (${customers.length - installedCount})`}
+            </button>
+          ))}
+        </div>
       </div>
       {loading ? <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" /></div> : (
         <>
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b border-gray-800 text-gray-500 text-left">
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Phone</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
                 <th className="px-4 py-3 font-medium">Last Visit</th>
+                <th className="px-4 py-3 font-medium">App</th>
                 <th className="px-4 py-3 font-medium">SMS</th>
               </tr></thead>
               <tbody className="divide-y divide-gray-800">
-                {customers.map((c) => (
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No customers found</td></tr>
+                ) : filtered.map((c) => (
                   <tr key={c.id} className="hover:bg-gray-800 cursor-pointer transition"
                     onClick={() => pushView({ type: "customer-detail", id: c.id, name: c.full_name || "Guest" })}>
                     <td className="px-4 py-3 text-white font-medium">{c.full_name || "Guest"}</td>
                     <td className="px-4 py-3 text-gray-400">{c.phone}</td>
-                    <td className="px-4 py-3 text-gray-400">{fmtDate(c.created_at)}</td>
-                    <td className="px-4 py-3 text-gray-400">{c.last_visit_at ? fmtDate(c.last_visit_at) : "—"}</td>
-                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${c.sms_consent ? "bg-green-900 text-green-300" : "bg-gray-800 text-gray-500"}`}>{c.sms_consent ? "Opted in" : "None"}</span></td>
+                    <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{fmtDate(c.created_at)}</td>
+                    <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{c.last_visit_at ? fmtDate(c.last_visit_at) : "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.app_installed ? "bg-violet-900 text-violet-300" : "bg-gray-800 text-gray-600"}`}>
+                        {c.app_installed ? "📲 Installed" : "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${c.sms_consent ? "bg-green-900 text-green-300" : "bg-gray-800 text-gray-500"}`}>{c.sms_consent ? "Opted in" : "—"}</span></td>
                   </tr>
                 ))}
               </tbody>
