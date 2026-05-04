@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -50,7 +50,9 @@ export default function CustomerInfoPage() {
   const [prefilled, setPrefilled] = useState(false);
   const [defaultBookingStatus, setDefaultBookingStatus] = useState<string>("confirmed");
   const [depositSettings, setDepositSettings] = useState<DepositSettings | null>(null);
-  const [paymentChoice, setPaymentChoice] = useState<"full" | "deposit" | "cash">("full");
+  const [paymentChoice, setPaymentChoice] = useState<"full" | "deposit" | "cash" | null>(null);
+  const [paymentError, setPaymentError] = useState(false);
+  const paymentSectionRef = useRef<HTMLDivElement>(null);
   const [memberDiscountPct, setMemberDiscountPct] = useState(0);
   const [selectedStaffId, setSelectedStaffId] = useState("");
 
@@ -441,6 +443,13 @@ export default function CustomerInfoPage() {
       setTravelFeeCents(0);
     }
 
+    if (!paymentChoice) {
+      setPaymentError(true);
+      paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    setPaymentError(false);
+
     if (paymentChoice === "cash") {
       await handlePayAtAppointment();
     } else if (paymentChoice === "deposit") {
@@ -687,14 +696,20 @@ export default function CustomerInfoPage() {
 
         {/* Payment Choice */}
         {service && (
-          <div className="mt-6">
-            <p className="text-sm font-semibold text-gray-700 mb-3">How would you like to pay?</p>
+          <div className="mt-6" ref={paymentSectionRef}>
+            <p className="text-sm font-semibold text-gray-700 mb-1">
+              How would you like to pay? <span className="text-red-500">*</span>
+            </p>
+            {paymentError && (
+              <p className="text-sm text-red-600 mb-3">Please select a payment option to continue.</p>
+            )}
+            {!paymentError && <div className="mb-3" />}
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => setPaymentChoice("full")}
+                onClick={() => { setPaymentChoice("full"); setPaymentError(false); }}
                 className={`w-full p-4 rounded-xl border-2 text-left transition ${
-                  paymentChoice === "full" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"
+                  paymentChoice === "full" ? "border-blue-600 bg-blue-50" : paymentError ? "border-red-300 bg-white" : "border-gray-200 bg-white"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -718,9 +733,9 @@ export default function CustomerInfoPage() {
               {depositSettings?.enabled && (
                 <button
                   type="button"
-                  onClick={() => setPaymentChoice("deposit")}
+                  onClick={() => { setPaymentChoice("deposit"); setPaymentError(false); }}
                   className={`w-full p-4 rounded-xl border-2 text-left transition ${
-                    paymentChoice === "deposit" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"
+                    paymentChoice === "deposit" ? "border-blue-600 bg-blue-50" : paymentError ? "border-red-300 bg-white" : "border-gray-200 bg-white"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -738,9 +753,9 @@ export default function CustomerInfoPage() {
               {!depositSettings?.enabled && (
                 <button
                   type="button"
-                  onClick={() => setPaymentChoice("cash")}
+                  onClick={() => { setPaymentChoice("cash"); setPaymentError(false); }}
                   className={`w-full p-4 rounded-xl border-2 text-left transition ${
-                    paymentChoice === "cash" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"
+                    paymentChoice === "cash" ? "border-blue-600 bg-blue-50" : paymentError ? "border-red-300 bg-white" : "border-gray-200 bg-white"
                   }`}
                 >
                   <div>
@@ -766,13 +781,15 @@ export default function CustomerInfoPage() {
         >
           {submitting
             ? "Please wait..."
-            : paymentChoice === "cash"
-              ? "Book Appointment →"
-              : paymentChoice === "deposit"
-                ? `Pay Deposit $${(getDepositCents() / 100).toFixed(2)} →`
-                : displayDiscounted !== null
-                  ? `Pay $${(displayDiscounted / 100).toFixed(2)} →`
-                  : `Pay $${(displayTotal / 100).toFixed(2)} →`}
+            : !paymentChoice
+              ? "Complete Booking →"
+              : paymentChoice === "cash"
+                ? "Book Appointment →"
+                : paymentChoice === "deposit"
+                  ? `Pay Deposit $${(getDepositCents() / 100).toFixed(2)} →`
+                  : displayDiscounted !== null
+                    ? `Pay $${(displayDiscounted / 100).toFixed(2)} →`
+                    : `Pay $${(displayTotal / 100).toFixed(2)} →`}
         </button>
       </div>
     </div>
