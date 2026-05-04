@@ -108,12 +108,13 @@ export default function NetworkPage() {
   // ── Load businessId ──────────────────────────────────────────────────────
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      const user = data?.user;
+    supabase.auth.getUser().then((res) => {
+      const user = res.data?.user;
       if (!user) return;
       supabase.from("businesses").select("id").eq("owner_user_id", user.id).maybeSingle()
-        .then(({ data: biz }) => {
-          if (biz?.id) setBusinessId(biz.id);
+        .then((bizRes) => {
+          const id = (bizRes.data as { id: string } | null)?.id;
+          if (id) setBusinessId(id);
         });
     });
   }, []);
