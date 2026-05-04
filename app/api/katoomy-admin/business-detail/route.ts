@@ -10,19 +10,14 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-async function authorize(req: NextRequest) {
-  const email = req.headers.get("x-katoomy-email");
-  if (!email) return false;
-  const { data } = await supabaseAdmin
-    .from("katoomy_admins")
-    .select("id")
-    .eq("email", email.toLowerCase().trim())
-    .single();
-  return !!data;
+const ADMIN_TOKEN = process.env.KATOOMY_ADMIN_TOKEN || "katoomy-internal-2026";
+
+function authorize(req: NextRequest) {
+  return req.headers.get("x-katoomy-token") === ADMIN_TOKEN;
 }
 
 export async function GET(req: NextRequest) {
-  if (!(await authorize(req))) {
+  if (!authorize(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

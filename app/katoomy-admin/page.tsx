@@ -82,22 +82,17 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Internal token sent with every API request — matches KATOOMY_ADMIN_TOKEN env var
+const ADMIN_TOKEN = "katoomy-internal-2026";
+
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function KatoomyAdminPage() {
   // ── Auth state ──
   const [authed, setAuthed] = useState(false);
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminRole, setAdminRole] = useState("");
-  const [adminName, setAdminName] = useState("");
 
   // ── Secret tap ──
   const tapCount = useRef(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showLogin, setShowLogin] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [loginLoading, setLoginLoading] = useState(false);
 
   // ── Tab ──
   const [tab, setTab] = useState<"businesses" | "employees">("businesses");
@@ -117,56 +112,37 @@ export default function KatoomyAdminPage() {
   const [empSaving, setEmpSaving] = useState(false);
   const [empError, setEmpError] = useState("");
 
-  // ── Secret tap handler ──
+  // ── Secret tap handler: 7 taps = instant access ──
   const handleLogoTap = () => {
     tapCount.current += 1;
     if (tapTimer.current) clearTimeout(tapTimer.current);
     tapTimer.current = setTimeout(() => { tapCount.current = 0; }, 2000);
     if (tapCount.current >= 7) {
       tapCount.current = 0;
-      setShowLogin(true);
+      setAuthed(true);
     }
   };
 
-  // ── Login ──
-  const handleLogin = async () => {
-    setLoginLoading(true);
-    setLoginError("");
-    const res = await fetch("/api/katoomy-admin/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: loginEmail, password: loginPassword }),
-    });
-    const data = await res.json();
-    setLoginLoading(false);
-    if (!res.ok || data.error) {
-      setLoginError(data.error || "Login failed");
-    } else {
-      setAdminEmail(loginEmail.toLowerCase().trim());
-      setAdminName(data.name);
-      setAdminRole(data.role);
-      setAuthed(true);
-      setShowLogin(false);
-    }
-  };
+  const authHeaders = { "x-katoomy-token": ADMIN_TOKEN };
 
   // ── Load businesses ──
   const loadBusinesses = useCallback(async (q = "") => {
     setBizLoading(true);
     const res = await fetch(`/api/katoomy-admin/businesses?q=${encodeURIComponent(q)}`, {
-      headers: { "x-katoomy-email": adminEmail },
+      headers: authHeaders,
     });
     const data = await res.json();
     setBizList(data.businesses || []);
     setBizLoading(false);
-  }, [adminEmail]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Load business detail ──
   const loadDetail = async (biz: BusinessSummary) => {
     setDetailLoading(true);
     setSelectedBiz(null);
     const res = await fetch(`/api/katoomy-admin/business-detail?businessId=${biz.id}`, {
-      headers: { "x-katoomy-email": adminEmail },
+      headers: authHeaders,
     });
     const data = await res.json();
     setSelectedBiz(data);
@@ -177,12 +153,13 @@ export default function KatoomyAdminPage() {
   const loadEmployees = useCallback(async () => {
     setEmpLoading(true);
     const res = await fetch("/api/katoomy-admin/employees", {
-      headers: { "x-katoomy-email": adminEmail },
+      headers: authHeaders,
     });
     const data = await res.json();
     setEmployees(data.employees || []);
     setEmpLoading(false);
-  }, [adminEmail]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!authed) return;
@@ -207,7 +184,7 @@ export default function KatoomyAdminPage() {
     setEmpError("");
     const res = await fetch("/api/katoomy-admin/employees", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-katoomy-email": adminEmail },
+      headers: { "Content-Type": "application/json", ...authHeaders },
       body: JSON.stringify(empForm),
     });
     const data = await res.json();
@@ -226,12 +203,12 @@ export default function KatoomyAdminPage() {
     if (!confirm(`Remove ${name} from Katoomy Admin?`)) return;
     await fetch(`/api/katoomy-admin/employees?id=${id}`, {
       method: "DELETE",
-      headers: { "x-katoomy-email": adminEmail },
+      headers: authHeaders,
     });
     loadEmployees();
   };
 
-  // ── Pre-auth: dark splash with secret tap ──
+  // ── Pre-auth: dark splash — tap K logo 7 times to enter ──
   if (!authed) {
     return (
       <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center select-none">
@@ -244,39 +221,6 @@ export default function KatoomyAdminPage() {
           </div>
           <p className="text-gray-600 text-sm">Katoomy</p>
         </div>
-
-        {showLogin && (
-          <div className="mt-8 w-80 bg-gray-900 rounded-2xl p-6 border border-gray-800">
-            <h2 className="text-white font-bold text-lg mb-5 text-center">Admin Login</h2>
-            <div className="space-y-3">
-              <input
-                type="email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="Email"
-                className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                placeholder="Password"
-                className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
-            </div>
-            {loginError && (
-              <p className="text-red-400 text-xs mt-3 text-center">{loginError}</p>
-            )}
-            <button
-              onClick={handleLogin}
-              disabled={loginLoading}
-              className="mt-4 w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-lg font-semibold text-sm transition disabled:opacity-50"
-            >
-              {loginLoading ? "Verifying..." : "Sign In"}
-            </button>
-          </div>
-        )}
       </div>
     );
   }
@@ -307,15 +251,11 @@ export default function KatoomyAdminPage() {
               Employees
             </button>
           </div>
-          <div className="text-right">
-            <p className="text-sm font-medium text-white">{adminName}</p>
-            <p className="text-xs text-gray-500">{adminRole}</p>
-          </div>
           <button
-            onClick={() => { setAuthed(false); setAdminEmail(""); setSelectedBiz(null); }}
+            onClick={() => { setAuthed(false); setSelectedBiz(null); }}
             className="text-xs text-gray-500 hover:text-gray-300 transition"
           >
-            Sign out
+            Lock
           </button>
         </div>
       </header>
@@ -382,14 +322,12 @@ export default function KatoomyAdminPage() {
         <main className="flex-1 p-6 max-w-2xl mx-auto w-full">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold">Katoomy Employees</h2>
-            {adminRole === "owner" && (
-              <button
-                onClick={() => { setShowAddEmp(true); setEmpError(""); }}
-                className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-semibold transition"
-              >
-                + Add Employee
-              </button>
-            )}
+            <button
+              onClick={() => { setShowAddEmp(true); setEmpError(""); }}
+              className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-semibold transition"
+            >
+              + Add Employee
+            </button>
           </div>
 
           {showAddEmp && (
@@ -452,7 +390,7 @@ export default function KatoomyAdminPage() {
                       {emp.role} · Added {fmtDate(emp.created_at)}
                     </p>
                   </div>
-                  {adminRole === "owner" && emp.role !== "owner" && (
+                  {emp.role !== "owner" && (
                     <button
                       onClick={() => handleRemoveEmployee(emp.id, emp.name)}
                       className="text-red-500 hover:text-red-400 text-sm transition"

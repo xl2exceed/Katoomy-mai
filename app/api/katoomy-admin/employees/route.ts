@@ -11,19 +11,14 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-async function getAdmin(req: NextRequest) {
-  const email = req.headers.get("x-katoomy-email");
-  if (!email) return null;
-  const { data } = await supabaseAdmin
-    .from("katoomy_admins")
-    .select("id, role")
-    .eq("email", email.toLowerCase().trim())
-    .single();
-  return data;
+const ADMIN_TOKEN = process.env.KATOOMY_ADMIN_TOKEN || "katoomy-internal-2026";
+
+function authorize(req: NextRequest) {
+  return req.headers.get("x-katoomy-token") === ADMIN_TOKEN;
 }
 
 export async function GET(req: NextRequest) {
-  if (!(await getAdmin(req))) {
+  if (!authorize(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { data, error } = await supabaseAdmin
@@ -35,11 +30,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const caller = await getAdmin(req);
-  if (!caller) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (caller.role !== "owner") {
-    return NextResponse.json({ error: "Only owners can add employees" }, { status: 403 });
-  }
+  if (!authorize(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { email, name, password } = await req.json();
   if (!email || !name || !password) {
@@ -73,11 +64,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const caller = await getAdmin(req);
-  if (!caller) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (caller.role !== "owner") {
-    return NextResponse.json({ error: "Only owners can remove employees" }, { status: 403 });
-  }
+  if (!authorize(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
