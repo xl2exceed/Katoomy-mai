@@ -11,12 +11,13 @@ export default async function CustomerLandingPage({
   searchParams,
 }: {
   params: { slug: string } | Promise<{ slug: string }>;
-  searchParams?: { ref?: string } | Promise<{ ref?: string }>;
+  searchParams?: { ref?: string; net_ref?: string } | Promise<{ ref?: string; net_ref?: string }>;
 }) {
   const { slug } = await Promise.resolve(params);
 
   const sp = await Promise.resolve(searchParams ?? {});
   const referralCode = sp.ref ?? null;
+  const netRef = sp.net_ref ?? null;
 
   const supabase = await createClient();
 
@@ -46,7 +47,7 @@ export default async function CustomerLandingPage({
     <InstallGate business={business} slug={slug}>
       <HubBackButton />
       {/* Capture lastBusiness + pending referral (runs when gate is skipped/installed) */}
-      <ReferralCapture businessSlug={slug} referralCode={referralCode} />
+      <ReferralCapture businessSlug={slug} referralCode={referralCode} netRef={netRef} />
 
       <div className="min-h-screen bg-gray-50">
         {/* Header with Brand Color */}

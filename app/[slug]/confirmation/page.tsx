@@ -5,6 +5,16 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
+interface PartnerOffer {
+  id: string;
+  business_id: string;
+  title: string;
+  offer_type: "dollar_off" | "percent_off";
+  amount: number;
+  business_name: string;
+  business_slug: string;
+}
+
 interface Booking {
   id: string;
   start_ts: string;
@@ -42,6 +52,7 @@ export default function ConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
   const [countdown, setCountdown] = useState(10);
+  const [partnerOffers, setPartnerOffers] = useState<PartnerOffer[]>([]);
 
   useEffect(() => {
     loadData();
@@ -80,6 +91,12 @@ export default function ConfirmationPage() {
 
     if (businessData) {
       setBusiness(businessData);
+
+      // Fetch partner offers for post-booking cross-promotion
+      fetch(`/api/network/partner-offers?businessId=${businessData.id}`)
+        .then((r) => r.json())
+        .then((d) => { if (d.offers?.length) setPartnerOffers(d.offers); })
+        .catch(() => {});
 
       // Fetch fee_mode for display
       const { data: cashSettings } = await supabase
@@ -283,6 +300,35 @@ export default function ConfirmationPage() {
             </div>
           </div>
         </div>
+
+        {/* Partner Offers (Network cross-promotion) */}
+        {partnerOffers.length > 0 && (
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-700 mb-3">
+              🤝 Unlock offers at trusted local businesses
+            </p>
+            <div className="space-y-2">
+              {partnerOffers.map((offer) => (
+                <Link
+                  key={offer.id}
+                  href={`/${offer.business_slug}?net_ref=${offer.id}`}
+                  className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-purple-300 hover:shadow-md transition"
+                >
+                  <div>
+                    <p className="font-semibold text-gray-900">{offer.business_name}</p>
+                    <p className="text-sm text-purple-600 font-medium">
+                      {offer.offer_type === "dollar_off"
+                        ? `$${(offer.amount / 100).toFixed(0)} off your visit`
+                        : `${offer.amount}% off your visit`}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{offer.title}</p>
+                  </div>
+                  <span className="text-purple-600 font-medium text-sm ml-3 flex-shrink-0">Claim →</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-3">

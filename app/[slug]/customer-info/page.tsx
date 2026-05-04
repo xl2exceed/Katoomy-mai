@@ -55,6 +55,7 @@ export default function CustomerInfoPage() {
   const paymentSectionRef = useRef<HTMLDivElement>(null);
   const [memberDiscountPct, setMemberDiscountPct] = useState(0);
   const [selectedStaffId, setSelectedStaffId] = useState("");
+  const [networkOffer, setNetworkOffer] = useState<{ id: string; title: string; offer_type: "dollar_off" | "percent_off"; amount: number; referring_business_name: string } | null>(null);
 
   // Car wash fields
   const [vehicleType, setVehicleType] = useState("");
@@ -192,6 +193,24 @@ export default function CustomerInfoPage() {
         setService(serviceData as Service);
       }
 
+      // ── Network offer ──────────────────────────────────────────────────────
+      try {
+        const netRefRaw = localStorage.getItem("katoomy:netRef");
+        if (netRefRaw) {
+          const netRefData = JSON.parse(netRefRaw) as { offerId: string; businessSlug: string; ts: number };
+          const ageMs = Date.now() - (netRefData.ts || 0);
+          if (ageMs < 86400000) {
+            const offerRes = await fetch(
+              `/api/network/public-offer?offerId=${netRefData.offerId}&receivingBusinessId=${businessData.id}`
+            );
+            const offerData = await offerRes.json();
+            if (offerData.offer) setNetworkOffer(offerData.offer);
+          } else {
+            localStorage.removeItem("katoomy:netRef");
+          }
+        }
+      } catch { /* non-critical */ }
+
       // ── Prefill if we know this customer ──────────────────────────────────
       const savedPhone = localStorage.getItem(PHONE_STORAGE_KEY);
       if (savedPhone) {
@@ -249,12 +268,21 @@ export default function CustomerInfoPage() {
     return service.price_cents;
   };
 
+  const networkOfferDiscountCents = (): number => {
+    if (!networkOffer) return 0;
+    const base = effectiveServicePriceCents();
+    const memberBase = memberDiscountPct > 0 ? Math.round(base * (1 - memberDiscountPct / 100)) : base;
+    if (networkOffer.offer_type === "dollar_off") return Math.min(networkOffer.amount, memberBase);
+    return Math.round(memberBase * (networkOffer.amount / 100));
+  };
+
   const effectiveTotalCents = (): number => {
     const base = effectiveServicePriceCents();
-    const discounted = memberDiscountPct > 0
+    const afterMember = memberDiscountPct > 0
       ? Math.round(base * (1 - memberDiscountPct / 100))
       : base;
-    return discounted + addonTotalCents + travelFeeCents;
+    const afterNetwork = Math.max(0, afterMember - networkOfferDiscountCents());
+    return afterNetwork + addonTotalCents + travelFeeCents;
   };
 
   // Display-only: adds the baked-in platform fee when customer pays it
@@ -325,6 +353,8 @@ export default function CustomerInfoPage() {
     const totalCents = effectiveTotalCents();
     const priceCents = type === "deposit" ? getDepositCents() : totalCents;
 
+    if (networkOffer) localStorage.removeItem("katoomy:netRef");
+
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -346,6 +376,7 @@ export default function CustomerInfoPage() {
         slug,
         staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
         referredByCode: referredByCode || undefined,
+        netRefOfferId: networkOffer?.id || undefined,
         smsTransactionalConsent: agreedToTransactional,
         smsMarketingConsent: agreedToMarketing,
         ...carwashPayload,
@@ -394,6 +425,7 @@ export default function CustomerInfoPage() {
           defaultBookingStatus,
           staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
           referredByCode: referredByCode || undefined,
+          netRefOfferId: networkOffer?.id || undefined,
           smsTransactionalConsent: agreedToTransactional,
           smsMarketingConsent: agreedToMarketing,
           ...carwashPayload,
@@ -408,6 +440,7 @@ export default function CustomerInfoPage() {
       }
 
       localStorage.removeItem("katoomy:pendingReferral");
+      if (networkOffer) localStorage.removeItem("katoomy:netRef");
       sessionStorage.setItem("bookingId", data.bookingId);
       router.push(`/${slug}/confirmation`);
     } catch (err) {
@@ -471,8 +504,9 @@ export default function CustomerInfoPage() {
   }
 
   const displayTotal = displayTotalWithFee();
-  const displayDiscounted = memberDiscountPct > 0
-    ? Math.round(effectiveServicePriceCents() * (1 - memberDiscountPct / 100)) + addonTotalCents + travelFeeCents + platformFeeDisplay
+  const hasDiscount = memberDiscountPct > 0 || !!networkOffer;
+  const displayDiscounted = hasDiscount
+    ? effectiveTotalCents() + platformFeeDisplay
     : null;
 
   return (
@@ -520,7 +554,8 @@ export default function CustomerInfoPage() {
                 <p className="text-2xl font-bold text-white">
                   ${(displayDiscounted / 100).toFixed(2)}
                 </p>
-                <p className="text-xs text-green-200">⭐ Elite Member price ({memberDiscountPct}% off)</p>
+                {memberDiscountPct > 0 && <p className="text-xs text-green-200">⭐ Elite Member price ({memberDiscountPct}% off)</p>}
+                {networkOffer && <p className="text-xs text-green-200">🤝 Partner offer: {networkOffer.title}</p>}
               </>
             ) : (
               <>
