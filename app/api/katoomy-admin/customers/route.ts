@@ -1,5 +1,5 @@
 // GET /api/katoomy-admin/customers?businessId=&q=&limit=50&offset=0
-// Returns customers with app_installed flag (has push subscription).
+// Returns customers with device_type and app_installed from customer_devices.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -25,8 +25,6 @@ export async function GET(req: NextRequest) {
 
   if (!businessId) return NextResponse.json({ error: "Missing businessId" }, { status: 400 });
 
-  // Fetch customers first, then cross-reference push_subscriptions by customer_id
-  // (NOT by business_id — the subscribe route stores business_id as null for many customers)
   let customerQuery = supabaseAdmin
     .from("customers")
     .select("id, full_name, phone, email, created_at, last_visit_at, sms_consent", { count: "exact" })
@@ -37,29 +35,34 @@ export async function GET(req: NextRequest) {
   if (q) customerQuery = customerQuery.ilike("full_name", `%${q}%`);
 
   const customersResult = await customerQuery;
-
   if (customersResult.error) {
     return NextResponse.json({ error: customersResult.error.message }, { status: 500 });
   }
 
-  // Check which of this page's customers have a push subscription
+  // Fetch device info for this page of customers
   const customerIds = (customersResult.data || []).map((c) => c.id);
-  let installedIds = new Set<string>();
+  let deviceMap: Record<string, { device_type: string; app_installed: boolean; last_seen_at: string }> = {};
 
   if (customerIds.length > 0) {
-    const { data: pushData } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("customer_id")
-      .in("customer_id", customerIds)
-      .eq("user_type", "customer")
-      .not("customer_id", "is", null);
+    const { data: deviceData } = await supabaseAdmin
+      .from("customer_devices")
+      .select("customer_id, device_type, app_installed, last_seen_at")
+      .in("customer_id", customerIds);
 
-    installedIds = new Set((pushData || []).map((p: { customer_id: string }) => p.customer_id));
+    for (const d of deviceData || []) {
+      deviceMap[d.customer_id] = {
+        device_type: d.device_type,
+        app_installed: d.app_installed,
+        last_seen_at: d.last_seen_at,
+      };
+    }
   }
 
   const customers = (customersResult.data || []).map((c) => ({
     ...c,
-    app_installed: installedIds.has(c.id),
+    device_type: deviceMap[c.id]?.device_type ?? null,
+    app_installed: deviceMap[c.id]?.app_installed ?? null,
+    last_seen_at: deviceMap[c.id]?.last_seen_at ?? null,
   }));
 
   return NextResponse.json({ customers, total: customersResult.count || 0 });

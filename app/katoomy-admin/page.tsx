@@ -674,10 +674,23 @@ function BusinessOverview({ detail, pushView }: { detail: BusinessDetail; pushVi
 // ─────────────────────────────────────────────────────────────────────────────
 // Customers View
 // ─────────────────────────────────────────────────────────────────────────────
+type CustomerRow = {
+  id: string; full_name: string | null; phone: string; email: string | null;
+  created_at: string; last_visit_at: string | null; sms_consent: boolean;
+  device_type: string | null; app_installed: boolean | null; last_seen_at: string | null;
+};
+
+function deviceIcon(type: string | null) {
+  if (type === "ios") return "🍎";
+  if (type === "android") return "🤖";
+  if (type === "desktop") return "💻";
+  return null;
+}
+
 function CustomersView({ businessId, pushView }: { businessId: string; pushView: (v: View) => void }) {
   const [search, setSearch] = useState("");
-  const [filterInstalled, setFilterInstalled] = useState<"all" | "installed" | "not_installed">("all");
-  const [customers, setCustomers] = useState<Array<{ id: string; full_name: string | null; phone: string; email: string | null; created_at: string; last_visit_at: string | null; sms_consent: boolean; app_installed: boolean }>>([]);
+  const [filterDevice, setFilterDevice] = useState<"all" | "ios" | "android" | "desktop" | "installed" | "not_installed">("all");
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -696,28 +709,55 @@ function CustomersView({ businessId, pushView }: { businessId: string; pushView:
     return () => clearTimeout(t);
   }, [search, load]);
 
-  const filtered = filterInstalled === "all" ? customers
-    : filterInstalled === "installed" ? customers.filter((c) => c.app_installed)
-    : customers.filter((c) => !c.app_installed);
+  const knownCustomers = customers.filter((c) => c.device_type !== null);
+  const filtered = filterDevice === "all" ? customers
+    : filterDevice === "installed" ? customers.filter((c) => c.app_installed === true)
+    : filterDevice === "not_installed" ? customers.filter((c) => c.device_type !== null && c.app_installed === false)
+    : customers.filter((c) => c.device_type === filterDevice);
 
-  const installedCount = customers.filter((c) => c.app_installed).length;
+  // Tally stats from current page
+  const iosCount = customers.filter((c) => c.device_type === "ios").length;
+  const androidCount = customers.filter((c) => c.device_type === "android").length;
+  const installedCount = customers.filter((c) => c.app_installed === true).length;
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-center gap-3 mb-2">
+      {/* Stats strip */}
+      {knownCustomers.length > 0 && (
+        <div className="flex gap-4 mb-4 text-sm">
+          <div className="bg-gray-900 rounded-lg border border-gray-800 px-4 py-2 text-center">
+            <p className="text-lg font-bold text-white">🍎 {iosCount}</p>
+            <p className="text-xs text-gray-500">iPhone</p>
+          </div>
+          <div className="bg-gray-900 rounded-lg border border-gray-800 px-4 py-2 text-center">
+            <p className="text-lg font-bold text-white">🤖 {androidCount}</p>
+            <p className="text-xs text-gray-500">Android</p>
+          </div>
+          <div className="bg-gray-900 rounded-lg border border-gray-800 px-4 py-2 text-center">
+            <p className="text-lg font-bold text-violet-400">📲 {installedCount}</p>
+            <p className="text-xs text-gray-500">App Installed</p>
+          </div>
+          <div className="bg-gray-900 rounded-lg border border-gray-800 px-4 py-2 text-center">
+            <p className="text-lg font-bold text-gray-400">{customers.length - knownCustomers.length}</p>
+            <p className="text-xs text-gray-500">Not yet seen</p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <h2 className="text-xl font-bold text-white">Customers ({total})</h2>
         <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name..."
           className="flex-1 max-w-xs bg-gray-800 text-white rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500" />
-        <div className="flex bg-gray-800 rounded-lg p-0.5 text-xs">
-          {(["all", "installed", "not_installed"] as const).map((f) => (
-            <button key={f} onClick={() => setFilterInstalled(f)}
-              className={`px-3 py-1.5 rounded-md font-medium transition ${filterInstalled === f ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
-              {f === "all" ? "All" : f === "installed" ? `📲 Push On (${installedCount})` : `Push Off (${customers.length - installedCount})`}
+        <div className="flex flex-wrap gap-1">
+          {(["all", "ios", "android", "installed", "not_installed"] as const).map((f) => (
+            <button key={f} onClick={() => setFilterDevice(f)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${filterDevice === f ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>
+              {f === "all" ? "All" : f === "ios" ? `🍎 iPhone (${iosCount})` : f === "android" ? `🤖 Android (${androidCount})` : f === "installed" ? `📲 Installed (${installedCount})` : `Not Installed`}
             </button>
           ))}
         </div>
       </div>
-      <p className="text-xs text-gray-600 mb-4">📲 column = customer enabled push notifications (closest per-customer proxy for app install; overall install count is on the overview)</p>
+
       {loading ? <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" /></div> : (
         <>
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-auto">
@@ -725,27 +765,40 @@ function CustomersView({ businessId, pushView }: { businessId: string; pushView:
               <thead><tr className="border-b border-gray-800 text-gray-500 text-left">
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Phone</th>
+                <th className="px-4 py-3 font-medium">Device</th>
+                <th className="px-4 py-3 font-medium">App</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
                 <th className="px-4 py-3 font-medium">Last Visit</th>
-                <th className="px-4 py-3 font-medium">App</th>
                 <th className="px-4 py-3 font-medium">SMS</th>
               </tr></thead>
               <tbody className="divide-y divide-gray-800">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No customers found</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No customers found</td></tr>
                 ) : filtered.map((c) => (
                   <tr key={c.id} className="hover:bg-gray-800 cursor-pointer transition"
                     onClick={() => pushView({ type: "customer-detail", id: c.id, name: c.full_name || "Guest" })}>
                     <td className="px-4 py-3 text-white font-medium">{c.full_name || "Guest"}</td>
                     <td className="px-4 py-3 text-gray-400">{c.phone}</td>
+                    <td className="px-4 py-3">
+                      {c.device_type ? (
+                        <span className="text-sm">
+                          {deviceIcon(c.device_type)}{" "}
+                          <span className="text-gray-400 text-xs capitalize">{c.device_type === "ios" ? "iPhone" : c.device_type}</span>
+                        </span>
+                      ) : <span className="text-gray-700 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.app_installed === null ? (
+                        <span className="text-gray-700 text-xs">—</span>
+                      ) : c.app_installed ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-violet-900 text-violet-300 font-medium">📲 Yes</span>
+                      ) : (
+                        <span className="text-xs text-gray-600">No</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{fmtDate(c.created_at)}</td>
                     <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{c.last_visit_at ? fmtDate(c.last_visit_at) : "—"}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.app_installed ? "bg-violet-900 text-violet-300" : "bg-gray-800 text-gray-600"}`}>
-                        {c.app_installed ? "📲 Push On" : "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${c.sms_consent ? "bg-green-900 text-green-300" : "bg-gray-800 text-gray-500"}`}>{c.sms_consent ? "Opted in" : "—"}</span></td>
+                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${c.sms_consent ? "bg-green-900 text-green-300" : "bg-gray-800 text-gray-500"}`}>{c.sms_consent ? "Yes" : "—"}</span></td>
                   </tr>
                 ))}
               </tbody>
