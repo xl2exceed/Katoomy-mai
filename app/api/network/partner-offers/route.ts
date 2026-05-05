@@ -9,7 +9,18 @@ const supabaseAdmin = createClient(
 );
 
 export async function GET(req: NextRequest) {
-  const businessId = req.nextUrl.searchParams.get("businessId");
+  let businessId = req.nextUrl.searchParams.get("businessId");
+
+  // Allow callers to pass slug instead of businessId
+  if (!businessId) {
+    const slug = req.nextUrl.searchParams.get("slug");
+    if (slug) {
+      const { data: biz } = await supabaseAdmin
+        .from("businesses").select("id").eq("slug", slug).maybeSingle();
+      businessId = biz?.id ?? null;
+    }
+  }
+
   if (!businessId) return NextResponse.json({ offers: [] });
 
   const [{ data: asA }, { data: asB }] = await Promise.all([

@@ -4,6 +4,15 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+interface PartnerOffer {
+  id: string;
+  title: string;
+  offer_type: "dollar_off" | "percent_off";
+  amount: number;
+  business_name: string;
+  business_slug: string;
+}
+
 const METHOD_LABELS: Record<string, string> = {
   cash_app: "Cash App",
   zelle: "Zelle",
@@ -21,6 +30,14 @@ export default function CashAppSuccessPage() {
   const paymentMethod = searchParams.get("paymentMethod") ?? "";
   const methodLabel = METHOD_LABELS[paymentMethod] ?? "payment";
   const [countdown, setCountdown] = useState(10);
+  const [partnerOffers, setPartnerOffers] = useState<PartnerOffer[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/network/partner-offers?slug=${slug}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.offers?.length) setPartnerOffers(d.offers); })
+      .catch(() => {});
+  }, [slug]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -74,6 +91,31 @@ export default function CashAppSuccessPage() {
             Redirecting in {countdown} second{countdown !== 1 ? "s" : ""}...
           </p>
         </div>
+
+        {/* Partner Offers */}
+        {partnerOffers.length > 0 && (
+          <div>
+            <p className="text-sm font-semibold text-gray-700 mb-3">🤝 Unlock offers at trusted local businesses</p>
+            <div className="space-y-2">
+              {partnerOffers.map((offer) => (
+                <Link
+                  key={offer.id}
+                  href={`/${offer.business_slug}?net_ref=${offer.id}`}
+                  className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-purple-300 hover:shadow-md transition"
+                >
+                  <div>
+                    <p className="font-semibold text-gray-900">{offer.business_name}</p>
+                    <p className="text-sm text-purple-600 font-medium">
+                      {offer.offer_type === "dollar_off" ? `$${(offer.amount / 100).toFixed(0)} off your visit` : `${offer.amount}% off your visit`}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{offer.title}</p>
+                  </div>
+                  <span className="text-purple-600 font-medium text-sm ml-3 flex-shrink-0">Claim →</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Referral Card */}
         {referralCode && (
