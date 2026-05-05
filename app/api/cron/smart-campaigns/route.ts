@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { getTwilio, getFromNumber } from "@/lib/twilio";
+import { getTwilio, getRouting } from "@/lib/twilio";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ async function sendAndLog(params: {
   try {
     await twilioClient.messages.create({
       body: message,
-      from: fromNumber,
+      ...routing,
       to: toPhone,
     });
 
@@ -458,7 +458,7 @@ export async function GET(req: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://katoomy.com";
   const { client: twilioClient, mode } = getTwilio();
-  const fromNumber = getFromNumber(mode);
+  const routing = getRouting(mode);
 
   // Load all businesses that have smart campaign settings
   // We do a LEFT JOIN approach: get all businesses, then get their settings

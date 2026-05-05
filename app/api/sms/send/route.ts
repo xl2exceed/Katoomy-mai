@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTwilio, getFromNumber } from "@/lib/twilio";
+import { getTwilio, getFromNumber, getMessagingServiceSid } from "@/lib/twilio";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { canSendSms } from "@/lib/sms/canSendSms";
 
@@ -34,10 +34,9 @@ export async function POST(req: Request) {
     }
 
     const { client, mode } = getTwilio();
-    const from = getFromNumber(mode);
+    const messagingServiceSid = getMessagingServiceSid(mode);
+    const from = messagingServiceSid ? undefined : getFromNumber(mode);
 
-    // Attach status callback in LIVE mode so Twilio POSTs delivery updates.
-    // In TEST mode the Twilio test API doesn't hit real webhooks.
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
     const statusCallback =
       mode === "LIVE" && appUrl
@@ -46,7 +45,7 @@ export async function POST(req: Request) {
 
     const createParams: Parameters<typeof client.messages.create>[0] = {
       to: normalizedTo,
-      from,
+      ...(messagingServiceSid ? { messagingServiceSid } : { from }),
       body,
       ...(statusCallback ? { statusCallback } : {}),
     };

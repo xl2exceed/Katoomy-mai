@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getTwilio, getFromNumber } from "@/lib/twilio";
+import { getTwilio, getRouting } from "@/lib/twilio";
 import { resolveAudience } from "../preview/route";
 
 function resolveMessage(template: string, vars: Record<string, string>): string {
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     .eq("id", campaignId);
 
   const { client, mode } = getTwilio();
-  const from = getFromNumber(mode);
+  const routing = getRouting(mode);
   const isSimulated = mode === "TEST";
   const origin = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
   const bookingLink = `${origin}/${business.slug}`;
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      const msg = await client.messages.create({ to, from, body: message });
+      const msg = await client.messages.create({ to, ...routing, body: message });
 
       // Log to sms_messages (existing table)
       const { data: smsRecord } = await supabaseAdmin

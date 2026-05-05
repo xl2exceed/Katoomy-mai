@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { getTwilio, getFromNumber } from "@/lib/twilio";
+import { getTwilio, getRouting } from "@/lib/twilio";
 import { getSmsTemplate } from "@/lib/smsTemplates";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
@@ -110,9 +110,8 @@ async function runWinbackForBusiness(businessId: string): Promise<{ sent: number
 
   if (!targets.length) return { sent: 0, failed: 0, skipped: 0 };
 
-  const { client: twilioClient } = getTwilio();
-  const { mode } = getTwilio();
-  const fromNumber = getFromNumber(mode);
+  const { client: twilioClient, mode } = getTwilio();
+  const routing = getRouting(mode);
   const bookingLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://katoomy.com"}/${businessSlug}`;
 
   let sent = 0;
@@ -130,7 +129,7 @@ async function runWinbackForBusiness(businessId: string): Promise<{ sent: number
     try {
       await twilioClient.messages.create({
         body: message,
-        from: fromNumber,
+        ...routing,
         to: customer.phone,
       });
 
@@ -259,9 +258,8 @@ export async function POST(req: NextRequest) {
   const targets = selected ?? [];
   if (!targets.length) return NextResponse.json({ sent: 0, failed: 0, skipped: 0 });
 
-  const { client: twilioClient } = getTwilio();
-  const { mode } = getTwilio();
-  const fromNumber = getFromNumber(mode);
+  const { client: twilioClient, mode } = getTwilio();
+  const routing = getRouting(mode);
   const bookingLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://katoomy.com"}/${businessSlug}`;
 
   let sent = 0;
@@ -279,7 +277,7 @@ export async function POST(req: NextRequest) {
     try {
       await twilioClient.messages.create({
         body: message,
-        from: fromNumber,
+        ...routing,
         to: customer.phone,
       });
 

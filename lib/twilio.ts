@@ -28,12 +28,20 @@ export function getTwilio() {
 }
 
 export function getFromNumber(mode: TwilioMode) {
-  // Magic From number for successful SMS in test mode
-  // Twilio automated testing docs show +15005550006 for success.
-  // https://www.twilio.com/docs/messaging/tutorials/automate-testing
   if (mode === "TEST") return "+15005550006";
-
   const from = process.env.TWILIO_FROM_NUMBER;
   if (!from) throw new Error("Missing env var: TWILIO_FROM_NUMBER");
   return from;
+}
+
+export function getMessagingServiceSid(mode: TwilioMode): string | undefined {
+  if (mode === "TEST") return undefined;
+  return process.env.TWILIO_MESSAGING_SERVICE_SID || undefined;
+}
+
+/** Returns either { messagingServiceSid } or { from } — whichever is configured. */
+export function getRouting(mode: TwilioMode): { messagingServiceSid: string } | { from: string } {
+  const sid = getMessagingServiceSid(mode);
+  if (sid) return { messagingServiceSid: sid };
+  return { from: getFromNumber(mode) };
 }

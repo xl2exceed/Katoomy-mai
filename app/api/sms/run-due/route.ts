@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { getTwilio, getFromNumber } from "@/lib/twilio";
+import { getTwilio, getRouting } from "@/lib/twilio";
 
 export async function POST(req: Request) {
   const auth = req.headers.get("authorization");
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     const mode = (process.env.TWILIO_MODE || "TEST") as "TEST" | "LIVE";
     const { client: twilio } = getTwilio();
-    const fromNumber = getFromNumber(mode);
+    const routing = getRouting(mode);
 
     // Process all messages in parallel
     const outcomes = await Promise.all(
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
           const twilioMessage = await twilio.messages.create({
             to: msg.to_number,
-            from: fromNumber,
+            ...routing,
             body: msg.body,
           });
 
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
               business_id: msg.business_id,
               direction: "outbound",
               to_number: msg.to_number,
-              from_number: fromNumber,
+              from_number: "from" in routing ? routing.from : "messagingService",
               body: msg.body,
               status: twilioMessage.status || "queued",
               provider: "twilio",
