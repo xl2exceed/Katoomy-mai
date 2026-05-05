@@ -188,12 +188,19 @@ export default function AiHelpWidget({ portal = "admin-desktop" }: AiHelpWidgetP
       const btn = btnRef.current;
       if (!btn || pos === null) return;
 
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const DRAG_THRESHOLD = 8; // px — finger wobble on tablets stays under this
+
       dragOffset.current = {
         x: e.clientX - pos.x,
         y: e.clientY - pos.y,
       };
 
       const onMove = (ev: PointerEvent) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (!isDragging.current && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
         isDragging.current = true;
         const vw = window.innerWidth;
         const vh = window.innerHeight;
