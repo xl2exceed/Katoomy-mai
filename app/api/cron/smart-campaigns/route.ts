@@ -155,7 +155,7 @@ async function processWinbacks(
   business: Business,
   settings: SmartCampaignSettings,
   twilioClient: ReturnType<typeof getTwilio>["client"],
-  fromNumber: string,
+  routing: { from: string } | { messagingServiceSid: string },
   baseUrl: string
 ): Promise<{ sent: number; failed: number; skipped: number }> {
   let sent = 0, failed = 0, skipped = 0;
@@ -255,7 +255,7 @@ async function processReferralNudges(
   business: Business,
   settings: SmartCampaignSettings,
   twilioClient: ReturnType<typeof getTwilio>["client"],
-  fromNumber: string,
+  routing: { from: string } | { messagingServiceSid: string },
   baseUrl: string
 ): Promise<{ sent: number; failed: number; skipped: number }> {
   let sent = 0, failed = 0, skipped = 0;
@@ -318,7 +318,7 @@ async function processReferralNudges(
 
     const ok = await sendAndLog({
       twilioClient,
-      fromNumber,
+      routing,
       toPhone: phone,
       message,
       businessId: business.id,
@@ -342,7 +342,7 @@ async function processReengagement(
   business: Business,
   settings: SmartCampaignSettings,
   twilioClient: ReturnType<typeof getTwilio>["client"],
-  fromNumber: string,
+  routing: { from: string } | { messagingServiceSid: string },
   baseUrl: string
 ): Promise<{ sent: number; failed: number; skipped: number }> {
   let sent = 0, failed = 0, skipped = 0;
@@ -433,7 +433,7 @@ async function processReengagement(
 
     const ok = await sendAndLog({
       twilioClient,
-      fromNumber,
+      routing,
       toPhone: phone,
       message,
       businessId: business.id,
@@ -500,7 +500,7 @@ export async function GET(req: NextRequest) {
 
     // Run win-back campaigns (30/60/90 day tiers)
     try {
-      bizResult.winback = await processWinbacks(business, s, twilioClient, fromNumber, baseUrl);
+      bizResult.winback = await processWinbacks(business, s, twilioClient, routing, baseUrl);
       totalSent += (bizResult.winback as { sent: number }).sent;
       totalFailed += (bizResult.winback as { failed: number }).failed;
     } catch (err) {
@@ -510,7 +510,7 @@ export async function GET(req: NextRequest) {
 
     // Run referral post-visit nudges
     try {
-      bizResult.referral = await processReferralNudges(business, s, twilioClient, fromNumber, baseUrl);
+      bizResult.referral = await processReferralNudges(business, s, twilioClient, routing, baseUrl);
       totalSent += (bizResult.referral as { sent: number }).sent;
       totalFailed += (bizResult.referral as { failed: number }).failed;
     } catch (err) {
@@ -520,7 +520,7 @@ export async function GET(req: NextRequest) {
 
     // Run re-engagement nudges
     try {
-      bizResult.reengage = await processReengagement(business, s, twilioClient, fromNumber, baseUrl);
+      bizResult.reengage = await processReengagement(business, s, twilioClient, routing, baseUrl);
       totalSent += (bizResult.reengage as { sent: number }).sent;
       totalFailed += (bizResult.reengage as { failed: number }).failed;
     } catch (err) {
