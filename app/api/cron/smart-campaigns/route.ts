@@ -76,14 +76,14 @@ function daysAgo(days: number): string {
  */
 async function sendAndLog(params: {
   twilioClient: ReturnType<typeof getTwilio>["client"];
-  fromNumber: string;
+  routing: { from: string } | { messagingServiceSid: string };
   toPhone: string;
   message: string;
   businessId: string;
   customerId: string;
   campaignType: string;
 }): Promise<boolean> {
-  const { twilioClient, fromNumber, toPhone, message, businessId, customerId, campaignType } = params;
+  const { twilioClient, routing, toPhone, message, businessId, customerId, campaignType } = params;
 
   try {
     await twilioClient.messages.create({
@@ -231,7 +231,7 @@ async function processWinbacks(
 
       const ok = await sendAndLog({
         twilioClient,
-        fromNumber,
+        routing,
         toPhone: phone,
         message,
         businessId: business.id,
