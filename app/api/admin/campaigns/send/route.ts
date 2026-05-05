@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
         .insert({
           business_id: business.id,
           direction: "outbound",
-          from_number: from,
+          from_number: "from" in routing ? routing.from : "messagingService",
           to_number: to,
           body: message,
           provider: "twilio",
