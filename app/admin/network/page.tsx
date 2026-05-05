@@ -420,10 +420,10 @@ export default function NetworkPage() {
             {onboardStep === 3 && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Set Referral Reward</h2>
-                <p className="text-gray-500 mb-6">Earn Katoomy credits every time a partner sends you a customer who books.</p>
+                <p className="text-gray-500 mb-6">Set how many Katoomy credits you owe a partner each time they send you a customer who books.</p>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Credit earned per referred customer ($)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Credits owed per referred customer ($)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-2 text-gray-400">$</span>
                       <input type="number" min={0}
