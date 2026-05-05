@@ -67,6 +67,7 @@ function cents(n: number) {
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function NetworkPage() {
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessSlug, setBusinessSlug] = useState<string>("");
   const [phase, setPhase] = useState<"loading" | "join" | "onboarding" | "portal">("loading");
   const [onboardStep, setOnboardStep] = useState(1);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -104,6 +105,7 @@ export default function NetworkPage() {
   const [overview, setOverview] = useState<OverviewStats | null>(null);
 
   const [saving, setSaving] = useState(false);
+  const [onboardError, setOnboardError] = useState<string | null>(null);
 
   // ── Load businessId ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -113,8 +115,11 @@ export default function NetworkPage() {
       const user = authData?.user;
       if (!user) return;
       const { data: biz } = await supabase
-        .from("businesses").select("id").eq("owner_user_id", user.id).maybeSingle();
-      if (biz?.id) setBusinessId(biz.id as string);
+        .from("businesses").select("id, slug").eq("owner_user_id", user.id).maybeSingle();
+      if (biz?.id) {
+        setBusinessId(biz.id as string);
+        setBusinessSlug(biz.slug as string);
+      }
     }
     init();
   }, []);
@@ -189,8 +194,11 @@ export default function NetworkPage() {
       }),
     });
     const data = await res.json();
-    if (data.offer) setOffers((prev) => [data.offer, ...prev]);
     setSaving(false);
+    if (!res.ok || !data.offer) {
+      return { error: data.error || "Failed to save offer. Please try again." };
+    }
+    setOffers((prev) => [data.offer, ...prev]);
     setShowOfferForm(false);
     return data;
   }
@@ -259,8 +267,8 @@ export default function NetworkPage() {
 
   const referralLink = (offerId: string) =>
     typeof window !== "undefined"
-      ? `${window.location.origin}/${settings}?net_ref=${offerId}`
-      : `/[slug]?net_ref=${offerId}`;
+      ? `${window.location.origin}/${businessSlug}?net_ref=${offerId}`
+      : `/${businessSlug}?net_ref=${offerId}`;
 
   if (phase === "loading") {
     return (
@@ -480,11 +488,14 @@ export default function NetworkPage() {
                     </button>
                   </div>
                 </div>
+                {onboardError && (
+                  <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{onboardError}</p>
+                )}
                 <div className="flex gap-3 mt-6">
                   <button onClick={() => setOnboardStep(3)} className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50 transition">← Back</button>
                   <button
                     onClick={async () => {
-                      // Save settings + create the first offer + mark onboarding complete
+                      setOnboardError(null);
                       await saveSettings({
                         enabled: true,
                         auto_approve_partners: settings.auto_approve_partners,
@@ -492,7 +503,11 @@ export default function NetworkPage() {
                         max_monthly_spend_cents: settings.max_monthly_spend_cents,
                         referral_reward_cents: settings.referral_reward_cents,
                       });
-                      await createOffer();
+                      const result = await createOffer();
+                      if (result?.error) {
+                        setOnboardError(result.error);
+                        return;
+                      }
                       setOnboardStep(5);
                     }}
                     disabled={saving}
