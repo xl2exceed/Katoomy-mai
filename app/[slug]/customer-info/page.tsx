@@ -622,7 +622,7 @@ export default function CustomerInfoPage() {
                 />
                 <span className="text-xs text-gray-600 leading-relaxed">
                   <span className="font-medium text-gray-700">Appointment texts:</span>{" "}
-                  I agree to receive appointment confirmations, reminders, and service-related text messages from {business?.name} via Katoomy. Message frequency varies based on your appointment activity. Reply STOP to unsubscribe. Message and data rates may apply.
+                  I agree to receive appointment confirmations, reminders, and service-related text messages from local businesses via Katoomy. Message frequency varies based on your appointment activity. Reply STOP to unsubscribe. Message and data rates may apply.
                 </span>
               </label>
 
@@ -636,7 +636,7 @@ export default function CustomerInfoPage() {
                 />
                 <span className="text-xs text-gray-600 leading-relaxed">
                   <span className="font-medium text-gray-700">Promotional texts:</span>{" "}
-                  I agree to receive promotional offers, discounts, and marketing messages from {business?.name} via Katoomy. Message frequency varies. Reply STOP to unsubscribe. Message and data rates may apply.
+                  I agree to receive promotional offers, discounts, and marketing messages from local businesses via Katoomy. Message frequency varies. Reply STOP to unsubscribe. Message and data rates may apply.
                 </span>
               </label>
 
