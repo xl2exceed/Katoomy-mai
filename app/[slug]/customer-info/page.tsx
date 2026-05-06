@@ -651,7 +651,7 @@ export default function CustomerInfoPage() {
                 <span className="text-xs text-gray-600">
                   I have read and agree to the{" "}
                   <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-blue-600 underline">Privacy Policy</a>{" "}and{" "}
-                  <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>.
+                  <a href="https://katoomy.com/sms-terms" target="_blank" rel="noreferrer" className="text-blue-600 underline">Terms of Service</a>.
                 </span>
               </label>
             </div>
