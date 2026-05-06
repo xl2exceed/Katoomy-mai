@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       business_id: business_id ?? null,
       customer_id: customer_id ?? null,
       direction: "outbound" as const,
-      from_number: from,
+      from_number: from ?? messagingServiceSid ?? null,
       to_number: normalizedTo,
       body,
       provider: "twilio",

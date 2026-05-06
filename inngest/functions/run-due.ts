@@ -45,7 +45,7 @@ export const runDue = inngest.createFunction(
               business_id: msg.business_id,
               direction: "outbound",
               to_number: msg.to_number,
-              from_number: "from" in routing ? routing.from : "messagingService",
+              from_number: "from" in routing ? routing.from : ("messagingServiceSid" in routing ? routing.messagingServiceSid : null),
               body: msg.body,
               status: twilioMessage.status || "queued",
               provider: "twilio",
