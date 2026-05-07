@@ -265,7 +265,7 @@ export default function HubPage() {
             </div>
             <button
               onClick={() => { setShowAdd(v => !v); setAddError(""); setAddInput(""); }}
-              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 text-xl hover:bg-gray-200 transition"
+              className="w-9 h-9 rounded-full bg-gray-100 border-2 border-orange-500 flex items-center justify-center text-orange-500 text-xl font-bold hover:bg-orange-50 transition"
             >
               {showAdd ? "×" : "+"}
             </button>
