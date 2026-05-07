@@ -228,7 +228,7 @@ export default function HubPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-violet-100 flex items-center justify-center">
+      <div className="min-h-screen bg-violet-200 flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-300" />
       </div>
     );
@@ -238,7 +238,7 @@ export default function HubPage() {
     <>
       {scanning && <QRScanner onDetect={handleDetected} onClose={() => setScanning(false)} />}
 
-      <div className="min-h-screen bg-violet-100 flex flex-col">
+      <div className="min-h-screen bg-violet-200 flex flex-col">
 
         {/* ── TOP HALF: Header + Search + Banner ── */}
         <div className="flex-none">
