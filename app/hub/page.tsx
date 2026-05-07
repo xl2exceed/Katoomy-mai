@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import jsQR from "jsqr";
+import type { HubOffer } from "@/app/api/public/hub-offers/route";
 
 interface BusinessInfo {
   slug: string;
@@ -126,37 +127,62 @@ function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; on
   );
 }
 
-// ── Promo Banner ─────────────────────────────────────────────────────────────
-function PromoBanner() {
+// ── Rotating Offer Banner ─────────────────────────────────────────────────────
+function OfferBanner({ offers, onOpen }: { offers: HubOffer[]; onOpen: (slug: string) => void }) {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    if (offers.length <= 1) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % offers.length), 4000);
+    return () => clearInterval(t);
+  }, [offers.length]);
+
+  if (offers.length === 0) return null;
+
+  const offer = offers[idx];
+  const color = offer.primaryColor || "#7C3AED";
+
   return (
     <div className="mx-4 rounded-2xl overflow-hidden shadow-sm border-2 border-violet-600 bg-gray-100">
-
-      <div className="p-4 flex flex-col justify-between h-full">
-        <div className="flex items-start justify-between mb-2">
-          <div className="bg-purple-600 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
-            Featured
-          </div>
-          <div className="text-gray-400 text-xs">Sponsored</div>
-        </div>
-        <div className="mb-3">
-          <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-1">Now on Katoomy</p>
-          <h2 className="text-gray-900 text-xl font-black leading-tight mb-1.5">
-            Discover Top Local<br />Businesses Near You
-          </h2>
-          <p className="text-gray-500 text-xs leading-relaxed">
-            Book appointments, earn rewards, and support your community — all in one place.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-2">
-            {["#e74c3c", "#3498db", "#2ecc71", "#f39c12"].map((c, i) => (
-              <div key={i} className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-xs" style={{ backgroundColor: c }}>
-                {["✂️", "🚗", "💅", "🏋️"][i]}
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            {offer.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={offer.logoUrl} alt={offer.businessName} className="w-9 h-9 rounded-xl object-cover shadow-sm" />
+            ) : (
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-sm" style={{ backgroundColor: color }}>
+                {offer.businessName[0]}
               </div>
-            ))}
+            )}
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color }}>
+                {offer.type === "membership" ? "Membership Deal" : offer.type === "service" ? "Featured Service" : "Now Booking"}
+              </p>
+              <p className="text-xs text-gray-500 font-medium">{offer.businessName}</p>
+            </div>
           </div>
-          <p className="text-gray-400 text-xs">Barbers · Car Washes · More</p>
+          {offers.length > 1 && (
+            <div className="flex gap-1 pt-1">
+              {offers.map((_, i) => (
+                <button key={i} onClick={() => setIdx(i)}
+                  className="w-1.5 h-1.5 rounded-full transition-all"
+                  style={{ backgroundColor: i === idx ? color : "#d1d5db" }}
+                />
+              ))}
+            </div>
+          )}
         </div>
+        <h2 className="text-gray-900 text-lg font-black leading-tight mb-1">{offer.title}</h2>
+        <p className="text-gray-500 text-xs leading-relaxed mb-3">{offer.body}</p>
+        <button
+          onClick={() => onOpen(offer.businessSlug)}
+          className="px-4 py-2 text-white text-xs font-bold rounded-xl active:scale-95 transition-transform"
+          style={{ backgroundColor: color }}
+        >
+          {offer.ctaLabel} →
+        </button>
       </div>
     </div>
   );
@@ -166,6 +192,7 @@ function PromoBanner() {
 export default function HubPage() {
   const router = useRouter();
   const [businesses, setBusinesses] = useState<BusinessInfo[]>([]);
+  const [offers, setOffers] = useState<HubOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -187,6 +214,11 @@ export default function HubPage() {
         const ordered = slugs.map(s => data.find(b => b.slug === s)).filter(Boolean) as BusinessInfo[];
         setBusinesses(ordered);
         setLoading(false);
+        // Fetch rotating offers for these businesses
+        fetch(`/api/public/hub-offers?slugs=${slugs.join(",")}`)
+          .then(r => r.json())
+          .then((o: HubOffer[]) => setOffers(o))
+          .catch(() => {});
       })
       .catch(() => setLoading(false));
   }
@@ -302,8 +334,8 @@ export default function HubPage() {
             </div>
           )}
 
-          {/* Promo Banner */}
-          {!showAdd && businesses.length > 0 && <PromoBanner />}
+          {/* Rotating Offer Banner */}
+          {!showAdd && offers.length > 0 && <OfferBanner offers={offers} onOpen={openBusiness} />}
         </div>
 
         {/* My Businesses label bar + search below it */}
