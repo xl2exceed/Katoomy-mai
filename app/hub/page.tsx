@@ -129,7 +129,7 @@ function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; on
 // ── Promo Banner ─────────────────────────────────────────────────────────────
 function PromoBanner() {
   return (
-    <div className="mx-4 rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-gray-100">
+    <div className="mx-4 rounded-2xl overflow-hidden shadow-sm border-2 border-violet-600 bg-gray-100">
 
       <div className="p-4 flex flex-col justify-between h-full">
         <div className="flex items-start justify-between mb-2">
