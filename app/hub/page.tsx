@@ -32,7 +32,7 @@ function parseBusinessUrl(input: string): { slug: string; ref: string | null } {
   return { slug: trimmed.toLowerCase(), ref: null };
 }
 
-// ── QR Scanner ───────────────────────────────────────────────────────────────
+// ── QR Scanner (stays dark — it's over the camera) ───────────────────────────
 function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -65,8 +65,6 @@ function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; on
       const code = jsQR(imageData.data, imageData.width, imageData.height);
       if (code) {
         const raw = code.data;
-        // Accept any katoomy domain so referral QR codes generated on
-        // vercel preview URLs also work
         const isKatoomyUrl =
           raw.includes("katoomy.com/") ||
           raw.includes("katoomy-mai.vercel.app/") ||
@@ -127,37 +125,37 @@ function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; on
   );
 }
 
-// ── Fake Promo Banner ────────────────────────────────────────────────────────
+// ── Promo Banner ─────────────────────────────────────────────────────────────
 function PromoBanner() {
   return (
-    <div className="mx-4 rounded-2xl overflow-hidden shadow-2xl"
-      style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)" }}
+    <div className="mx-4 rounded-2xl overflow-hidden shadow-sm border border-purple-100"
+      style={{ background: "linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)" }}
     >
       <div className="p-4 flex flex-col justify-between h-full">
         <div className="flex items-start justify-between mb-2">
-          <div className="bg-yellow-400 text-gray-900 text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
+          <div className="bg-purple-600 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
             Featured
           </div>
-          <div className="text-white/40 text-xs">Sponsored</div>
+          <div className="text-gray-400 text-xs">Sponsored</div>
         </div>
         <div className="mb-3">
-          <p className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-1">Now on Katoomy</p>
-          <h2 className="text-white text-xl font-black leading-tight mb-1.5">
+          <p className="text-purple-500 text-xs font-semibold uppercase tracking-widest mb-1">Now on Katoomy</p>
+          <h2 className="text-gray-900 text-xl font-black leading-tight mb-1.5">
             Discover Top Local<br />Businesses Near You
           </h2>
-          <p className="text-white/60 text-xs leading-relaxed">
+          <p className="text-gray-500 text-xs leading-relaxed">
             Book appointments, earn rewards, and support your community — all in one place.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex -space-x-2">
             {["#e74c3c", "#3498db", "#2ecc71", "#f39c12"].map((c, i) => (
-              <div key={i} className="w-6 h-6 rounded-full border-2 border-gray-900 flex items-center justify-center text-xs" style={{ backgroundColor: c }}>
+              <div key={i} className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-xs" style={{ backgroundColor: c }}>
                 {["✂️", "🚗", "💅", "🏋️"][i]}
               </div>
             ))}
           </div>
-          <p className="text-white/50 text-xs">Barbers · Car Washes · More</p>
+          <p className="text-gray-400 text-xs">Barbers · Car Washes · More</p>
         </div>
       </div>
     </div>
@@ -230,8 +228,8 @@ export default function HubPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white/40" />
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-300" />
       </div>
     );
   }
@@ -240,7 +238,7 @@ export default function HubPage() {
     <>
       {scanning && <QRScanner onDetect={handleDetected} onClose={() => setScanning(false)} />}
 
-      <div className="min-h-screen bg-gray-950 flex flex-col">
+      <div className="min-h-screen bg-white flex flex-col">
 
         {/* ── TOP HALF: Header + Search + Banner ── */}
         <div className="flex-none">
@@ -248,7 +246,7 @@ export default function HubPage() {
           <div className="px-4 pt-12 pb-4 flex items-center justify-between">
             <div>
               <p
-                className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-0.5 select-none"
+                className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-0.5 select-none"
                 onClick={() => {
                   devTapCount.current += 1;
                   if (devTapTimer.current) clearTimeout(devTapTimer.current);
@@ -256,11 +254,11 @@ export default function HubPage() {
                   if (devTapCount.current >= 7) { devTapCount.current = 0; setDevMode(v => !v); }
                 }}
               >Katoomy</p>
-              <h1 className="text-2xl font-black text-white">Business Hub</h1>
+              <h1 className="text-2xl font-black text-gray-900">Business Hub</h1>
             </div>
             <button
               onClick={() => { setShowAdd(v => !v); setAddError(""); setAddInput(""); }}
-              className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white text-xl hover:bg-white/20 transition"
+              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 text-xl hover:bg-gray-200 transition"
             >
               {showAdd ? "×" : "+"}
             </button>
@@ -268,11 +266,11 @@ export default function HubPage() {
 
           {/* Add Business Panel */}
           {showAdd && (
-            <div className="mx-4 mb-4 bg-white/10 rounded-2xl p-4 space-y-3">
-              <p className="text-white font-bold text-sm">Add a Business</p>
+            <div className="mx-4 mb-4 bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-3">
+              <p className="text-gray-900 font-bold text-sm">Add a Business</p>
               <button
                 onClick={() => setScanning(true)}
-                className="w-full py-3.5 bg-white text-gray-900 font-bold rounded-xl text-sm flex items-center justify-center gap-2 active:scale-95 transition"
+                className="w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 active:scale-95 transition"
               >
                 📷 Scan QR Code
               </button>
@@ -284,13 +282,13 @@ export default function HubPage() {
                   onChange={e => setAddInput(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleManualAdd()}
                   placeholder="katoomy.com/business-name"
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/10 text-white placeholder-gray-500 text-sm outline-none border border-white/20 focus:border-white/50"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-gray-900 placeholder-gray-400 text-sm outline-none border border-gray-200 focus:border-gray-400"
                 />
-                {addError && <p className="text-red-400 text-xs mt-1">{addError}</p>}
+                {addError && <p className="text-red-600 text-xs mt-1">{addError}</p>}
                 <button
                   onClick={handleManualAdd}
                   disabled={!addInput.trim() || adding}
-                  className="mt-2 w-full py-2.5 bg-white/20 text-white font-semibold rounded-xl text-sm disabled:opacity-40 hover:bg-white/30 transition"
+                  className="mt-2 w-full py-2.5 bg-gray-900 text-white font-semibold rounded-xl text-sm disabled:opacity-40 hover:bg-gray-800 transition"
                 >
                   {adding ? "Adding…" : "Go to Business →"}
                 </button>
@@ -305,12 +303,12 @@ export default function HubPage() {
         {/* My Businesses label bar + search below it */}
         {businesses.length > 0 && !showAdd && (
           <div className="mx-4 mt-3 space-y-2">
-            <div className="bg-white/10 rounded-xl px-4 py-2 flex items-center gap-2">
-              <span className="text-white text-xs font-bold uppercase tracking-widest">My Businesses</span>
-              <div className="flex-1 h-px bg-white/20" />
-              <span className="text-white/40 text-xs">{businesses.length}</span>
+            <div className="bg-gray-100 rounded-xl px-4 py-2 flex items-center gap-2">
+              <span className="text-gray-600 text-xs font-bold uppercase tracking-widest">My Businesses</span>
+              <div className="flex-1 h-px bg-gray-300" />
+              <span className="text-gray-400 text-xs">{businesses.length}</span>
             </div>
-            <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 shadow-sm">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm">
               <span className="text-gray-400 text-sm">🔍</span>
               <input
                 type="text"
@@ -331,13 +329,13 @@ export default function HubPage() {
           {businesses.length === 0 && !showAdd && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <div className="text-5xl mb-4">📱</div>
-              <p className="text-xl font-bold text-white mb-2">No businesses yet</p>
+              <p className="text-xl font-bold text-gray-900 mb-2">No businesses yet</p>
               <p className="text-gray-400 text-sm">Tap + to add your first business</p>
             </div>
           )}
 
           {filtered.length === 0 && search.length > 0 && (
-            <p className="text-gray-500 text-sm text-center py-8">No businesses match &quot;{search}&quot;</p>
+            <p className="text-gray-400 text-sm text-center py-8">No businesses match &quot;{search}&quot;</p>
           )}
 
           <div className="grid grid-cols-3 gap-3">
