@@ -63,6 +63,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="color-scheme" content="light" />
         {/* ✅ Inline PWA redirect — runs before first paint, eliminates flash */}
         <script dangerouslySetInnerHTML={{ __html: pwaRedirectScript }} />
       </head>
