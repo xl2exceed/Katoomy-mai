@@ -335,7 +335,7 @@ export default function HubPage() {
           )}
 
           {/* Rotating Offer Banner */}
-          {!showAdd && offers.length > 0 && <OfferBanner offers={offers} onOpen={openBusiness} />}
+          {!showAdd && offers.length > 0 && <OfferBanner offers={offers} onOpen={() => router.push("/hub/offers")} />}
         </div>
 
         {/* My Businesses label bar + search below it */}
