@@ -1,6 +1,7 @@
 import { inngest } from "@/lib/inngest";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getTwilio, getRouting } from "@/lib/twilio";
+import { canSendSms } from "@/lib/sms/canSendSms";
 
 export const runDue = inngest.createFunction(
   { id: "run-due", name: "SMS Appointment Reminders", retries: 3, triggers: [{ cron: "*/5 * * * *" }] },
@@ -28,6 +29,16 @@ export const runDue = inngest.createFunction(
     for (const msg of dueMessages) {
       const outcome = await step.run(`process-message-${msg.id}`, async () => {
         try {
+          // Check opt-out registry before sending
+          const { ok: canSend } = await canSendSms(msg.to_number);
+          if (!canSend) {
+            await supabaseAdmin
+              .from("scheduled_messages")
+              .update({ status: "failed" })
+              .eq("id", msg.id);
+            return "failed" as const;
+          }
+
           await supabaseAdmin
             .from("scheduled_messages")
             .update({ status: "processing" })

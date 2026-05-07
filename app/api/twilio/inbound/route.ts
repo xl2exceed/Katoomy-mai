@@ -57,7 +57,10 @@ async function handleMessage(from: string, keyword: string): Promise<NextRespons
       .from("sms_optouts")
       .upsert({ phone, opted_out_at: new Date().toISOString(), is_opted_out: true }, { onConflict: "phone" });
 
-    // Revoke marketing and transactional consent across all businesses
+    // Revoke consent across all businesses — match both 10-digit and 11-digit formats
+    // (customers table may store either depending on how the number was entered at booking)
+    const digits10 = digits.replace(/^1/, ""); // strip leading country code if present
+    const digits11 = digits.startsWith("1") ? digits : `1${digits}`;
     await supabaseAdmin
       .from("customers")
       .update({
@@ -65,7 +68,7 @@ async function handleMessage(from: string, keyword: string): Promise<NextRespons
         sms_transactional_consent: false,
         sms_consent: false,
       })
-      .eq("phone", digits); // customers table stores digits only
+      .or(`phone.eq.${digits10},phone.eq.${digits11}`);
 
     // Let Twilio send its own STOP confirmation — return empty response
     return twiml();
