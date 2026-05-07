@@ -179,14 +179,13 @@ export default function HubPage() {
 
   function loadBusinesses() {
     const slugs = getSlugs();
-    if (slugs.length === 0) { setShowAdd(true); setLoading(false); return; }
+    if (slugs.length === 0) { setLoading(false); return; }
 
     fetch(`/api/public/businesses?slugs=${slugs.join(",")}`)
       .then(r => r.json())
       .then((data: BusinessInfo[]) => {
         const ordered = slugs.map(s => data.find(b => b.slug === s)).filter(Boolean) as BusinessInfo[];
         setBusinesses(ordered);
-        if (slugs.length === 1) setShowAdd(true);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -333,11 +332,11 @@ export default function HubPage() {
 
         {/* ── BOTTOM HALF: Business Tiles ── */}
         <div className="flex-1 overflow-y-auto px-4 pt-3 pb-8">
-          {businesses.length === 0 && !showAdd && (
+          {businesses.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <div className="text-5xl mb-4">📱</div>
               <p className="text-xl font-bold text-gray-900 mb-2">No businesses yet</p>
-              <p className="text-gray-400 text-sm">Tap + to add your first business</p>
+              <p className="text-gray-400 text-sm">Tap the <span className="font-bold text-orange-500">+</span> button above to add your first business</p>
             </div>
           )}
 
