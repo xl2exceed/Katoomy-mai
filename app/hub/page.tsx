@@ -129,9 +129,8 @@ function QRScanner({ onDetect, onClose }: { onDetect: (slug: string) => void; on
 // ── Promo Banner ─────────────────────────────────────────────────────────────
 function PromoBanner() {
   return (
-    <div className="mx-4 rounded-2xl overflow-hidden shadow-sm border border-purple-100"
-      style={{ background: "linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)" }}
-    >
+    <div className="mx-4 rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-gray-100">
+
       <div className="p-4 flex flex-col justify-between h-full">
         <div className="flex items-start justify-between mb-2">
           <div className="bg-purple-600 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
@@ -140,7 +139,7 @@ function PromoBanner() {
           <div className="text-gray-400 text-xs">Sponsored</div>
         </div>
         <div className="mb-3">
-          <p className="text-purple-500 text-xs font-semibold uppercase tracking-widest mb-1">Now on Katoomy</p>
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-1">Now on Katoomy</p>
           <h2 className="text-gray-900 text-xl font-black leading-tight mb-1.5">
             Discover Top Local<br />Businesses Near You
           </h2>
@@ -229,7 +228,7 @@ export default function HubPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-violet-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-300" />
       </div>
     );
@@ -239,7 +238,7 @@ export default function HubPage() {
     <>
       {scanning && <QRScanner onDetect={handleDetected} onClose={() => setScanning(false)} />}
 
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-violet-50 flex flex-col">
 
         {/* ── TOP HALF: Header + Search + Banner ── */}
         <div className="flex-none">
@@ -313,7 +312,7 @@ export default function HubPage() {
           <div className="mx-4 mt-4 space-y-2.5">
             <div className="flex items-center gap-3 px-1">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest whitespace-nowrap">My Businesses</span>
-              <div className="flex-1 h-px bg-gray-300" />
+              <div className="flex-1 h-px bg-purple-200" />
               <span className="text-xs font-medium text-gray-400">{businesses.length}</span>
             </div>
             <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-xl px-3 py-2.5 shadow-sm">
