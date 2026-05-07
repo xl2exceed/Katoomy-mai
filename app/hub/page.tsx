@@ -158,7 +158,7 @@ function OfferBanner({ offers, onOpen }: { offers: HubOffer[]; onOpen: (slug: st
             )}
             <div>
               <p className="text-xs font-bold uppercase tracking-wide" style={{ color }}>
-                {offer.type === "membership" ? "Membership Deal" : offer.type === "service" ? "Featured Service" : "Now Booking"}
+                Network Offer
               </p>
               <p className="text-xs text-gray-500 font-medium">{offer.businessName}</p>
             </div>
