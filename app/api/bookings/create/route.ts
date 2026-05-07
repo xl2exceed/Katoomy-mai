@@ -88,6 +88,17 @@ export async function POST(req: NextRequest) {
         updatePayload.sms_consent_at = now;
       }
       await supabaseAdmin.from("customers").update(updatePayload).eq("id", customerId);
+
+      // If the customer re-consented at booking, clear their global opt-out so
+      // reminders flow again — checking the consent box is legally valid re-consent
+      if (hasTransactionalConsent || hasMarketingConsent) {
+        const normalizedPhone = cleanPhone.startsWith("1") ? `+${cleanPhone}` : `+1${cleanPhone}`;
+        await supabaseAdmin
+          .from("sms_optouts")
+          .update({ is_opted_out: false, opted_back_in_at: now })
+          .eq("phone", normalizedPhone)
+          .eq("is_opted_out", true);
+      }
     } else {
       const referralCode = await ensureUniqueReferralCode(
         supabaseAdmin,
