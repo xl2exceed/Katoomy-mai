@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import jsQR from "jsqr";
 
 interface BusinessInfo {
@@ -228,7 +229,7 @@ export default function HubPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-300" />
       </div>
     );
@@ -238,23 +239,30 @@ export default function HubPage() {
     <>
       {scanning && <QRScanner onDetect={handleDetected} onClose={() => setScanning(false)} />}
 
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
 
         {/* ── TOP HALF: Header + Search + Banner ── */}
         <div className="flex-none">
           {/* Header */}
           <div className="px-4 pt-12 pb-4 flex items-center justify-between">
-            <div>
-              <p
-                className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-0.5 select-none"
+            <div className="flex items-center gap-3">
+              <Image
+                src="/brand/katoomy-logo.png"
+                alt="Katoomy"
+                width={38}
+                height={38}
+                className="w-9 h-9 rounded-xl"
                 onClick={() => {
                   devTapCount.current += 1;
                   if (devTapTimer.current) clearTimeout(devTapTimer.current);
                   devTapTimer.current = setTimeout(() => { devTapCount.current = 0; }, 2000);
                   if (devTapCount.current >= 7) { devTapCount.current = 0; setDevMode(v => !v); }
                 }}
-              >Katoomy</p>
-              <h1 className="text-2xl font-black text-gray-900">Business Hub</h1>
+              />
+              <div>
+                <p className="text-gray-400 text-xs font-medium tracking-wide">Katoomy</p>
+                <h1 className="text-lg font-bold text-gray-900 leading-tight">Business Hub</h1>
+              </div>
             </div>
             <button
               onClick={() => { setShowAdd(v => !v); setAddError(""); setAddInput(""); }}
@@ -266,7 +274,7 @@ export default function HubPage() {
 
           {/* Add Business Panel */}
           {showAdd && (
-            <div className="mx-4 mb-4 bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-3">
+            <div className="mx-4 mb-4 bg-white border border-gray-200 rounded-2xl p-4 space-y-3 shadow-sm">
               <p className="text-gray-900 font-bold text-sm">Add a Business</p>
               <button
                 onClick={() => setScanning(true)}
@@ -302,13 +310,13 @@ export default function HubPage() {
 
         {/* My Businesses label bar + search below it */}
         {businesses.length > 0 && !showAdd && (
-          <div className="mx-4 mt-3 space-y-2">
-            <div className="bg-gray-100 rounded-xl px-4 py-2 flex items-center gap-2">
-              <span className="text-gray-600 text-xs font-bold uppercase tracking-widest">My Businesses</span>
+          <div className="mx-4 mt-4 space-y-2.5">
+            <div className="flex items-center gap-3 px-1">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest whitespace-nowrap">My Businesses</span>
               <div className="flex-1 h-px bg-gray-300" />
-              <span className="text-gray-400 text-xs">{businesses.length}</span>
+              <span className="text-xs font-medium text-gray-400">{businesses.length}</span>
             </div>
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm">
+            <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-xl px-3 py-2.5 shadow-sm">
               <span className="text-gray-400 text-sm">🔍</span>
               <input
                 type="text"
