@@ -109,7 +109,7 @@ export default function SocialPage() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-8 max-w-4xl mx-auto bg-white min-h-screen">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <span className="text-2xl">📱</span>

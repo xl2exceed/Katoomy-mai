@@ -28,7 +28,7 @@ export default function GrowthHubPage() {
   ];
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-8 max-w-5xl mx-auto bg-white min-h-screen">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
