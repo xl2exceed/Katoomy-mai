@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import jsQR from "jsqr";
 import type { HubOffer } from "@/app/api/public/hub-offers/route";
+import { detectDevice, isRunningAsApp } from "@/lib/utils/detectDevice";
+
+const INSTALL_TRACKED_KEY = "katoomy:hub-install-tracked";
 
 interface BusinessInfo {
   slug: string;
@@ -224,6 +227,31 @@ export default function HubPage() {
   }
 
   useEffect(() => { loadBusinesses(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track PWA install — once per device using localStorage guard
+  useEffect(() => {
+    function recordInstall() {
+      if (localStorage.getItem(INSTALL_TRACKED_KEY)) return;
+      localStorage.setItem(INSTALL_TRACKED_KEY, "1");
+      const slugs = getSlugs();
+      fetch("/api/hub/track-install", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceType: detectDevice(),
+          referrerSlug: slugs[0] ?? null,
+          userAgent: navigator.userAgent,
+        }),
+      }).catch(() => {});
+    }
+
+    // iOS/iPadOS: detect standalone on load (user already installed)
+    if (isRunningAsApp()) recordInstall();
+
+    // Android/Chrome: fires at the moment of install
+    window.addEventListener("appinstalled", recordInstall);
+    return () => window.removeEventListener("appinstalled", recordInstall);
+  }, []);
 
   const openBusiness = (slug: string) => {
     sessionStorage.setItem("katoomy:fromHub", "1");

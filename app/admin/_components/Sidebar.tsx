@@ -136,6 +136,7 @@ export default function Sidebar({ businessId, plan, status, niche = "barber" }: 
         {navLink("/admin/membership", "💎", "Membership")}
         {navLink("/admin/growth", "🚀", "AI Growth Hub")}
         {navLink("/admin/network", "🤝", "Network")}
+        {navLink("/admin/installs", "📲", "App Installs")}
 
         {/* ── Settings ── */}
         <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Business Hub</p>

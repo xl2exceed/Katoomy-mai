@@ -6,7 +6,7 @@ create table if not exists customer_devices (
   customer_id    uuid not null unique references customers(id) on delete cascade,
   business_id    uuid not null references businesses(id) on delete cascade,
   device_type    text not null default 'unknown'
-                   check (device_type in ('ios', 'android', 'desktop', 'unknown')),
+                   check (device_type in ('ios', 'ipad', 'android', 'desktop', 'unknown')),
   app_installed  boolean not null default false,
   user_agent     text,
   first_seen_at  timestamptz not null default now(),

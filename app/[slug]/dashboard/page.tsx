@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
+import { detectDevice, isRunningAsApp } from "@/lib/utils/detectDevice";
 
 interface Customer {
   id: string;
@@ -230,28 +231,16 @@ export default function DashboardPage() {
     setCustomer(customerData);
 
     // Fire-and-forget: track device type + PWA install status for Katoomy analytics
-    if (typeof window !== "undefined") {
-      const ua = navigator.userAgent;
-      const deviceType = /iPad|iPhone|iPod/.test(ua) && !("MSStream" in window)
-        ? "ios"
-        : /Android/.test(ua)
-        ? "android"
-        : "desktop";
-      const appInstalled =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as { standalone?: boolean }).standalone === true;
-
-      fetch("/api/customer/track-device", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: customerData.id,
-          businessId: biz.id,
-          deviceType,
-          appInstalled,
-        }),
-      }).catch(() => {/* non-critical, ignore */});
-    }
+    fetch("/api/customer/track-device", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerId: customerData.id,
+        businessId: biz.id,
+        deviceType: detectDevice(),
+        appInstalled: isRunningAsApp(),
+      }),
+    }).catch(() => {});
 
     const now = new Date().toISOString();
 

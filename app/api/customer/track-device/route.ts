@@ -11,7 +11,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const VALID_DEVICE_TYPES = ["ios", "android", "desktop", "unknown"] as const;
+const VALID_DEVICE_TYPES = ["ios", "ipad", "android", "desktop", "unknown"] as const;
 
 export async function POST(req: NextRequest) {
   try {
