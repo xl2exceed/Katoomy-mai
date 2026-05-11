@@ -42,6 +42,12 @@ interface Business {
   primary_color: string;
 }
 
+interface AppliedNetOffer {
+  title: string;
+  offer_type: "dollar_off" | "percent_off";
+  amount: number;
+}
+
 export default function ConfirmationPage() {
   const params = useParams();
   const router = useRouter();
@@ -53,6 +59,7 @@ export default function ConfirmationPage() {
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
   const [countdown, setCountdown] = useState(10);
   const [partnerOffers, setPartnerOffers] = useState<PartnerOffer[]>([]);
+  const [appliedNetOffer, setAppliedNetOffer] = useState<AppliedNetOffer | null>(null);
 
   useEffect(() => {
     loadData();
@@ -124,6 +131,17 @@ export default function ConfirmationPage() {
         setBooking(bookingData);
       }
     }
+
+    // Read and clear the applied network offer
+    try {
+      const raw = sessionStorage.getItem("appliedNetOffer");
+      if (raw) {
+        const offer = JSON.parse(raw) as AppliedNetOffer;
+        setAppliedNetOffer(offer);
+        setCountdown(30);
+        sessionStorage.removeItem("appliedNetOffer");
+      }
+    } catch { /* ignore */ }
 
     setLoading(false);
 
@@ -301,8 +319,25 @@ export default function ConfirmationPage() {
           </div>
         </div>
 
-        {/* Partner Offers (Network cross-promotion) */}
-        {partnerOffers.length > 0 && (
+        {/* Applied network offer confirmation */}
+        {appliedNetOffer && (
+          <div className="mb-6 bg-violet-50 border-2 border-violet-300 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">🎉</span>
+              <p className="font-bold text-violet-800">Partner Discount Applied</p>
+            </div>
+            <p className="text-violet-900 font-semibold">{appliedNetOffer.title}</p>
+            <p className="text-violet-700 text-sm mt-1">
+              {appliedNetOffer.offer_type === "dollar_off"
+                ? `$${appliedNetOffer.amount} off`
+                : `${appliedNetOffer.amount}% off`}
+              {" "}has been applied to your booking price.
+            </p>
+          </div>
+        )}
+
+        {/* Partner Offers (Network cross-promotion) — only shown when no offer was used */}
+        {partnerOffers.length > 0 && !appliedNetOffer && (
           <div className="mb-6">
             <p className="text-sm font-semibold text-gray-700 mb-3">
               🤝 Unlock offers at trusted local businesses
@@ -329,6 +364,7 @@ export default function ConfirmationPage() {
             </div>
           </div>
         )}
+
 
         {/* Action Buttons */}
         <div className="space-y-3">

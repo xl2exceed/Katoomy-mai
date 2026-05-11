@@ -353,7 +353,14 @@ export default function CustomerInfoPage() {
     const totalCents = effectiveTotalCents();
     const priceCents = type === "deposit" ? getDepositCents() : totalCents;
 
-    if (networkOffer) localStorage.removeItem("katoomy:netRef");
+    if (networkOffer) {
+      sessionStorage.setItem("appliedNetOffer", JSON.stringify({
+        title: networkOffer.title,
+        offer_type: networkOffer.offer_type,
+        amount: networkOffer.amount,
+      }));
+      localStorage.removeItem("katoomy:netRef");
+    }
 
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
@@ -440,7 +447,14 @@ export default function CustomerInfoPage() {
       }
 
       localStorage.removeItem("katoomy:pendingReferral");
-      if (networkOffer) localStorage.removeItem("katoomy:netRef");
+      if (networkOffer) {
+        sessionStorage.setItem("appliedNetOffer", JSON.stringify({
+          title: networkOffer.title,
+          offer_type: networkOffer.offer_type,
+          amount: networkOffer.amount,
+        }));
+        localStorage.removeItem("katoomy:netRef");
+      }
       sessionStorage.setItem("bookingId", data.bookingId);
       router.push(`/${slug}/confirmation`);
     } catch (err) {
@@ -728,6 +742,16 @@ export default function CustomerInfoPage() {
             />
           </div>
         </div>
+
+        {/* Network offer early notification */}
+        {networkOffer && (
+          <div className="mt-4 px-4 py-3 bg-violet-50 border border-violet-300 rounded-xl flex items-start gap-2">
+            <span className="text-lg leading-none mt-0.5">🎉</span>
+            <p className="text-violet-800 text-sm font-medium">
+              Your partner discount <span className="font-bold">{networkOffer.title}</span> is applied — see the discounted price above.
+            </p>
+          </div>
+        )}
 
         {/* Payment Choice */}
         {service && (

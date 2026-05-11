@@ -32,6 +32,7 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [memberDiscountPct] = useState(0);
   const [isCarwash, setIsCarwash] = useState(false);
+  const [hasNetOffer, setHasNetOffer] = useState(false);
   const [surcharges, setSurcharges] = useState<Record<string, number>>({});
   const [vehicleType, setVehicleType] = useState<string>("");
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
@@ -104,6 +105,16 @@ export default function ServicesPage() {
     };
 
     loadData();
+
+    // Check for a pending network offer for this business
+    try {
+      const raw = localStorage.getItem("katoomy:netRef");
+      if (raw) {
+        const parsed = JSON.parse(raw) as { businessSlug: string; ts: number };
+        const ageMs = Date.now() - (parsed.ts || 0);
+        if (parsed.businessSlug === slug && ageMs < 86400000) setHasNetOffer(true);
+      }
+    } catch { /* ignore */ }
   }, [slug]);
 
   const selectService = async (serviceId: string, adjustedPriceCents: number) => {
@@ -180,6 +191,14 @@ export default function ServicesPage() {
         <h1 className="text-2xl font-bold">{business?.name}</h1>
         <p className="text-white/90 mt-1">Select a service</p>
       </div>
+
+      {/* Network offer banner */}
+      {hasNetOffer && (
+        <div className="mx-6 mt-4 px-4 py-3 bg-violet-50 border border-violet-300 rounded-xl flex items-center gap-2">
+          <span className="text-lg">🎉</span>
+          <p className="text-violet-800 text-sm font-semibold">A partner discount will be automatically applied at checkout.</p>
+        </div>
+      )}
 
       {/* Services List */}
       <div className="p-6 space-y-4">
