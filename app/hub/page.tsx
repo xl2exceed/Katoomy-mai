@@ -302,38 +302,41 @@ export default function HubPage() {
         {/* ── TOP HALF: Header + Search + Banner ── */}
         <div className="flex-none">
           {/* Header */}
-          <div className="px-4 pt-12 pb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/brand/katoomy-logo.png"
-                alt="Katoomy"
-                width={38}
-                height={38}
-                className="w-9 h-9 rounded-xl"
-                onClick={() => {
-                  devTapCount.current += 1;
-                  if (devTapTimer.current) clearTimeout(devTapTimer.current);
-                  devTapTimer.current = setTimeout(() => { devTapCount.current = 0; }, 2000);
-                  if (devTapCount.current >= 7) { devTapCount.current = 0; setDevMode(v => !v); }
-                }}
-              />
-              <div>
-                <h1 className="text-2xl font-black text-violet-600 leading-tight">Katoomy</h1>
-                <p className="text-xs text-gray-500 font-medium -mt-0.5">Customer Discounts</p>
-              </div>
-            </div>
-            <button
-              onClick={() => { setShowAdd(v => !v); setAddError(""); setAddInput(""); }}
-              className="w-9 h-9 rounded-full bg-gray-100 border-2 border-orange-500 flex items-center justify-center text-orange-500 text-xl font-bold hover:bg-orange-50 transition"
-            >
-              {showAdd ? "×" : "+"}
-            </button>
+          <div className="px-4 pt-12 pb-2 flex items-center gap-3">
+            <Image
+              src="/brand/katoomy-logo.png"
+              alt="Katoomy"
+              width={38}
+              height={38}
+              className="w-9 h-9 rounded-xl"
+              onClick={() => {
+                devTapCount.current += 1;
+                if (devTapTimer.current) clearTimeout(devTapTimer.current);
+                devTapTimer.current = setTimeout(() => { devTapCount.current = 0; }, 2000);
+                if (devTapCount.current >= 7) { devTapCount.current = 0; setDevMode(v => !v); }
+              }}
+            />
+            <h1 className="text-2xl font-black text-violet-600 leading-tight">Katoomy</h1>
           </div>
+
+          {/* Customer Discounts subtitle — centered */}
+          {!showAdd && (
+            <p className="text-sm font-bold text-gray-700 text-center tracking-wide pb-3">Customer Discounts</p>
+          )}
 
           {/* Add Business Panel */}
           {showAdd && (
             <div className="mx-4 mb-4 bg-white border border-gray-200 rounded-2xl p-4 space-y-3 shadow-sm">
-              <p className="text-gray-900 font-bold text-sm">Add a Business</p>
+              {/* Close button — top left of the panel */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowAdd(false); setAddError(""); setAddInput(""); }}
+                  className="w-8 h-8 rounded-full bg-gray-100 border-2 border-orange-500 flex items-center justify-center text-orange-500 text-xl font-bold hover:bg-orange-50 transition flex-shrink-0"
+                >
+                  ×
+                </button>
+                <p className="text-gray-900 font-bold text-sm">Add a Business</p>
+              </div>
               <button
                 onClick={() => setScanning(true)}
                 className="w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 active:scale-95 transition"
