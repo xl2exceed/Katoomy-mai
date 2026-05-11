@@ -135,7 +135,7 @@ export default function Sidebar({ businessId, plan, status, niche = "barber" }: 
         {navLink("/admin/referrals", "🎁", "Referrals")}
         {navLink("/admin/membership", "💎", "Membership")}
         {navLink("/admin/growth", "🚀", "AI Growth Hub")}
-        {navLink("/admin/network", "🤝", "Network")}
+        {navLink("/admin/network", "🤝", "My Network")}
         {navLink("/admin/installs", "📲", "App Installs")}
 
         {/* ── Settings ── */}
