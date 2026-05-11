@@ -318,8 +318,8 @@ export default function HubPage() {
                 }}
               />
               <div>
-                <p className="text-gray-400 text-xs font-medium tracking-wide">Katoomy</p>
-                <h1 className="text-lg font-bold text-gray-900 leading-tight">Business Hub</h1>
+                <h1 className="text-2xl font-black text-violet-600 leading-tight">Katoomy</h1>
+                <p className="text-xs text-gray-500 font-medium -mt-0.5">Customer Discounts</p>
               </div>
             </div>
             <button
@@ -390,8 +390,15 @@ export default function HubPage() {
           </div>
         )}
 
+        {/* My Services label */}
+        {businesses.length > 0 && !showAdd && (
+          <div className="px-4 pt-4 pb-1">
+            <p className="text-sm font-bold text-gray-700 text-center tracking-wide">My Services</p>
+          </div>
+        )}
+
         {/* ── BOTTOM HALF: Business Tiles ── */}
-        <div className="flex-1 overflow-y-auto px-4 pt-3 pb-8">
+        <div className="flex-1 overflow-y-auto px-4 pt-2 pb-8">
           {businesses.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <div className="text-5xl mb-4">📱</div>
@@ -442,6 +449,16 @@ export default function HubPage() {
                 </div>
               );
             })}
+
+            {/* Add business tile — always last */}
+            {!showAdd && (
+              <button
+                onClick={() => { setShowAdd(true); setAddError(""); setAddInput(""); }}
+                className="w-full flex flex-col items-center justify-center p-3 rounded-2xl min-h-[110px] border-2 border-dashed border-violet-400 bg-transparent active:scale-95 transition-transform"
+              >
+                <span className="text-3xl font-light text-violet-400 leading-none">+</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
