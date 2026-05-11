@@ -327,15 +327,14 @@ export default function HubPage() {
           {/* Add Business Panel */}
           {showAdd && (
             <div className="mx-4 mb-4 bg-white border border-gray-200 rounded-2xl p-4 space-y-3 shadow-sm">
-              {/* Close button — top left of the panel */}
-              <div className="flex items-center gap-2">
+              {/* Close button — top right of the panel */}
+              <div className="flex justify-end">
                 <button
                   onClick={() => { setShowAdd(false); setAddError(""); setAddInput(""); }}
-                  className="w-8 h-8 rounded-full bg-gray-100 border-2 border-orange-500 flex items-center justify-center text-orange-500 text-xl font-bold hover:bg-orange-50 transition flex-shrink-0"
+                  className="w-8 h-8 rounded-full bg-gray-100 border-2 border-orange-500 flex items-center justify-center text-orange-500 text-xl font-bold hover:bg-orange-50 transition"
                 >
                   ×
                 </button>
-                <p className="text-gray-900 font-bold text-sm">Add a Business</p>
               </div>
               <button
                 onClick={() => setScanning(true)}
