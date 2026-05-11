@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { HubOffer } from "@/app/api/public/hub-offers/route";
 
 const BUSINESSES_KEY = "katoomy:businesses";
+const PHONE_KEY = "katoomy:customerPhone";
 
 function getSlugs(): string[] {
   try { return JSON.parse(localStorage.getItem(BUSINESSES_KEY) || "[]"); } catch { return []; }
@@ -15,6 +16,8 @@ export default function HubOffersPage() {
   const router = useRouter();
   const [offers, setOffers] = useState<HubOffer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [offerErrors, setOfferErrors] = useState<Record<string, string>>({});
+  const [checking, setChecking] = useState<string | null>(null);
 
   useEffect(() => {
     const slugs = getSlugs();
@@ -27,9 +30,38 @@ export default function HubOffersPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const openBusiness = (slug: string) => {
+  const handleGetOffer = async (offer: HubOffer) => {
+    setOfferErrors(prev => ({ ...prev, [offer.id]: "" }));
+
+    const phone = localStorage.getItem(PHONE_KEY);
+
+    if (phone) {
+      setChecking(offer.id);
+      try {
+        const r = await fetch(
+          `/api/public/offer-eligibility?offerId=${offer.id}&phone=${phone.replace(/\D/g, "")}`
+        );
+        const d = await r.json();
+        setChecking(null);
+
+        if (!d.eligible) {
+          const msg =
+            d.reason === "already_used"
+              ? "You've already redeemed this offer."
+              : d.reason === "has_discount"
+                ? `You already have a discount with ${d.businessName || "this business"}. Only one discount can be applied per service.`
+                : "This offer is no longer available.";
+          setOfferErrors(prev => ({ ...prev, [offer.id]: msg }));
+          return;
+        }
+      } catch {
+        setChecking(null);
+        // If the check fails, let them proceed — server enforces at booking
+      }
+    }
+
     sessionStorage.setItem("katoomy:fromHub", "1");
-    router.push(`/${slug}`);
+    router.push(`/${offer.businessSlug}?net_ref=${offer.id}`);
   };
 
   return (
@@ -67,6 +99,8 @@ export default function HubOffersPage() {
           <div className="space-y-3">
             {offers.map(offer => {
               const color = offer.primaryColor || "#7C3AED";
+              const isChecking = checking === offer.id;
+              const errorMsg = offerErrors[offer.id];
               return (
                 <div key={offer.id} className="bg-white rounded-2xl shadow-sm border-2 overflow-hidden" style={{ borderColor: color }}>
                   <div className="p-4">
@@ -92,12 +126,18 @@ export default function HubOffersPage() {
 
                     {/* CTA */}
                     <button
-                      onClick={() => openBusiness(offer.businessSlug)}
-                      className="w-full py-2.5 text-white text-sm font-bold rounded-xl active:scale-95 transition-transform"
+                      onClick={() => handleGetOffer(offer)}
+                      disabled={isChecking}
+                      className="w-full py-2.5 text-white text-sm font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-60"
                       style={{ backgroundColor: color }}
                     >
-                      {offer.ctaLabel} →
+                      {isChecking ? "Checking…" : "Get It Now →"}
                     </button>
+
+                    {/* Eligibility error */}
+                    {errorMsg && (
+                      <p className="mt-2 text-xs font-medium text-red-600 text-center">{errorMsg}</p>
+                    )}
                   </div>
                 </div>
               );

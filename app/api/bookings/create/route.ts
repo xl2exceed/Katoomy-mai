@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       defaultBookingStatus,
       staffId,
       referredByCode,
+      netRefOfferId,
       // Car wash fields
       vehicleType,
       vehicleCondition,
@@ -145,6 +146,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Block duplicate network offer redemptions server-side
+    if (netRefOfferId) {
+      const { data: existingRedemption } = await supabaseAdmin
+        .from("network_offer_redemptions")
+        .select("id")
+        .eq("offer_id", netRefOfferId)
+        .eq("customer_phone", cleanPhone)
+        .maybeSingle();
+      if (existingRedemption) {
+        return NextResponse.json({ error: "You've already redeemed this offer." }, { status: 409 });
+      }
+    }
+
     // Create booking
     const startDateTime = new Date(startISO || `${bookingDate}T${bookingTime}:00`);
     const endDateTime = new Date(
@@ -182,6 +196,20 @@ export async function POST(req: NextRequest) {
         { error: "Failed to create booking" },
         { status: 500 },
       );
+    }
+
+    // Record network offer redemption
+    if (netRefOfferId && booking) {
+      try {
+        await supabaseAdmin.from("network_offer_redemptions").insert({
+          offer_id: netRefOfferId,
+          customer_phone: cleanPhone,
+          business_id: businessId,
+          booking_id: booking.id,
+        });
+      } catch (err) {
+        console.error("Failed to record offer redemption (non-fatal):", err);
+      }
     }
 
     // Seed Quick Book defaults — upsert only if no row exists yet so customer

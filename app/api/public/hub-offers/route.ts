@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       primaryColor: biz.primary_color || "#7C3AED",
       title: offer.title,
       body: `Get ${amountStr}${minSpend} at ${biz.app_name || biz.name}`,
-      ctaLabel: "Book Now",
+      ctaLabel: "Get It Now",
     };
   });
 

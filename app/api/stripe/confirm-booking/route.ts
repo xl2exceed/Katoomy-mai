@@ -102,7 +102,9 @@ export async function POST(req: NextRequest) {
       smsConsent: smsConsentRaw,
       smsTransactionalConsent: smsTransactionalConsentRaw,
       smsMarketingConsent: smsMarketingConsentRaw,
+      netRefOfferId: netRefOfferIdRaw,
     } = meta;
+    const netRefOfferId = netRefOfferIdRaw || null;
     const addonIds = addonIdsRaw ? JSON.parse(addonIdsRaw) : null;
     // Resolve consent: new split fields take precedence over legacy smsConsent
     const legacyConsent = smsConsentRaw === "true";
@@ -251,6 +253,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
       }
       bookingId = booking.id;
+
+      // Record network offer redemption
+      if (netRefOfferId) {
+        try {
+          await supabaseAdmin.from("network_offer_redemptions").insert({
+            offer_id: netRefOfferId,
+            customer_phone: cleanPhone,
+            business_id: businessId,
+            booking_id: bookingId,
+          });
+        } catch (err) {
+          console.error("Failed to record offer redemption (non-fatal):", err);
+        }
+      }
 
       // Seed Quick Book defaults on first booking
       try {
