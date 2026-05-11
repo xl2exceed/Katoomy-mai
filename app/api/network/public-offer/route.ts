@@ -23,13 +23,17 @@ export async function GET(req: NextRequest) {
   if (offer.expires_at && new Date(offer.expires_at) < new Date()) return NextResponse.json({ offer: null });
   if (offer.budget_cents && offer.total_cost_cents >= offer.budget_cents) return NextResponse.json({ offer: null });
 
-  // Verify active partnership
-  const { data: partnership } = await supabaseAdmin.from("network_partners")
-    .select("id")
-    .or(`and(business_a_id.eq.${offer.business_id},business_b_id.eq.${receivingBusinessId}),and(business_a_id.eq.${receivingBusinessId},business_b_id.eq.${offer.business_id})`)
-    .eq("status", "active").maybeSingle();
+  // If the offer is from a different business, verify an active partnership exists.
+  // If the customer is booking directly at the offering business (hub self-referral),
+  // no partnership check is needed.
+  if (offer.business_id !== receivingBusinessId) {
+    const { data: partnership } = await supabaseAdmin.from("network_partners")
+      .select("id")
+      .or(`and(business_a_id.eq.${offer.business_id},business_b_id.eq.${receivingBusinessId}),and(business_a_id.eq.${receivingBusinessId},business_b_id.eq.${offer.business_id})`)
+      .eq("status", "active").maybeSingle();
 
-  if (!partnership) return NextResponse.json({ offer: null });
+    if (!partnership) return NextResponse.json({ offer: null });
+  }
 
   const { data: biz } = await supabaseAdmin
     .from("businesses").select("name").eq("id", offer.business_id).maybeSingle();
