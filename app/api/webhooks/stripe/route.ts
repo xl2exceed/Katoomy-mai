@@ -162,18 +162,26 @@ export async function POST(req: Request) {
 
   const rawBody = await req.text();
 
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!,
-    );
-  } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : "Invalid webhook signature";
-    console.error("Webhook signature error:", message);
-    return NextResponse.json({ error: message }, { status: 400 });
+  // Try each registered webhook secret — supports multiple Stripe accounts
+  // (e.g. sole-prop test account + live business account) pointing at the same URL.
+  const secrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET_SOLE_PROP,
+  ].filter(Boolean) as string[];
+
+  let event: Stripe.Event | null = null;
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, sig, secret);
+      break;
+    } catch {
+      // try next secret
+    }
+  }
+
+  if (!event) {
+    console.error("Webhook signature verification failed for all secrets");
+    return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
   console.log("Received webhook event:", event.type);
