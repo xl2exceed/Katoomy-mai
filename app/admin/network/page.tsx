@@ -101,6 +101,16 @@ export default function NetworkPage() {
   const [searchResults, setSearchResults] = useState<BizSearch[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
+  // Refer Customer modal
+  const [referModalPartner, setReferModalPartner] = useState<{ id: string; name: string; slug: string } | null>(null);
+  const [referCustomerSearch, setReferCustomerSearch] = useState("");
+  const [referCustomerResults, setReferCustomerResults] = useState<{ id: string; full_name: string; phone: string }[]>([]);
+  const [referCustomerSearchLoading, setReferCustomerSearchLoading] = useState(false);
+  const [selectedReferCustomer, setSelectedReferCustomer] = useState<{ id: string; full_name: string; phone: string } | null>(null);
+  const [referMessage, setReferMessage] = useState("");
+  const [referSending, setReferSending] = useState(false);
+  const [referSent, setReferSent] = useState(false);
+
   // Overview
   const [overview, setOverview] = useState<OverviewStats | null>(null);
 
@@ -245,6 +255,44 @@ export default function NetworkPage() {
         p.id === id ? { ...p, status: data.partner.status } : p
       ).filter((p) => p.status !== "removed"));
     }
+  }
+
+  // ── Refer Customer modal customer search ─────────────────────────────────
+  useEffect(() => {
+    if (referCustomerSearch.length < 2) { setReferCustomerResults([]); return; }
+    const t = setTimeout(async () => {
+      setReferCustomerSearchLoading(true);
+      const res = await fetch(`/api/admin/customers/search?q=${encodeURIComponent(referCustomerSearch)}`);
+      const data = await res.json();
+      setReferCustomerResults(data.customers ?? []);
+      setReferCustomerSearchLoading(false);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [referCustomerSearch]);
+
+  async function sendReferral() {
+    if (!referModalPartner || !selectedReferCustomer) return;
+    setReferSending(true);
+    const res = await fetch("/api/network/send-referral", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerId: selectedReferCustomer.id,
+        partnerBusinessId: referModalPartner.id,
+        message: referMessage.trim() || undefined,
+      }),
+    });
+    const data = await res.json();
+    setReferSending(false);
+    if (data.error) { alert(data.error); return; }
+    setReferSent(true);
+    setTimeout(() => {
+      setReferModalPartner(null);
+      setReferSent(false);
+      setSelectedReferCustomer(null);
+      setReferCustomerSearch("");
+      setReferMessage("");
+    }, 2000);
   }
 
   // ── Onboarding steps ──────────────────────────────────────────────────────
@@ -828,6 +876,19 @@ export default function NetworkPage() {
                       {p.status === "active" ? "✔ Active" :
                        p.status === "pending" ? "⏳ Pending" : p.status}
                     </span>
+                    {p.status === "active" && p.partner && (
+                      <button
+                        onClick={() => {
+                          setReferModalPartner({ id: p.partner!.id, name: p.partner!.name, slug: p.partner!.slug });
+                          setSelectedReferCustomer(null);
+                          setReferCustomerSearch("");
+                          setReferMessage("");
+                          setReferSent(false);
+                        }}
+                        className="text-xs bg-purple-600 text-white px-2.5 py-1 rounded-lg font-medium hover:bg-purple-700 transition">
+                        Refer Customer
+                      </button>
+                    )}
                     {p.status === "active" && (
                       <button onClick={() => partnerAction(p.id, "remove")}
                         className="text-xs text-red-500 hover:text-red-700">Remove</button>
@@ -929,6 +990,100 @@ export default function NetworkPage() {
             className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition disabled:opacity-40">
             {saving ? "Saving..." : "Save Settings"}
           </button>
+        </div>
+      )}
+
+      {/* ── REFER CUSTOMER MODAL ──────────────────────────────────────────── */}
+      {referModalPartner && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <p className="font-semibold text-gray-900">Refer a Customer</p>
+                <p className="text-xs text-gray-500">Send a customer to <span className="font-medium">{referModalPartner.name}</span></p>
+              </div>
+              <button onClick={() => setReferModalPartner(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+
+            {referSent ? (
+              <div className="py-10 text-center">
+                <p className="text-4xl mb-3">✅</p>
+                <p className="font-semibold text-gray-900">Referral sent!</p>
+                <p className="text-sm text-gray-500 mt-1">Your customer received an SMS with the booking link.</p>
+              </div>
+            ) : (
+              <div className="p-5 space-y-4">
+                {/* Customer search */}
+                {!selectedReferCustomer ? (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Search your customers</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={referCustomerSearch}
+                        onChange={(e) => setReferCustomerSearch(e.target.value)}
+                        placeholder="Type a name or phone..."
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm pr-8 focus:ring-2 focus:ring-purple-500 outline-none"
+                        autoFocus
+                      />
+                      {referCustomerSearchLoading && (
+                        <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                      )}
+                    </div>
+                    {referCustomerResults.length > 0 && (
+                      <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                        {referCustomerResults.map((c) => (
+                          <button key={c.id}
+                            onClick={() => { setSelectedReferCustomer(c); setReferCustomerSearch(""); setReferCustomerResults([]); }}
+                            className="w-full flex items-center justify-between p-3 hover:bg-purple-50 border-b border-gray-100 last:border-0 text-left transition">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{c.full_name}</p>
+                              <p className="text-xs text-gray-400">{c.phone}</p>
+                            </div>
+                            <span className="text-xs text-purple-600 font-medium">Select</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {referCustomerSearch.length >= 2 && !referCustomerSearchLoading && referCustomerResults.length === 0 && (
+                      <p className="text-xs text-gray-400 mt-2 text-center">No customers found</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between bg-purple-50 rounded-lg px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{selectedReferCustomer.full_name}</p>
+                      <p className="text-xs text-gray-500">{selectedReferCustomer.phone}</p>
+                    </div>
+                    <button onClick={() => setSelectedReferCustomer(null)} className="text-xs text-gray-400 hover:text-gray-600">Change</button>
+                  </div>
+                )}
+
+                {/* Optional message */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">Personal message <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <textarea
+                    value={referMessage}
+                    onChange={(e) => setReferMessage(e.target.value)}
+                    placeholder={`e.g. "Hey, check out ${referModalPartner.name} — I think you'd love it!"`}
+                    rows={2}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-purple-500 outline-none"
+                  />
+                </div>
+
+                <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
+                  Your customer will receive an SMS with a direct link to book at <span className="font-medium">{referModalPartner.name}</span>.
+                </p>
+
+                <button
+                  onClick={sendReferral}
+                  disabled={!selectedReferCustomer || referSending}
+                  className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition disabled:opacity-40">
+                  {referSending ? "Sending..." : "Send Referral via SMS"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

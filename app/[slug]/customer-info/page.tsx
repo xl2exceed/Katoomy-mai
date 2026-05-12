@@ -56,6 +56,7 @@ export default function CustomerInfoPage() {
   const [memberDiscountPct, setMemberDiscountPct] = useState(0);
   const [selectedStaffId, setSelectedStaffId] = useState("");
   const [networkOffer, setNetworkOffer] = useState<{ id: string; title: string; offer_type: "dollar_off" | "percent_off"; amount: number; referring_business_name: string } | null>(null);
+  const [bizRefId, setBizRefId] = useState<string | null>(null);
 
   // Car wash fields
   const [vehicleType, setVehicleType] = useState("");
@@ -207,6 +208,20 @@ export default function CustomerInfoPage() {
             if (offerData.offer) setNetworkOffer(offerData.offer);
           } else {
             localStorage.removeItem("katoomy:netRef");
+          }
+        }
+      } catch { /* non-critical */ }
+
+      // ── B2B direct referral ────────────────────────────────────────────────
+      try {
+        const bizRefRaw = localStorage.getItem("katoomy:bizRef");
+        if (bizRefRaw) {
+          const bizRefData = JSON.parse(bizRefRaw) as { referralId: string; businessSlug: string; ts: number };
+          const ageMs = Date.now() - (bizRefData.ts || 0);
+          if (ageMs < 30 * 24 * 3600000) {
+            setBizRefId(bizRefData.referralId);
+          } else {
+            localStorage.removeItem("katoomy:bizRef");
           }
         }
       } catch { /* non-critical */ }
@@ -384,6 +399,7 @@ export default function CustomerInfoPage() {
         staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
         referredByCode: referredByCode || undefined,
         netRefOfferId: networkOffer?.id || undefined,
+        bizRefId: bizRefId || undefined,
         smsTransactionalConsent: agreedToTransactional,
         smsMarketingConsent: agreedToMarketing,
         ...carwashPayload,
@@ -433,6 +449,7 @@ export default function CustomerInfoPage() {
           staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
           referredByCode: referredByCode || undefined,
           netRefOfferId: networkOffer?.id || undefined,
+          bizRefId: bizRefId || undefined,
           smsTransactionalConsent: agreedToTransactional,
           smsMarketingConsent: agreedToMarketing,
           ...carwashPayload,
@@ -455,6 +472,7 @@ export default function CustomerInfoPage() {
         }));
         localStorage.removeItem("katoomy:netRef");
       }
+      if (bizRefId) localStorage.removeItem("katoomy:bizRef");
       sessionStorage.setItem("bookingId", data.bookingId);
       router.push(`/${slug}/confirmation`);
     } catch (err) {

@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       staffId,
       referredByCode,
       netRefOfferId,
+      bizRefId,
       // Car wash fields
       vehicleType,
       vehicleCondition,
@@ -241,6 +242,19 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         console.error("Failed to record offer redemption (non-fatal):", err);
+      }
+    }
+
+    // Mark B2B direct referral as booked
+    if (bizRefId && booking) {
+      try {
+        await supabaseAdmin
+          .from("network_direct_referrals")
+          .update({ status: "booked", booking_id: booking.id, booked_at: new Date().toISOString() })
+          .eq("id", bizRefId)
+          .eq("status", "sent");
+      } catch (err) {
+        console.error("Failed to update direct referral (non-fatal):", err);
       }
     }
 

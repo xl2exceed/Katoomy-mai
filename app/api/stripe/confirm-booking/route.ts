@@ -102,8 +102,10 @@ export async function POST(req: NextRequest) {
       smsTransactionalConsent: smsTransactionalConsentRaw,
       smsMarketingConsent: smsMarketingConsentRaw,
       netRefOfferId: netRefOfferIdRaw,
+      bizRefId: bizRefIdRaw,
     } = meta;
     const netRefOfferId = netRefOfferIdRaw || null;
+    const bizRefId = bizRefIdRaw || null;
     const addonIds = addonIdsRaw ? JSON.parse(addonIdsRaw) : null;
     // Resolve consent: new split fields take precedence over legacy smsConsent
     const legacyConsent = smsConsentRaw === "true";
@@ -297,6 +299,19 @@ export async function POST(req: NextRequest) {
           }
         } catch (err) {
           console.error("Failed to record offer redemption (non-fatal):", err);
+        }
+      }
+
+      // Mark B2B direct referral as booked
+      if (bizRefId) {
+        try {
+          await supabaseAdmin
+            .from("network_direct_referrals")
+            .update({ status: "booked", booking_id: bookingId, booked_at: new Date().toISOString() })
+            .eq("id", bizRefId)
+            .eq("status", "sent");
+        } catch (err) {
+          console.error("Failed to update direct referral (non-fatal):", err);
         }
       }
 
