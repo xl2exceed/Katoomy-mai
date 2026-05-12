@@ -18,31 +18,46 @@ export interface HubOffer {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const allMode = searchParams.get("all") === "true";
   const slugsParam = searchParams.get("slugs") ?? "";
   const slugs = slugsParam.split(",").map(s => s.trim()).filter(Boolean).slice(0, 30);
 
-  if (slugs.length === 0) return NextResponse.json([]);
+  if (!allMode && slugs.length === 0) return NextResponse.json([]);
 
+  // Fetch active, non-expired network offers — all businesses in allMode, or just the given slugs
+  let networkOffersQuery = supabaseAdmin
+    .from("network_offers")
+    .select("id, business_id, title, offer_type, amount, min_spend_cents, expires_at")
+    .eq("active", true)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+
+  if (!allMode) {
+    // Resolve slug → business IDs first
+    const { data: bizFilter } = await supabaseAdmin
+      .from("businesses")
+      .select("id")
+      .in("slug", slugs);
+    if (!bizFilter || bizFilter.length === 0) return NextResponse.json([]);
+    networkOffersQuery = networkOffersQuery.in("business_id", bizFilter.map(b => b.id));
+  }
+
+  const { data: networkOffers } = await networkOffersQuery.limit(50);
+
+  if (!networkOffers || networkOffers.length === 0) return NextResponse.json([]);
+
+  // Look up business info for all offers
+  const bizIds = [...new Set(networkOffers.map(o => o.business_id))];
   const { data: businesses } = await supabaseAdmin
     .from("businesses")
     .select("id, slug, name, app_name, logo_url, primary_color")
-    .in("slug", slugs);
+    .in("id", bizIds);
 
   if (!businesses || businesses.length === 0) return NextResponse.json([]);
 
   const bizById: Record<string, typeof businesses[0]> = {};
   for (const b of businesses) bizById[b.id] = b;
-  const bizIds = Object.keys(bizById);
 
-  // Fetch active, non-expired network offers for these businesses
-  const { data: networkOffers } = await supabaseAdmin
-    .from("network_offers")
-    .select("id, business_id, title, offer_type, amount, min_spend_cents, expires_at")
-    .in("business_id", bizIds)
-    .eq("active", true)
-    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
-
-  const offers: HubOffer[] = (networkOffers ?? []).map(offer => {
+  const offers: HubOffer[] = (networkOffers ?? []).filter(o => bizById[o.business_id]).map(offer => {
     const biz = bizById[offer.business_id];
     const amountStr = offer.offer_type === "percent_off"
       ? `${offer.amount}% off`

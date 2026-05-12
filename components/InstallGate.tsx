@@ -96,8 +96,8 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
     if (standalone) {
       recordInstall(slug);
 
-      // Hub redirect: 2+ businesses and not navigating here from the hub
-      if (allBusinesses.length >= 2) {
+      // Hub redirect: always go to hub if running as PWA (not navigating here from hub)
+      if (allBusinesses.length >= 1) {
         const fromHub = sessionStorage.getItem("katoomy:fromHub");
         sessionStorage.removeItem("katoomy:fromHub");
         if (!fromHub) {

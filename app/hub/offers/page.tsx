@@ -5,12 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { HubOffer } from "@/app/api/public/hub-offers/route";
 
-const BUSINESSES_KEY = "katoomy:businesses";
 const PHONE_KEY = "katoomy:customerPhone";
-
-function getSlugs(): string[] {
-  try { return JSON.parse(localStorage.getItem(BUSINESSES_KEY) || "[]"); } catch { return []; }
-}
 
 export default function HubOffersPage() {
   const router = useRouter();
@@ -20,10 +15,8 @@ export default function HubOffersPage() {
   const [checking, setChecking] = useState<string | null>(null);
 
   useEffect(() => {
-    const slugs = getSlugs();
-    if (slugs.length === 0) { setLoading(false); return; }
-
-    fetch(`/api/public/hub-offers?slugs=${slugs.join(",")}`)
+    // Load all network offers across all businesses — not just the customer's saved ones
+    fetch(`/api/public/hub-offers?all=true`)
       .then(r => r.json())
       .then((data: HubOffer[]) => setOffers(data))
       .catch(() => {})

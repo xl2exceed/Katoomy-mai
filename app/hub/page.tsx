@@ -217,8 +217,8 @@ export default function HubPage() {
         const ordered = slugs.map(s => data.find(b => b.slug === s)).filter(Boolean) as BusinessInfo[];
         setBusinesses(ordered);
         setLoading(false);
-        // Fetch rotating offers for these businesses
-        fetch(`/api/public/hub-offers?slugs=${slugs.join(",")}`)
+        // Fetch rotating offers — all network offers across all businesses
+        fetch(`/api/public/hub-offers?all=true`)
           .then(r => r.json())
           .then((o: HubOffer[]) => setOffers(o))
           .catch(() => {});
