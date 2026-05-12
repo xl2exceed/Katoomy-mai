@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     const totalCents = chargeServiceCents + safeTipCents;
     const platformFeeCents = Math.round(totalCents * 0.015) + feeModeCents;
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    const lineItems = [
       {
         price_data: {
           currency: "usd",

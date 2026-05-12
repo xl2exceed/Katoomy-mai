@@ -1,6 +1,7 @@
 // POST /api/stripe/refund
 // Issues a full or partial refund on a direct charge to a connected Stripe account.
 import { NextRequest, NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { getStripeForAccount } from "@/lib/stripe/getStripeForAccount";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";

@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   const platformFeeCents = Math.round(totalCents * 0.015);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+  const lineItems = [
     {
       price_data: {
         currency: "usd",
