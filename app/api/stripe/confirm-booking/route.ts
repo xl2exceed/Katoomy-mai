@@ -254,7 +254,7 @@ export async function POST(req: NextRequest) {
       }
       bookingId = booking.id;
 
-      // Record network offer redemption
+      // Record network offer redemption + referral stats
       if (netRefOfferId) {
         try {
           await supabaseAdmin.from("network_offer_redemptions").insert({
@@ -263,6 +263,39 @@ export async function POST(req: NextRequest) {
             business_id: businessId,
             booking_id: bookingId,
           });
+
+          const { data: offer } = await supabaseAdmin
+            .from("network_offers")
+            .select("business_id, offer_type, amount, used_count, total_cost_cents")
+            .eq("id", netRefOfferId)
+            .maybeSingle();
+
+          if (offer) {
+            const finalPriceCents = Number(priceCents);
+            const discountApplied = offer.offer_type === "dollar_off"
+              ? offer.amount
+              : Math.round(finalPriceCents * offer.amount / (100 - offer.amount));
+
+            await Promise.all([
+              supabaseAdmin.from("network_referrals").insert({
+                offer_id: netRefOfferId,
+                referring_business_id: offer.business_id,
+                receiving_business_id: businessId,
+                customer_id: customerId,
+                booking_id: bookingId,
+                status: "completed",
+                discount_applied_cents: discountApplied,
+                reward_cents: 0,
+                completed_at: new Date().toISOString(),
+              }),
+              supabaseAdmin.from("network_offers")
+                .update({
+                  used_count: offer.used_count + 1,
+                  total_cost_cents: offer.total_cost_cents + discountApplied,
+                })
+                .eq("id", netRefOfferId),
+            ]);
+          }
         } catch (err) {
           console.error("Failed to record offer redemption (non-fatal):", err);
         }
