@@ -4,10 +4,8 @@
 // If bookingId is provided (custom-status booking), the Stripe success flow will
 // mark the booking as custom_paid via confirm-service-payment.
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { getStripeForAccount } from "@/lib/stripe/getStripeForAccount";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -42,12 +40,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Business is not set up to accept card payments" }, { status: 400 });
   }
 
+  const stripe = await getStripeForAccount(connectAccount.stripe_account_id);
   const safeTipCents = tipCents && tipCents > 0 ? tipCents : 0;
   const totalCents = amountCents + safeTipCents;
   const platformFeeCents = Math.round(totalCents * 0.015);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+  const lineItems = [
     {
       price_data: {
         currency: "usd",

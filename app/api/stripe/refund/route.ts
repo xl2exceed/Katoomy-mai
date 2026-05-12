@@ -1,11 +1,9 @@
 // POST /api/stripe/refund
 // Issues a full or partial refund on a direct charge to a connected Stripe account.
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { getStripeForAccount } from "@/lib/stripe/getStripeForAccount";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -75,8 +73,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No Stripe account connected" }, { status: 400 });
   }
 
+  const stripe = await getStripeForAccount(connectAccount.stripe_account_id);
   // Issue the refund on the connected account
-  let stripeRefund: Stripe.Refund;
+  let stripeRefund: Awaited<ReturnType<typeof stripe.refunds.create>>;
   try {
     stripeRefund = await stripe.refunds.create(
       {

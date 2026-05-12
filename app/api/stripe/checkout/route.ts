@@ -1,9 +1,7 @@
 // file: app/api/stripe/checkout/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { getStripeForAccount } from "@/lib/stripe/getStripeForAccount";
 import { createClient } from "@supabase/supabase-js";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,6 +60,8 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    const stripe = await getStripeForAccount(connectAccount.stripe_account_id);
 
     // fullPriceCents is sent from the client already discounted for members.
     // Server only needs to re-verify and apply discount to the CHARGE amount for full payments.

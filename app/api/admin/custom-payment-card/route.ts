@@ -4,11 +4,9 @@
 // If bookingId is provided (custom-status booking), the Stripe success flow will
 // mark the booking as custom_paid via confirm-service-payment.
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { getStripeForAccount } from "@/lib/stripe/getStripeForAccount";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -49,6 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Business is not set up to accept card payments" }, { status: 400 });
   }
 
+  const stripe = await getStripeForAccount(connectAccount.stripe_account_id);
   const safeTipCents = tipCents && tipCents > 0 ? tipCents : 0;
   const totalCents = amountCents + safeTipCents;
   const platformFeeCents = Math.round(totalCents * 0.015);
