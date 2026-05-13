@@ -11,6 +11,7 @@ interface PartnerOffer {
   amount: number;
   business_name: string;
   business_slug: string;
+  via_business_id: string;
 }
 
 export default function PaySuccessPage() {
