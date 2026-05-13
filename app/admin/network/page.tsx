@@ -45,6 +45,17 @@ interface OverviewStats {
   completed_received: number;
 }
 
+interface ActivityItem {
+  id: string;
+  direction: "sent" | "received";
+  type: "direct" | "offer";
+  customer_name: string | null;
+  customer_phone: string | null;
+  partner_name: string;
+  status: string;
+  created_at: string;
+}
+
 interface BizSearch {
   id: string;
   name: string;
@@ -113,6 +124,7 @@ export default function NetworkPage() {
 
   // Overview
   const [overview, setOverview] = useState<OverviewStats | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
 
   const [saving, setSaving] = useState(false);
   const [onboardError, setOnboardError] = useState<string | null>(null);
@@ -136,11 +148,12 @@ export default function NetworkPage() {
 
   // ── Load data once businessId is known ──────────────────────────────────
   const loadAll = useCallback(async (bId: string) => {
-    const [settingsRes, offersRes, partnersRes, overviewRes] = await Promise.all([
+    const [settingsRes, offersRes, partnersRes, overviewRes, activityRes] = await Promise.all([
       fetch(`/api/network/settings?businessId=${bId}`).then((r) => r.json()),
       fetch(`/api/network/offers?businessId=${bId}`).then((r) => r.json()),
       fetch(`/api/network/partners?businessId=${bId}`).then((r) => r.json()),
       fetch(`/api/network/overview?businessId=${bId}`).then((r) => r.json()),
+      fetch(`/api/network/activity?businessId=${bId}`).then((r) => r.json()),
     ]);
 
     if (settingsRes.settings) {
@@ -156,6 +169,7 @@ export default function NetworkPage() {
     if (offersRes.offers) setOffers(offersRes.offers);
     if (partnersRes.partners) setPartners(partnersRes.partners);
     if (!overviewRes.error) setOverview(overviewRes);
+    if (activityRes.activity) setActivity(activityRes.activity);
   }, []);
 
   useEffect(() => {
@@ -650,6 +664,52 @@ export default function NetworkPage() {
                 <p className="text-xs text-gray-500 mt-1">{label}</p>
               </div>
             ))}
+          </div>
+
+          {/* Referral activity */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <p className="font-semibold text-gray-900">Referral Activity</p>
+              <p className="text-xs text-gray-400 mt-0.5">Customers sent to and received from partners</p>
+            </div>
+            {activity.length === 0 ? (
+              <div className="px-5 py-8 text-center text-gray-400 text-sm">No referral activity yet</div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {activity.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between px-5 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${
+                        item.direction === "sent" ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
+                      }`}>
+                        {item.direction === "sent" ? "📤" : "📥"}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {item.customer_name ?? item.customer_phone ?? "Unknown customer"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {item.direction === "sent" ? `Sent to ${item.partner_name}` : `Received from ${item.partner_name}`}
+                          {" · "}{item.type === "direct" ? "SMS referral" : "Offer link"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        item.status === "completed" || item.status === "credited" || item.status === "booked"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {item.status}
+                      </span>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Quick tips */}
