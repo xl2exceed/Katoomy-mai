@@ -97,7 +97,12 @@ export default function InstallGate({ business, slug, children }: InstallGatePro
       recordInstall(slug);
 
       // Hub redirect: always go to hub if running as PWA (not navigating here from hub)
-      if (allBusinesses.length >= 1) {
+      // Exception: skip redirect if this is a partner offer or direct referral link —
+      // the customer clicked a specific link and needs to land on the booking page.
+      const params = new URLSearchParams(window.location.search);
+      const isReferralLink = params.has("net_ref") || params.has("biz_ref");
+
+      if (allBusinesses.length >= 1 && !isReferralLink) {
         const fromHub = sessionStorage.getItem("katoomy:fromHub");
         sessionStorage.removeItem("katoomy:fromHub");
         if (!fromHub) {
