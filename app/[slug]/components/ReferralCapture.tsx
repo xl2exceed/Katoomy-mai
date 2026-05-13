@@ -6,11 +6,13 @@ export default function ReferralCapture({
   businessSlug,
   referralCode,
   netRef,
+  netRefVia,
   bizRef,
 }: {
   businessSlug: string;
   referralCode: string | null;
   netRef: string | null;
+  netRefVia?: string | null;
   bizRef?: string | null;
 }) {
   useEffect(() => {
@@ -33,9 +35,9 @@ export default function ReferralCapture({
     if (!netRef) return;
     localStorage.setItem(
       "katoomy:netRef",
-      JSON.stringify({ offerId: netRef, businessSlug, ts: Date.now() }),
+      JSON.stringify({ offerId: netRef, via: netRefVia ?? null, businessSlug, ts: Date.now() }),
     );
-  }, [netRef, businessSlug]);
+  }, [netRef, netRefVia, businessSlug]);
 
   // Capture B2B direct referral — overwrite if a newer one arrives
   useEffect(() => {

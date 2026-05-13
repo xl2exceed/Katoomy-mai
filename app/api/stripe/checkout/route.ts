@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       smsTransactionalConsent,
       smsMarketingConsent,
       netRefOfferId,
+      netRefVia,
       bizRefId,
     } = await req.json();
 
@@ -169,6 +170,7 @@ export async function POST(req: NextRequest) {
           smsTransactionalConsent: smsTransactionalConsent ? "true" : "false",
           smsMarketingConsent: smsMarketingConsent ? "true" : "false",
           netRefOfferId: netRefOfferId || "",
+          netRefVia: netRefVia || "",
           bizRefId: bizRefId || "",
         },
       },

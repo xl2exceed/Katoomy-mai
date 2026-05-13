@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   // Verify the target is an active partner
   const { data: partnership } = await supabaseAdmin
-    .from("business_network_connections")
+    .from("network_partners")
     .select("id")
     .eq("status", "active")
     .or(

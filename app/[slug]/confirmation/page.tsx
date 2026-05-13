@@ -346,7 +346,7 @@ export default function ConfirmationPage() {
               {partnerOffers.map((offer) => (
                 <Link
                   key={offer.id}
-                  href={`/${offer.business_slug}?net_ref=${offer.id}`}
+                  href={`/${offer.business_slug}?net_ref=${offer.id}&via=${offer.via_business_id}`}
                   className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-purple-300 hover:shadow-md transition"
                 >
                   <div>

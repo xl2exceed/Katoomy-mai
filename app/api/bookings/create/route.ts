@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       staffId,
       referredByCode,
       netRefOfferId,
+      netRefVia,
       bizRefId,
       // Car wash fields
       vehicleType,
@@ -223,7 +224,7 @@ export async function POST(req: NextRequest) {
           await Promise.all([
             supabaseAdmin.from("network_referrals").insert({
               offer_id: netRefOfferId,
-              referring_business_id: offer.business_id,
+              referring_business_id: netRefVia ?? offer.business_id,
               receiving_business_id: businessId,
               customer_id: customerId,
               booking_id: booking.id,

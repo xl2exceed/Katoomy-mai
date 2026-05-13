@@ -14,7 +14,23 @@
       "Bash(py --version)",
       "Bash(npx tsc:*)",
       "Bash(find c:/Users/patte/OneDrive/Desktop/clientloop/app -type d -name *checkout* -o -name *customer* -o -name *booking* -o -name *payment*)",
-      "Bash(find c:/Users/patte/OneDrive/Desktop/clientloop/components -type f -name *pay* -o -path *components* -name *payment* -o -path *components* -name *checkout*)"
+      "Bash(find c:/Users/patte/OneDrive/Desktop/clientloop/components -type f -name *pay* -o -path *components* -name *payment* -o -path *components* -name *checkout*)",
+      "Read(//c/Users/patte/.claude/projects/c--Dev-Katoomy-mai/memory/**)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|sql|js\\)$\")",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(grep -n \"CREATE TABLE.*carwash\\\\|CREATE TABLE.*niche\" /c/Dev/Katoomy-mai/supabase/migrations/*.sql)",
+      "Bash(grep -l \"vehicle\\\\|addon\\\\|carwash\" /c/Dev/Katoomy-mai/supabase/migrations/*.sql)",
+      "Bash(git show:*)",
+      "Bash(npx supabase:*)",
+      "Bash(find /c/Dev/Katoomy-mai -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"1.*fee\\\\|fee.*100\\\\|fee.*cent\" {} \\\\;)",
+      "Bash(grep -l \"services\" /c/Dev/Katoomy-mai/supabase/migrations/*.sql)",
+      "Bash(supabase --version)",
+      "PowerShell(supabase --version 2>&1)",
+      "PowerShell(npx supabase --version 2>&1)",
+      "Bash(npm install *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Dev\\Katoomy-mai\\app\\[slug]\\notifications"
     ]
   }
 }

@@ -102,9 +102,11 @@ export async function POST(req: NextRequest) {
       smsTransactionalConsent: smsTransactionalConsentRaw,
       smsMarketingConsent: smsMarketingConsentRaw,
       netRefOfferId: netRefOfferIdRaw,
+      netRefVia: netRefViaRaw,
       bizRefId: bizRefIdRaw,
     } = meta;
     const netRefOfferId = netRefOfferIdRaw || null;
+    const netRefVia = netRefViaRaw || null;
     const bizRefId = bizRefIdRaw || null;
     const addonIds = addonIdsRaw ? JSON.parse(addonIdsRaw) : null;
     // Resolve consent: new split fields take precedence over legacy smsConsent
@@ -280,7 +282,7 @@ export async function POST(req: NextRequest) {
             await Promise.all([
               supabaseAdmin.from("network_referrals").insert({
                 offer_id: netRefOfferId,
-                referring_business_id: offer.business_id,
+                referring_business_id: netRefVia ?? offer.business_id,
                 receiving_business_id: businessId,
                 customer_id: customerId,
                 booking_id: bookingId,

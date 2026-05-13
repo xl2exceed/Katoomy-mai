@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
     ...o,
     business_name: bizMap[o.business_id]?.name ?? "",
     business_slug: bizMap[o.business_id]?.slug ?? "",
+    via_business_id: businessId,
   }));
 
   return NextResponse.json({ offers: enriched.slice(0, 5) });

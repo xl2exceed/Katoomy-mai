@@ -56,6 +56,7 @@ export default function CustomerInfoPage() {
   const [memberDiscountPct, setMemberDiscountPct] = useState(0);
   const [selectedStaffId, setSelectedStaffId] = useState("");
   const [networkOffer, setNetworkOffer] = useState<{ id: string; title: string; offer_type: "dollar_off" | "percent_off"; amount: number; referring_business_name: string } | null>(null);
+  const [netRefVia, setNetRefVia] = useState<string | null>(null);
   const [bizRefId, setBizRefId] = useState<string | null>(null);
 
   // Car wash fields
@@ -198,14 +199,17 @@ export default function CustomerInfoPage() {
       try {
         const netRefRaw = localStorage.getItem("katoomy:netRef");
         if (netRefRaw) {
-          const netRefData = JSON.parse(netRefRaw) as { offerId: string; businessSlug: string; ts: number };
+          const netRefData = JSON.parse(netRefRaw) as { offerId: string; via?: string | null; businessSlug: string; ts: number };
           const ageMs = Date.now() - (netRefData.ts || 0);
           if (ageMs < 86400000) {
             const offerRes = await fetch(
               `/api/network/public-offer?offerId=${netRefData.offerId}&receivingBusinessId=${businessData.id}`
             );
             const offerData = await offerRes.json();
-            if (offerData.offer) setNetworkOffer(offerData.offer);
+            if (offerData.offer) {
+            setNetworkOffer(offerData.offer);
+            setNetRefVia(netRefData.via ?? null);
+          }
           } else {
             localStorage.removeItem("katoomy:netRef");
           }
@@ -399,6 +403,7 @@ export default function CustomerInfoPage() {
         staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
         referredByCode: referredByCode || undefined,
         netRefOfferId: networkOffer?.id || undefined,
+        netRefVia: netRefVia || undefined,
         bizRefId: bizRefId || undefined,
         smsTransactionalConsent: agreedToTransactional,
         smsMarketingConsent: agreedToMarketing,
@@ -449,6 +454,7 @@ export default function CustomerInfoPage() {
           staffId: selectedStaffId && selectedStaffId !== "any" ? selectedStaffId : undefined,
           referredByCode: referredByCode || undefined,
           netRefOfferId: networkOffer?.id || undefined,
+          netRefVia: netRefVia || undefined,
           bizRefId: bizRefId || undefined,
           smsTransactionalConsent: agreedToTransactional,
           smsMarketingConsent: agreedToMarketing,
