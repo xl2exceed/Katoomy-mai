@@ -243,28 +243,21 @@ export async function POST(req: NextRequest) {
             completed_at: new Date().toISOString(),
           }).select("id").single();
 
-          const writes: Promise<unknown>[] = [
-            supabaseAdmin.from("network_offers")
-              .update({
-                used_count: offer.used_count + 1,
-                total_cost_cents: offer.total_cost_cents + discountApplied,
-              })
-              .eq("id", netRefOfferId),
-          ];
+          await supabaseAdmin.from("network_offers")
+            .update({
+              used_count: offer.used_count + 1,
+              total_cost_cents: offer.total_cost_cents + discountApplied,
+            })
+            .eq("id", netRefOfferId);
 
-          // Credit the referring business if a reward is configured
           if (rewardCents > 0 && referral?.id) {
-            writes.push(
-              supabaseAdmin.from("network_credits").insert({
-                business_id: referringBusinessId,
-                amount_cents: rewardCents,
-                reason: `Referral reward for booking ${booking.id}`,
-                network_referral_id: referral.id,
-              })
-            );
+            await supabaseAdmin.from("network_credits").insert({
+              business_id: referringBusinessId,
+              amount_cents: rewardCents,
+              reason: `Referral reward for booking ${booking.id}`,
+              network_referral_id: referral.id,
+            });
           }
-
-          await Promise.all(writes);
         }
       } catch (err) {
         console.error("Failed to record offer redemption (non-fatal):", err);
