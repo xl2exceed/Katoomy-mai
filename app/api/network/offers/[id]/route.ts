@@ -48,6 +48,21 @@ export async function DELETE(
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  // Block delete if the offer has been redeemed — cascade would wipe referral history.
+  // Pause (active=false) is the safe alternative.
+  const { count } = await supabaseAdmin
+    .from("network_referrals")
+    .select("id", { count: "exact", head: true })
+    .eq("offer_id", id);
+
+  if (count && count > 0) {
+    return NextResponse.json(
+      { error: "This offer has referral history and cannot be deleted. Pause it instead." },
+      { status: 409 }
+    );
+  }
+
   const { error } = await supabaseAdmin
     .from("network_offers").delete().eq("id", id).eq("business_id", businessId);
 
