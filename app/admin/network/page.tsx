@@ -240,7 +240,9 @@ export default function NetworkPage() {
 
   async function deleteOffer(id: string) {
     if (!confirm("Delete this offer?")) return;
-    await fetch(`/api/network/offers/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/network/offers/${id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || "Failed to delete offer. Try pausing it instead."); return; }
     setOffers((prev) => prev.filter((o) => o.id !== id));
   }
 
