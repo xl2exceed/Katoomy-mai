@@ -62,7 +62,7 @@ interface BizSearch {
   slug: string;
 }
 
-type Tab = "overview" | "offers" | "partners" | "settings";
+type Tab = "overview" | "offers" | "partners" | "broadcast" | "settings";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function formatOffer(o: NetworkOffer) {
@@ -128,6 +128,14 @@ export default function NetworkPage() {
 
   const [saving, setSaving] = useState(false);
   const [onboardError, setOnboardError] = useState<string | null>(null);
+
+  // Broadcast
+  const [broadcastPreview, setBroadcastPreview] = useState<{ partnerCount: number; customerCount: number; partners: { id: string; name: string }[] } | null>(null);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; skipped: number; total: number } | null>(null);
+  const [broadcastHistory, setBroadcastHistory] = useState<{ id: string; message: string; total_sent: number; total_failed: number; total_skipped: number; created_at: string }[]>([]);
+  const [broadcastHistoryLoaded, setBroadcastHistoryLoaded] = useState(false);
 
   // ── Load businessId ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -273,6 +281,21 @@ export default function NetworkPage() {
     }
   }
 
+  // ── Load broadcast preview + history when tab is active ─────────────────
+  useEffect(() => {
+    if (activeTab !== "broadcast" || !businessId) return;
+    if (!broadcastPreview) {
+      fetch("/api/network/broadcast").then((r) => r.json()).then((d) => {
+        if (!d.error) setBroadcastPreview(d);
+      });
+    }
+    if (!broadcastHistoryLoaded) {
+      fetch("/api/network/broadcast?history=1").then((r) => r.json()).then((d) => {
+        if (d.broadcasts) { setBroadcastHistory(d.broadcasts); setBroadcastHistoryLoaded(true); }
+      });
+    }
+  }, [activeTab, businessId, broadcastPreview, broadcastHistoryLoaded]);
+
   // ── Refer Customer modal customer search ─────────────────────────────────
   useEffect(() => {
     if (referCustomerSearch.length < 2) { setReferCustomerResults([]); return; }
@@ -309,6 +332,24 @@ export default function NetworkPage() {
       setReferCustomerSearch("");
       setReferMessage("");
     }, 2000);
+  }
+
+  async function sendBroadcast() {
+    if (!broadcastMessage.trim()) return;
+    setBroadcastSending(true);
+    const res = await fetch("/api/network/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: broadcastMessage.trim() }),
+    });
+    const data = await res.json();
+    setBroadcastSending(false);
+    if (data.error) { alert(data.error); return; }
+    setBroadcastResult(data);
+    setBroadcastMessage("");
+    // Refresh history and preview after send
+    setBroadcastHistoryLoaded(false);
+    setBroadcastPreview(null);
   }
 
   // ── Onboarding steps ──────────────────────────────────────────────────────
@@ -632,7 +673,7 @@ export default function NetworkPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
-        {(["overview", "offers", "partners", "settings"] as Tab[]).map((t) => (
+        {(["overview", "offers", "partners", "broadcast", "settings"] as Tab[]).map((t) => (
           <button key={t} onClick={() => setActiveTab(t)}
             className={`flex-1 py-2 text-sm font-medium rounded-lg capitalize transition ${
               activeTab === t ? "bg-white shadow-sm text-purple-700" : "text-gray-500 hover:text-gray-700"
@@ -977,6 +1018,121 @@ export default function NetworkPage() {
                   {referralLink(o.id)}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── BROADCAST TAB ─────────────────────────────────────────────────── */}
+      {activeTab === "broadcast" && (
+        <div className="space-y-4">
+          {/* Reach preview */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+            <p className="font-semibold text-gray-900 mb-1">Network Reach</p>
+            <p className="text-xs text-gray-400 mb-3">Customers who opted in to marketing SMS across your active partners.</p>
+            {!broadcastPreview ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
+              </div>
+            ) : broadcastPreview.partnerCount === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">You have no active partners yet.</p>
+                <button onClick={() => setActiveTab("partners")} className="text-sm text-purple-600 underline mt-1">Add partners</button>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <div className="bg-purple-50 rounded-xl px-4 py-3 text-center flex-1">
+                  <p className="text-2xl font-bold text-purple-700">{broadcastPreview.customerCount}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Eligible customers</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl px-4 py-3 text-center flex-1">
+                  <p className="text-2xl font-bold text-blue-700">{broadcastPreview.partnerCount}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Partner businesses</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Result */}
+          {broadcastResult && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <p className="font-semibold text-green-800 mb-2">Broadcast sent!</p>
+              <div className="flex gap-4 text-sm">
+                <span className="text-green-700">{broadcastResult.sent} sent</span>
+                {broadcastResult.failed > 0 && <span className="text-red-600">{broadcastResult.failed} failed</span>}
+                {broadcastResult.skipped > 0 && <span className="text-gray-500">{broadcastResult.skipped} skipped (quiet hours)</span>}
+              </div>
+              <button
+                onClick={() => setBroadcastResult(null)}
+                className="text-xs text-green-600 underline mt-2">
+                Compose another
+              </button>
+            </div>
+          )}
+
+          {/* Composer */}
+          {!broadcastResult && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <p className="font-semibold text-gray-900 mb-1">Compose Message</p>
+              <p className="text-xs text-gray-400 mb-4">Your business name and booking link are added automatically. Customer phone numbers are never shared with you.</p>
+              <textarea
+                value={broadcastMessage}
+                onChange={(e) => setBroadcastMessage(e.target.value)}
+                rows={4}
+                maxLength={140}
+                placeholder={`e.g. "We're running a spring special — 20% off all services this week only!"`}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-purple-500 outline-none"
+              />
+              <div className="flex justify-between items-center mt-1 mb-4">
+                <span className={`text-xs ${broadcastMessage.length >= 120 ? "text-orange-500" : "text-gray-400"}`}>
+                  {broadcastMessage.length}/140 characters
+                </span>
+              </div>
+              {broadcastMessage.trim() && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs text-gray-400 mb-1">Message preview</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {broadcastMessage.trim()}{"\n\n"}{"— "}{businessSlug || "Your Business"} | Book: katoomy.com/{businessSlug}{"\n"}Reply STOP to opt out
+                  </p>
+                </div>
+              )}
+              <button
+                onClick={sendBroadcast}
+                disabled={!broadcastMessage.trim() || broadcastSending || (broadcastPreview?.customerCount ?? 0) === 0}
+                className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition disabled:opacity-40">
+                {broadcastSending
+                  ? "Sending..."
+                  : `Send to ${broadcastPreview?.customerCount ?? 0} Customer${(broadcastPreview?.customerCount ?? 0) !== 1 ? "s" : ""}`}
+              </button>
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                Customers in quiet hours (8pm–8am local time) will be skipped.
+              </p>
+            </div>
+          )}
+
+          {/* History */}
+          {broadcastHistory.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <p className="font-semibold text-gray-900">Broadcast History</p>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {broadcastHistory.map((b) => (
+                  <div key={b.id} className="px-5 py-4">
+                    <div className="flex justify-between items-start mb-1.5">
+                      <p className="text-sm text-gray-700 line-clamp-2 flex-1 mr-4">{b.message.split("\n")[0]}</p>
+                      <p className="text-xs text-gray-400 flex-shrink-0">
+                        {new Date(b.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                    <div className="flex gap-3 text-xs">
+                      <span className="text-green-600">{b.total_sent} sent</span>
+                      {b.total_failed > 0 && <span className="text-red-500">{b.total_failed} failed</span>}
+                      {b.total_skipped > 0 && <span className="text-gray-400">{b.total_skipped} skipped</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
