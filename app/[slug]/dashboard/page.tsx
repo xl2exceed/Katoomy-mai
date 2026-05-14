@@ -230,6 +230,17 @@ export default function DashboardPage() {
 
     setCustomer(customerData);
 
+    // Fire-and-forget: silently update customer timezone for TCPA quiet hours enforcement
+    fetch("/api/customer/update-timezone", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phone: customerData.phone,
+        businessId: biz.id,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    }).catch(() => {});
+
     // Fire-and-forget: track device type + PWA install status for Katoomy analytics
     fetch("/api/customer/track-device", {
       method: "POST",

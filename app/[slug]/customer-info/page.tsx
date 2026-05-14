@@ -58,6 +58,7 @@ export default function CustomerInfoPage() {
   const [networkOffer, setNetworkOffer] = useState<{ id: string; title: string; offer_type: "dollar_off" | "percent_off"; amount: number; referring_business_name: string } | null>(null);
   const [netRefVia, setNetRefVia] = useState<string | null>(null);
   const [bizRefId, setBizRefId] = useState<string | null>(null);
+  const [customerTimezone, setCustomerTimezone] = useState("");
 
   // Car wash fields
   const [vehicleType, setVehicleType] = useState("");
@@ -277,6 +278,7 @@ export default function CustomerInfoPage() {
       }
     }
 
+    setCustomerTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
     setLoading(false);
   };
 
@@ -405,6 +407,7 @@ export default function CustomerInfoPage() {
         netRefOfferId: networkOffer?.id || undefined,
         netRefVia: netRefVia || undefined,
         bizRefId: bizRefId || undefined,
+        customerTimezone: customerTimezone || undefined,
         smsTransactionalConsent: agreedToTransactional,
         smsMarketingConsent: agreedToMarketing,
         ...carwashPayload,
@@ -456,6 +459,7 @@ export default function CustomerInfoPage() {
           netRefOfferId: networkOffer?.id || undefined,
           netRefVia: netRefVia || undefined,
           bizRefId: bizRefId || undefined,
+          customerTimezone: customerTimezone || undefined,
           smsTransactionalConsent: agreedToTransactional,
           smsMarketingConsent: agreedToMarketing,
           ...carwashPayload,

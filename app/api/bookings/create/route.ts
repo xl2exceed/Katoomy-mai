@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       netRefOfferId,
       netRefVia,
       bizRefId,
+      customerTimezone,
       // Car wash fields
       vehicleType,
       vehicleCondition,
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
-      const updatePayload: Record<string, unknown> = { full_name: customerName, email: customerEmail || null };
+      const updatePayload: Record<string, unknown> = { full_name: customerName, email: customerEmail || null, ...(customerTimezone ? { timezone: customerTimezone } : {}) };
       // Only upgrade consent — never downgrade an existing opt-in
       if (hasTransactionalConsent && !existingCustomer.sms_transactional_consent) {
         updatePayload.sms_transactional_consent = true;
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
           sms_transactional_consent_at: hasTransactionalConsent ? now : null,
           sms_marketing_consent: hasMarketingConsent,
           sms_marketing_consent_at: hasMarketingConsent ? now : null,
+          ...(customerTimezone ? { timezone: customerTimezone } : {}),
         })
         .select()
         .single();

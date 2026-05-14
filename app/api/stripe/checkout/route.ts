@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       netRefOfferId,
       netRefVia,
       bizRefId,
+      customerTimezone,
     } = await req.json();
 
     if (!businessId || !serviceId || !priceCents || !slug) {
@@ -172,6 +173,7 @@ export async function POST(req: NextRequest) {
           netRefOfferId: netRefOfferId || "",
           netRefVia: netRefVia || "",
           bizRefId: bizRefId || "",
+          customerTimezone: customerTimezone || "",
         },
       },
       {

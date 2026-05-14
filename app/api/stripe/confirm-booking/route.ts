@@ -104,10 +104,12 @@ export async function POST(req: NextRequest) {
       netRefOfferId: netRefOfferIdRaw,
       netRefVia: netRefViaRaw,
       bizRefId: bizRefIdRaw,
+      customerTimezone: customerTimezoneRaw,
     } = meta;
     const netRefOfferId = netRefOfferIdRaw || null;
     const netRefVia = netRefViaRaw || null;
     const bizRefId = bizRefIdRaw || null;
+    const customerTimezone = customerTimezoneRaw || null;
     const addonIds = addonIdsRaw ? JSON.parse(addonIdsRaw) : null;
     // Resolve consent: new split fields take precedence over legacy smsConsent
     const legacyConsent = smsConsentRaw === "true";
@@ -132,7 +134,7 @@ export async function POST(req: NextRequest) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
-      const updatePayload: Record<string, unknown> = { full_name: customerName, email: customerEmail || null };
+      const updatePayload: Record<string, unknown> = { full_name: customerName, email: customerEmail || null, ...(customerTimezone ? { timezone: customerTimezone } : {}) };
       // Only upgrade consent — never downgrade an existing opt-in
       if (hasTransactionalConsent && !existingCustomer.sms_transactional_consent) {
         updatePayload.sms_transactional_consent = true;
@@ -168,6 +170,7 @@ export async function POST(req: NextRequest) {
           sms_transactional_consent_at: hasTransactionalConsent ? now : null,
           sms_marketing_consent: hasMarketingConsent,
           sms_marketing_consent_at: hasMarketingConsent ? now : null,
+          ...(customerTimezone ? { timezone: customerTimezone } : {}),
         })
         .select()
         .single();

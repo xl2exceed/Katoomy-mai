@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/webpush";
 import { getSmsTemplate, fillSmsTemplate } from "@/lib/smsTemplates";
+import { isQuietHours, nextSendWindow } from "@/lib/sms/quietHours";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,7 @@ interface ReminderRow {
   customers: {
     full_name: string | null;
     phone: string;
+    timezone: string | null;
     sms_transactional_consent: boolean | null;
     sms_consent: boolean | null; // legacy fallback
   } | null;
@@ -63,6 +65,7 @@ export async function GET(req: NextRequest) {
       customers (
         full_name,
         phone,
+        timezone,
         sms_transactional_consent,
         sms_consent
       ),
@@ -185,6 +188,15 @@ export async function GET(req: NextRequest) {
             await supabase
               .from("scheduled_notifications")
               .update({ status: "skipped", sent_at: now.toISOString() })
+              .eq("id", reminder.id);
+            return "skipped";
+          }
+
+          // Reschedule to next 8am in customer's timezone if currently quiet hours
+          if (isQuietHours(customer.timezone)) {
+            await supabase
+              .from("scheduled_notifications")
+              .update({ scheduled_for: nextSendWindow(customer.timezone).toISOString() })
               .eq("id", reminder.id);
             return "skipped";
           }

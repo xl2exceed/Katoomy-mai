@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getTwilio, getRouting } from "@/lib/twilio";
 import { getSmsTemplate } from "@/lib/smsTemplates";
+import { isQuietHours } from "@/lib/sms/quietHours";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
@@ -88,7 +89,7 @@ async function runWinbackForBusiness(businessId: string): Promise<{ sent: number
 
   const { data: inactive } = await supabaseAdmin
     .from("customers")
-    .select("id, full_name, phone")
+    .select("id, full_name, phone, timezone")
     .eq("business_id", businessId)
     .not("phone", "is", null)
     .lt("last_visit_at", cutoff);
@@ -116,9 +117,11 @@ async function runWinbackForBusiness(businessId: string): Promise<{ sent: number
 
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const customer of targets) {
     if (!customer.phone) { failed++; continue; }
+    if (isQuietHours(customer.timezone)) { skipped++; continue; }
 
     const message = fillTemplate(template, {
       customer_name: customer.full_name?.split(" ")[0] ?? "there",
@@ -158,7 +161,7 @@ async function runWinbackForBusiness(businessId: string): Promise<{ sent: number
     }
   }
 
-  return { sent, failed, skipped: 0 };
+  return { sent, failed, skipped };
 }
 
 // POST — send win-back texts
