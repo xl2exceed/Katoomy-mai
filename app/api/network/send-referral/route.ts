@@ -75,7 +75,27 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
-  const referralUrl = `${appUrl}/${partnerBiz.slug}?biz_ref=${referral.id}`;
+
+  // Include the receiving business's active offer in the link so the customer
+  // sees the discount banner and Business A gets referral credit.
+  const now = new Date().toISOString();
+  const { data: partnerOffers } = await supabaseAdmin
+    .from("network_offers")
+    .select("id, budget_cents, total_cost_cents")
+    .eq("business_id", partnerBusinessId)
+    .eq("active", true)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  const availableOffer = (partnerOffers ?? []).find(
+    (o) => !o.budget_cents || o.total_cost_cents < o.budget_cents
+  );
+
+  let referralUrl = `${appUrl}/${partnerBiz.slug}?biz_ref=${referral.id}`;
+  if (availableOffer) {
+    referralUrl += `&net_ref=${availableOffer.id}&via=${business.id}`;
+  }
 
   const customMsg = message?.trim()
     ? `${message.trim()} Book here: ${referralUrl}`
