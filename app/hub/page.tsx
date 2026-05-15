@@ -206,6 +206,7 @@ export default function HubPage() {
   const [devMode, setDevMode] = useState(false);
   const devTapCount = useRef(0);
   const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function loadBusinesses() {
     const slugs = getSlugs();
@@ -267,6 +268,50 @@ export default function HubPage() {
     if (!data || data.length === 0) { setAddError("Business not found."); setAdding(false); return; }
     sessionStorage.setItem("katoomy:fromHub", "1");
     router.push(`/${slug}${ref ? `?ref=${ref}` : ""}`);
+  };
+
+  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setAddError("");
+    setAdding(true);
+    const img = new window.Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      URL.revokeObjectURL(objUrl);
+      if (!ctx) { setAdding(false); return; }
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (!code) {
+        setAddError("No QR code found in that photo. Try a clearer image.");
+        setAdding(false);
+        return;
+      }
+      const raw = code.data;
+      const isKatoomy =
+        raw.includes("katoomy.com/") ||
+        raw.includes("katoomy-mai.vercel.app/") ||
+        raw.includes("katoomy-new.vercel.app/") ||
+        raw.includes("localhost:");
+      if (!isKatoomy) {
+        setAddError("That doesn't look like a Katoomy QR code.");
+        setAdding(false);
+        return;
+      }
+      handleDetected(raw);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objUrl);
+      setAddError("Couldn't read that image. Try again.");
+      setAdding(false);
+    };
+    img.src = objUrl;
   };
 
   const handleManualAdd = async () => {
@@ -336,11 +381,25 @@ export default function HubPage() {
                   ×
                 </button>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageFile}
+              />
               <button
                 onClick={() => setScanning(true)}
                 className="w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 active:scale-95 transition"
               >
                 📷 Scan QR Code
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={adding}
+                className="w-full py-3.5 bg-violet-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 active:scale-95 transition disabled:opacity-40"
+              >
+                🖼️ Use Photo from Library
               </button>
               <div>
                 <p className="text-gray-400 text-xs text-center mb-2">or enter the URL manually</p>
