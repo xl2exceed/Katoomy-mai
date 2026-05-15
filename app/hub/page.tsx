@@ -24,17 +24,16 @@ function getSlugs(): string[] {
   try { return JSON.parse(localStorage.getItem(BUSINESSES_KEY) || "[]"); } catch { return []; }
 }
 
-// Returns { slug, ref } — ref is null if no referral code in the URL
-function parseBusinessUrl(input: string): { slug: string; ref: string | null } {
+// Returns { slug, search } — search is the full query string (e.g. "?biz_ref=abc&via=xyz")
+function parseBusinessUrl(input: string): { slug: string; search: string } {
   const trimmed = input.trim().replace(/\/+$/, "");
   try {
     const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
     const parts = url.pathname.split("/").filter(Boolean);
     const slug = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : trimmed.toLowerCase();
-    const ref = url.searchParams.get("ref");
-    return { slug, ref };
+    return { slug, search: url.search };
   } catch {}
-  return { slug: trimmed.toLowerCase(), ref: null };
+  return { slug: trimmed.toLowerCase(), search: "" };
 }
 
 // ── QR Scanner (stays dark — it's over the camera) ───────────────────────────
@@ -262,12 +261,12 @@ export default function HubPage() {
   const handleDetected = async (rawUrl: string) => {
     setScanning(false);
     setAdding(true);
-    const { slug, ref } = parseBusinessUrl(rawUrl);
+    const { slug, search } = parseBusinessUrl(rawUrl);
     const res = await fetch(`/api/public/businesses?slugs=${slug}`);
     const data: BusinessInfo[] = await res.json();
     if (!data || data.length === 0) { setAddError("Business not found."); setAdding(false); return; }
     sessionStorage.setItem("katoomy:fromHub", "1");
-    router.push(`/${slug}${ref ? `?ref=${ref}` : ""}`);
+    router.push(`/${slug}${search}`);
   };
 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -316,14 +315,14 @@ export default function HubPage() {
 
   const handleManualAdd = async () => {
     setAddError("");
-    const { slug, ref } = parseBusinessUrl(addInput);
+    const { slug, search } = parseBusinessUrl(addInput);
     if (!slug) { setAddError("Enter a business URL."); return; }
     setAdding(true);
     const res = await fetch(`/api/public/businesses?slugs=${slug}`);
     const data: BusinessInfo[] = await res.json();
     if (!data || data.length === 0) { setAddError("Business not found. Check the URL and try again."); setAdding(false); return; }
     sessionStorage.setItem("katoomy:fromHub", "1");
-    router.push(`/${slug}${ref ? `?ref=${ref}` : ""}`);
+    router.push(`/${slug}${search}`);
   };
 
   const filtered = businesses.filter(b =>
