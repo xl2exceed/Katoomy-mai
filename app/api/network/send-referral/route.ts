@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     .single();
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
-  const { customerId, partnerBusinessId, message } = await req.json();
+  const { customerId, partnerBusinessId, message, mode } = await req.json();
   if (!customerId || !partnerBusinessId) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
@@ -95,6 +95,11 @@ export async function POST(req: NextRequest) {
   let referralUrl = `${appUrl}/${partnerBiz.slug}?biz_ref=${referral.id}`;
   if (availableOffer) {
     referralUrl += `&net_ref=${availableOffer.id}&via=${business.id}`;
+  }
+
+  // QR mode — return the URL so the frontend can render the QR code; skip SMS
+  if (mode === "qr") {
+    return NextResponse.json({ referralId: referral.id, referralUrl });
   }
 
   const customMsg = message?.trim()
