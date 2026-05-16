@@ -297,7 +297,7 @@ export default function HubPage() {
         inversionAttempts: "attemptBoth",
       });
       if (!code) {
-        setAddError("No QR code found in that photo. Try a clearer image.");
+        setAddError("No QR code found. Use a screenshot of the QR code — camera photos of screens don't work reliably.");
         setAdding(false);
         return;
       }
