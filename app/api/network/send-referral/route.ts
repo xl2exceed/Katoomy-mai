@@ -2,8 +2,10 @@
 // Sends a direct customer referral from one partner business to another via SMS.
 
 import { NextRequest, NextResponse } from "next/server";
+import QRCode from "qrcode";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getTwilio, getRouting } from "@/lib/twilio";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -100,6 +102,51 @@ export async function POST(req: NextRequest) {
   // QR mode — return the URL so the frontend can render the QR code; skip SMS
   if (mode === "qr") {
     return NextResponse.json({ referralId: referral.id, referralUrl });
+  }
+
+  // SMS-QR mode — generate PNG, upload to storage, send as MMS
+  if (mode === "sms-qr") {
+    try {
+      const qrBuffer = await QRCode.toBuffer(referralUrl, {
+        width: 600,
+        margin: 2,
+        color: { dark: "#000000", light: "#FFFFFF" },
+      });
+
+      const fileName = `qr-codes/referral-${referral.id}.png`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("business-assets")
+        .upload(fileName, qrBuffer, { contentType: "image/png", upsert: true });
+
+      if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
+
+      const { data: urlData } = supabaseAdmin.storage
+        .from("business-assets")
+        .getPublicUrl(fileName);
+
+      const qrImageUrl = urlData.publicUrl;
+      const firstName = customer.full_name?.split(" ")[0] || "there";
+      const mmsBody = message?.trim()
+        ? `Hey ${firstName}! ${message.trim()} Scan the QR code or tap: ${referralUrl}`
+        : `Hey ${firstName}! ${business.name} thinks you'd love ${partnerBiz.name}! Scan the QR code to book or tap: ${referralUrl}`;
+
+      const { client: twilioClient, mode: twilioMode } = getTwilio();
+      const routing = getRouting(twilioMode);
+      const digits = customer.phone.replace(/\D/g, "");
+      const normalizedPhone = digits.startsWith("1") ? `+${digits}` : `+1${digits}`;
+
+      await twilioClient.messages.create({
+        body: mmsBody,
+        ...routing,
+        to: normalizedPhone,
+        mediaUrl: [qrImageUrl],
+      });
+
+      return NextResponse.json({ referralId: referral.id, sent: true });
+    } catch (err) {
+      console.error("[send-referral sms-qr] failed:", err);
+      return NextResponse.json({ error: "Failed to send QR via SMS" }, { status: 500 });
+    }
   }
 
   const customMsg = message?.trim()

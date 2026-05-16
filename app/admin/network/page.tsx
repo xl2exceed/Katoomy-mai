@@ -122,6 +122,7 @@ export default function NetworkPage() {
   const [referMessage, setReferMessage] = useState("");
   const [referSending, setReferSending] = useState(false);
   const [referSent, setReferSent] = useState(false);
+  const [referSentMode, setReferSentMode] = useState<"sms" | "sms-qr">("sms");
   const [referQrUrl, setReferQrUrl] = useState<string | null>(null);
 
   // Overview
@@ -311,7 +312,7 @@ export default function NetworkPage() {
     return () => clearTimeout(t);
   }, [referCustomerSearch]);
 
-  async function sendReferral(mode: "sms" | "qr" = "sms") {
+  async function sendReferral(mode: "sms" | "qr" | "sms-qr" = "sms") {
     if (!referModalPartner || !selectedReferCustomer) return;
     setReferSending(true);
     const res = await fetch("/api/network/send-referral", {
@@ -331,10 +332,12 @@ export default function NetworkPage() {
       setReferQrUrl(data.referralUrl);
       return;
     }
+    setReferSentMode(mode === "sms-qr" ? "sms-qr" : "sms");
     setReferSent(true);
     setTimeout(() => {
       setReferModalPartner(null);
       setReferSent(false);
+      setReferSentMode("sms");
       setReferQrUrl(null);
       setSelectedReferCustomer(null);
       setReferCustomerSearch("");
@@ -1228,14 +1231,18 @@ export default function NetworkPage() {
                 <p className="font-semibold text-gray-900">Refer a Customer</p>
                 <p className="text-xs text-gray-500">Send a customer to <span className="font-medium">{referModalPartner.name}</span></p>
               </div>
-              <button onClick={() => { setReferModalPartner(null); setReferQrUrl(null); setReferSent(false); setSelectedReferCustomer(null); setReferCustomerSearch(""); setReferMessage(""); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+              <button onClick={() => { setReferModalPartner(null); setReferQrUrl(null); setReferSent(false); setReferSentMode("sms"); setSelectedReferCustomer(null); setReferCustomerSearch(""); setReferMessage(""); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
             </div>
 
             {referSent ? (
               <div className="py-10 text-center">
                 <p className="text-4xl mb-3">✅</p>
                 <p className="font-semibold text-gray-900">Referral sent!</p>
-                <p className="text-sm text-gray-500 mt-1">Your customer received an SMS with the booking link.</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {referSentMode === "sms-qr"
+                    ? "Your customer received a QR code image via SMS. They can save it and scan it from the Katoomy app."
+                    : "Your customer received an SMS with the booking link."}
+                </p>
               </div>
             ) : (
               <div className="p-5 space-y-4">
@@ -1317,19 +1324,25 @@ export default function NetworkPage() {
                 ) : (
                   <>
                     <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
-                      Send via SMS or generate a QR code to share as an image.
+                      Send a booking link via SMS, or deliver a QR code image the customer can scan from the Katoomy app.
                     </p>
                     <button
                       onClick={() => sendReferral("sms")}
                       disabled={!selectedReferCustomer || referSending}
                       className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition disabled:opacity-40">
-                      {referSending ? "Sending..." : "Send via SMS"}
+                      {referSending ? "Sending..." : "Send Link via SMS"}
+                    </button>
+                    <button
+                      onClick={() => sendReferral("sms-qr")}
+                      disabled={!selectedReferCustomer || referSending}
+                      className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-40">
+                      {referSending ? "Sending..." : "Send QR Code via SMS"}
                     </button>
                     <button
                       onClick={() => sendReferral("qr")}
                       disabled={!selectedReferCustomer || referSending}
                       className="w-full py-3 bg-gray-800 text-white font-semibold rounded-xl hover:bg-gray-900 transition disabled:opacity-40">
-                      {referSending ? "Generating..." : "Generate QR Code"}
+                      {referSending ? "Generating..." : "Show QR Code On Screen"}
                     </button>
                   </>
                 )}
