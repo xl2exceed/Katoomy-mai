@@ -278,15 +278,24 @@ export default function HubPage() {
     const img = new window.Image();
     const objUrl = URL.createObjectURL(file);
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
       URL.revokeObjectURL(objUrl);
+      if (!w || !h) {
+        setAddError("Couldn't read that image. Try again.");
+        setAdding(false);
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
       if (!ctx) { setAdding(false); return; }
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      ctx.drawImage(img, 0, 0, w, h);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
       if (!code) {
         setAddError("No QR code found in that photo. Try a clearer image.");
         setAdding(false);
