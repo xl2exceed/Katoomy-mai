@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getTwilio, getRouting } from "@/lib/twilio";
+import { signHubToken } from "@/lib/hubToken";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -94,20 +95,33 @@ export async function POST(req: NextRequest) {
     (o) => !o.budget_cents || o.total_cost_cents < o.budget_cents
   );
 
-  let referralUrl = `${appUrl}/${partnerBiz.slug}?biz_ref=${referral.id}`;
+  // pwaUrl: used for in-app QR scanning (PWA is already open, localStorage works)
+  let pwaUrl = `${appUrl}/${partnerBiz.slug}?biz_ref=${referral.id}`;
   if (availableOffer) {
-    referralUrl += `&net_ref=${availableOffer.id}&via=${business.id}`;
+    pwaUrl += `&net_ref=${availableOffer.id}&via=${business.id}`;
   }
 
-  // QR mode — return the URL so the frontend can render the QR code; skip SMS
+  // smsUrl: used in SMS text links — goes to /hub/add with a signed token so
+  // iOS Safari can add the business to the server-side hub without losing context.
+  const hubToken = signHubToken({ phone: customer.phone, customerId: customer.id });
+  const smsParams = new URLSearchParams({ business: partnerBiz.slug, t: hubToken, biz_ref: referral.id });
+  if (availableOffer) {
+    smsParams.set("net_ref", availableOffer.id);
+    smsParams.set("via", business.id);
+  }
+  const smsUrl = `${appUrl}/hub/add?${smsParams.toString()}`;
+
+  // QR mode — return the PWA URL so the frontend can render the QR code; skip SMS.
+  // QR codes are scanned from within the installed PWA so localStorage works fine.
   if (mode === "qr") {
-    return NextResponse.json({ referralId: referral.id, referralUrl });
+    return NextResponse.json({ referralId: referral.id, referralUrl: pwaUrl });
   }
 
-  // SMS-QR mode — generate PNG, upload to storage, send as MMS
+  // SMS-QR mode — generate PNG, upload to storage, send as MMS.
+  // QR encodes the pwaUrl (scanned from within the app); tap link uses smsUrl (iOS-safe).
   if (mode === "sms-qr") {
     try {
-      const qrBuffer = await QRCode.toBuffer(referralUrl, {
+      const qrBuffer = await QRCode.toBuffer(pwaUrl, {
         width: 600,
         margin: 2,
         color: { dark: "#000000", light: "#FFFFFF" },
@@ -127,8 +141,8 @@ export async function POST(req: NextRequest) {
       const qrImageUrl = urlData.publicUrl;
       const firstName = customer.full_name?.split(" ")[0] || "there";
       const mmsBody = message?.trim()
-        ? `Hey ${firstName}! ${message.trim()} Scan the QR code or tap: ${referralUrl}`
-        : `Hey ${firstName}! ${business.name} thinks you'd love ${partnerBiz.name}! Scan the QR code to book or tap: ${referralUrl}`;
+        ? `Hey ${firstName}! ${message.trim()} Scan the QR code or tap: ${smsUrl}`
+        : `Hey ${firstName}! ${business.name} thinks you'd love ${partnerBiz.name}! Scan the QR code to book or tap: ${smsUrl}`;
 
       const { client: twilioClient, mode: twilioMode } = getTwilio();
       const routing = getRouting(twilioMode);
@@ -150,8 +164,8 @@ export async function POST(req: NextRequest) {
   }
 
   const customMsg = message?.trim()
-    ? `${message.trim()} Book here: ${referralUrl}`
-    : `${business.name} thought you'd love ${partnerBiz.name}! Book your first appointment here: ${referralUrl}`;
+    ? `${message.trim()} Book here: ${smsUrl}`
+    : `${business.name} thought you'd love ${partnerBiz.name}! Book your first appointment here: ${smsUrl}`;
 
   const smsBody = `Hey ${customer.full_name?.split(" ")[0] || "there"}! ${customMsg}`;
 

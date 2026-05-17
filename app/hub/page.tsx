@@ -19,9 +19,17 @@ interface BusinessInfo {
 }
 
 const BUSINESSES_KEY = "katoomy:businesses";
+const PHONE_KEY = "katoomy:customerPhone";
 
 function getSlugs(): string[] {
   try { return JSON.parse(localStorage.getItem(BUSINESSES_KEY) || "[]"); } catch { return []; }
+}
+
+interface ServerBusiness {
+  slug: string;
+  bizRefId: string | null;
+  netRefOfferId: string | null;
+  netRefVia: string | null;
 }
 
 // Returns { slug, search } — search is the full query string (e.g. "?biz_ref=abc&via=xyz")
@@ -207,8 +215,39 @@ export default function HubPage() {
   const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function loadBusinesses() {
-    const slugs = getSlugs();
+  // referralMap holds any referral params stored server-side for each business slug,
+  // so they can be passed when the customer opens that tile for the first time.
+  const referralMap = useRef<Map<string, ServerBusiness>>(new Map());
+
+  async function loadBusinesses() {
+    // Merge localStorage slugs with the server-side hub (if phone is known).
+    let slugs = getSlugs();
+
+    const phone = (() => { try { return localStorage.getItem(PHONE_KEY); } catch { return null; } })();
+    if (phone) {
+      try {
+        const res = await fetch(`/api/hub/businesses?phone=${encodeURIComponent(phone)}`);
+        if (res.ok) {
+          const { businesses: serverBizList } = await res.json() as { businesses: ServerBusiness[] };
+          // Build referral map from server data
+          const map = new Map<string, ServerBusiness>();
+          serverBizList.forEach(b => map.set(b.slug, b));
+          referralMap.current = map;
+
+          // Merge: add any server slugs not already in localStorage
+          const serverSlugs = serverBizList.map(b => b.slug);
+          const merged = [...slugs];
+          serverSlugs.forEach(s => { if (!merged.includes(s)) merged.push(s); });
+          if (merged.length !== slugs.length) {
+            localStorage.setItem(BUSINESSES_KEY, JSON.stringify(merged));
+          }
+          slugs = merged;
+        }
+      } catch {
+        // Network unavailable — fall back to localStorage list
+      }
+    }
+
     if (slugs.length === 0) { setLoading(false); return; }
 
     fetch(`/api/public/businesses?slugs=${slugs.join(",")}`)
@@ -255,7 +294,16 @@ export default function HubPage() {
 
   const openBusiness = (slug: string) => {
     sessionStorage.setItem("katoomy:fromHub", "1");
-    router.push(`/${slug}`);
+    const ref = referralMap.current.get(slug);
+    if (ref?.bizRefId || ref?.netRefOfferId) {
+      const params = new URLSearchParams();
+      if (ref.bizRefId) params.set("biz_ref", ref.bizRefId);
+      if (ref.netRefOfferId) params.set("net_ref", ref.netRefOfferId);
+      if (ref.netRefVia) params.set("via", ref.netRefVia);
+      router.push(`/${slug}?${params.toString()}`);
+    } else {
+      router.push(`/${slug}`);
+    }
   };
 
   const handleDetected = async (rawUrl: string) => {
