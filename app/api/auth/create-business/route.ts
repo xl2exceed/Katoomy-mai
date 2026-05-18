@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   await supabaseAdmin.from("business_features").insert({
     business_id: business.id,
     deposits_enabled: false,
-    loyalty_enabled: false,
+    loyalty_enabled: true,
     referrals_enabled: false,
     feedback_enabled: false,
   });
