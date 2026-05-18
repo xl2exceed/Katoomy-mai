@@ -33,14 +33,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, scheduled: 0 });
     }
 
+    const { data: biz } = await supabase
+      .from("businesses")
+      .select("timezone")
+      .eq("id", booking.business_id)
+      .maybeSingle();
+
+    const tz = (biz as { timezone?: string } | null)?.timezone || "America/New_York";
+
     const startTs = new Date(booking.start_ts);
     const now = new Date();
 
+    // Skip 24h SMS if the appointment is on the same calendar day as the booking
+    const apptDate = startTs.toLocaleDateString("en-CA", { timeZone: tz });
+    const todayDate = now.toLocaleDateString("en-CA", { timeZone: tz });
+    const isSameDay = apptDate === todayDate;
+
     const reminders = [];
 
-    // 24-hour SMS reminder
+    // 24-hour SMS reminder — not sent for same-day appointments
     const reminder24h = new Date(startTs.getTime() - 24 * 60 * 60 * 1000);
-    if (reminder24h > now) {
+    if (!isSameDay && reminder24h > now) {
       reminders.push({
         booking_id: booking.id,
         business_id: booking.business_id,
