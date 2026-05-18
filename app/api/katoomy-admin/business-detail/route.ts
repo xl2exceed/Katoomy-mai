@@ -156,7 +156,7 @@ export async function GET(req: NextRequest) {
     supabaseAdmin
       .from("network_partners")
       .select("id", { count: "exact", head: true })
-      .eq("business_id", businessId)
+      .or(`business_a_id.eq.${businessId},business_b_id.eq.${businessId}`)
       .eq("status", "active"),
 
     supabaseAdmin
