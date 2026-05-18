@@ -46,6 +46,15 @@ interface BusinessDetail {
   availability: Array<{ day_of_week: number; start_time: string; end_time: string; days_open?: string[] }>;
   stripeConnect: { stripe_account_id: string; created_at: string } | null;
   depositSettings: { enabled: boolean; type: string; amount_cents: number; percent: number } | null;
+  network: {
+    enabled: boolean;
+    active_partners: number;
+    customers_sent: number;
+    customers_received: number;
+    referral_earnings_cents: number;
+    completed_received: number;
+    offers: Array<{ id: string; title: string; offer_type: string; amount: number; usage_count: number }>;
+  } | null;
 }
 
 interface Employee { id: string; email: string; name: string; role: string; created_at: string }
@@ -413,7 +422,7 @@ export default function KatoomyAdminPage() {
 // Business Overview
 // ─────────────────────────────────────────────────────────────────────────────
 function BusinessOverview({ detail, pushView }: { detail: BusinessDetail; pushView: (v: View) => void }) {
-  const { business, stats, periods, members, staff, disputes, sms, loyalty, automatedCampaigns, availability, stripeConnect, depositSettings } = detail;
+  const { business, stats, periods, members, staff, disputes, sms, loyalty, automatedCampaigns, availability, stripeConnect, depositSettings, network } = detail;
   const niche = String(business.features?.niche || "barber");
   const [referralDays, setReferralDays] = useState(30);
   const [referralCount, setReferralCount] = useState<number | null>(null);
@@ -596,6 +605,34 @@ function BusinessOverview({ detail, pushView }: { detail: BusinessDetail; pushVi
           </div>
           <p className="text-3xl font-bold text-violet-400">{referralCount ?? stats.totalReferrals}</p>
           <p className="text-xs text-gray-500 mt-1">Total referrals</p>
+        </div>
+
+        {/* Business Network */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+          <h3 className="font-bold text-white mb-3">Business Network</h3>
+          {!network ? (
+            <p className="text-gray-500 text-sm">Not joined</p>
+          ) : (
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between"><span className="text-gray-400">Status</span><span className={network.enabled ? "text-green-400 font-medium" : "text-gray-500"}>{network.enabled ? "Active" : "Disabled"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Active partners</span><span className="text-white font-medium">{network.active_partners}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Customers sent</span><span className="text-white font-medium">{network.customers_sent}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Customers received</span><span className="text-white font-medium">{network.customers_received}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Net gain</span><span className={`font-medium ${network.customers_received - network.customers_sent >= 0 ? "text-green-400" : "text-red-400"}`}>{network.customers_received - network.customers_sent >= 0 ? "+" : ""}{network.customers_received - network.customers_sent}</span></div>
+              {network.referral_earnings_cents > 0 && <div className="flex justify-between"><span className="text-gray-400">Referral earnings</span><span className="text-green-400 font-medium">{fmt$(network.referral_earnings_cents / 100)}</span></div>}
+              {network.offers.length > 0 && (
+                <div className="pt-2 border-t border-gray-800 mt-2">
+                  <p className="text-gray-400 mb-1.5">Active offers ({network.offers.length})</p>
+                  {network.offers.map((o) => (
+                    <div key={o.id} className="flex justify-between text-xs py-0.5">
+                      <span className="text-gray-300 truncate max-w-[160px]">{o.title}</span>
+                      <span className="text-violet-400">{o.usage_count} uses</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Services — clickable */}

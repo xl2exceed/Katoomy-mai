@@ -46,6 +46,13 @@ export async function GET(req: NextRequest) {
     depositResult,
     customerCountResult,
     recentCustomersResult,
+    networkSettingsResult,
+    networkPartnersResult,
+    networkOffersResult,
+    networkSentResult,
+    networkReceivedResult,
+    networkDirectSentResult,
+    networkDirectReceivedResult,
   ] = await Promise.all([
     supabaseAdmin
       .from("businesses")
@@ -139,6 +146,43 @@ export async function GET(req: NextRequest) {
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(10),
+
+    supabaseAdmin
+      .from("network_settings")
+      .select("enabled, referral_reward_cents")
+      .eq("business_id", businessId)
+      .maybeSingle(),
+
+    supabaseAdmin
+      .from("network_partners")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId)
+      .eq("status", "active"),
+
+    supabaseAdmin
+      .from("network_offers")
+      .select("id, title, offer_type, amount")
+      .eq("business_id", businessId),
+
+    supabaseAdmin
+      .from("network_referrals")
+      .select("id, status, reward_cents, network_offer_id")
+      .eq("referring_business_id", businessId),
+
+    supabaseAdmin
+      .from("network_referrals")
+      .select("id, status")
+      .eq("receiving_business_id", businessId),
+
+    supabaseAdmin
+      .from("network_direct_referrals")
+      .select("id", { count: "exact", head: true })
+      .eq("sending_business_id", businessId),
+
+    supabaseAdmin
+      .from("network_direct_referrals")
+      .select("id", { count: "exact", head: true })
+      .eq("receiving_business_id", businessId),
   ]);
 
   const biz = bizResult.data;
@@ -147,6 +191,27 @@ export async function GET(req: NextRequest) {
   const bookings = bookingsResult.data || [];
   const reports = reportsResult.data || [];
   const smsMessages = smsResult.data || [];
+
+  // Network stats
+  const networkOfferSent = networkSentResult.data || [];
+  const networkOfferReceived = networkReceivedResult.data || [];
+  const networkOfferUsage = new Map<string, number>();
+  networkOfferSent.forEach((r) => {
+    if (r.network_offer_id) networkOfferUsage.set(r.network_offer_id, (networkOfferUsage.get(r.network_offer_id) || 0) + 1);
+  });
+  const networkOffers = (networkOffersResult.data || []).map((o) => ({
+    ...o,
+    usage_count: networkOfferUsage.get(o.id) || 0,
+  }));
+  const networkStats = {
+    enabled: networkSettingsResult.data?.enabled ?? false,
+    active_partners: networkPartnersResult.count ?? 0,
+    customers_sent: (networkSentResult.data?.length ?? 0) + (networkDirectSentResult.count ?? 0),
+    customers_received: (networkReceivedResult.data?.length ?? 0) + (networkDirectReceivedResult.count ?? 0),
+    referral_earnings_cents: networkOfferSent.reduce((s, r) => s + (r.reward_cents ?? 0), 0),
+    completed_received: networkOfferReceived.filter((r) => r.status !== "pending").length,
+    offers: networkOffers,
+  };
 
   const bookingsByPeriod = (start: string) => bookings.filter((b) => b.start_ts >= start);
   const revenueByPeriod = (start: string) =>
@@ -187,5 +252,6 @@ export async function GET(req: NextRequest) {
     availability: availabilityResult.data || [],
     stripeConnect: stripeConnectResult.data || null,
     depositSettings: depositResult.data || null,
+    network: networkStats,
   });
 }
