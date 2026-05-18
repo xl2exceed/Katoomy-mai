@@ -52,7 +52,6 @@ interface BusinessDetail {
     customers_sent: number;
     customers_received: number;
     referral_earnings_cents: number;
-    completed_received: number;
     offers: Array<{ id: string; title: string; offer_type: string; amount: number; usage_count: number }>;
   } | null;
 }
@@ -616,9 +615,8 @@ function BusinessOverview({ detail, pushView }: { detail: BusinessDetail; pushVi
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between"><span className="text-gray-400">Status</span><span className={network.enabled ? "text-green-400 font-medium" : "text-gray-500"}>{network.enabled ? "Active" : "Disabled"}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Active partners</span><span className="text-white font-medium">{network.active_partners}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Customers sent</span><span className="text-white font-medium">{network.customers_sent}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Customers received</span><span className="text-white font-medium">{network.customers_received}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Net gain</span><span className={`font-medium ${network.customers_received - network.customers_sent >= 0 ? "text-green-400" : "text-red-400"}`}>{network.customers_received - network.customers_sent >= 0 ? "+" : ""}{network.customers_received - network.customers_sent}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Customers sent to partners</span><span className="text-white font-medium">{network.customers_sent}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">New customers received</span><span className="text-green-400 font-medium">{network.customers_received}</span></div>
               {network.referral_earnings_cents > 0 && <div className="flex justify-between"><span className="text-gray-400">Referral earnings</span><span className="text-green-400 font-medium">{fmt$(network.referral_earnings_cents / 100)}</span></div>}
               {network.offers.length > 0 && (
                 <div className="pt-2 border-t border-gray-800 mt-2">

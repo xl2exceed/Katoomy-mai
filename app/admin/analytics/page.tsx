@@ -43,20 +43,6 @@ interface AnalyticsData {
   totalCustomers: number;
 }
 
-interface NetworkOfferStat { id: string; title: string; offer_type: string; amount: number; usage_count: number }
-interface NetworkActivity { id: string; direction: "sent" | "received"; type: "direct" | "offer"; status: string; created_at: string }
-interface NetworkData {
-  enabled: boolean;
-  activePartners: number;
-  customers_sent: number;
-  customers_received: number;
-  net_gain: number;
-  referral_earnings_cents: number;
-  total_credits_cents: number;
-  completed_received: number;
-  offers: NetworkOfferStat[];
-  recentActivity: NetworkActivity[];
-}
 
 const PERIODS: { key: Period; label: string }[] = [
   { key: "week", label: "Last 7 Days" },
@@ -105,7 +91,6 @@ export default function AnalyticsPage() {
   const [customEnd, setCustomEnd] = useState("");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [networkData, setNetworkData] = useState<NetworkData | null>(null);
   const [appInstalls, setAppInstalls] = useState<number | null>(null);
   const [installPeriod, setInstallPeriod] = useState<"all" | "week" | "month" | "custom">("all");
   const [installStart, setInstallStart] = useState("");
@@ -155,13 +140,6 @@ export default function AnalyticsPage() {
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }
-
-  useEffect(() => {
-    fetch("/api/admin/network-analytics")
-      .then(r => r.json())
-      .then(d => setNetworkData(d))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (period !== "custom") load(period);
@@ -246,7 +224,6 @@ export default function AnalyticsPage() {
       ) : (
         <AnalyticsContent
           data={data}
-          networkData={networkData}
           appInstalls={appInstalls}
           installPeriod={installPeriod}
           installStart={installStart}
@@ -264,12 +241,11 @@ export default function AnalyticsPage() {
 }
 
 function AnalyticsContent({
-  data, networkData, appInstalls,
+  data, appInstalls,
   installPeriod, installStart, installEnd, installCustomActive, today,
   onInstallPeriod, onInstallStart, onInstallEnd, onApplyInstallCustom,
 }: {
   data: AnalyticsData;
-  networkData: NetworkData | null;
   appInstalls: number | null;
   installPeriod: "all" | "week" | "month" | "custom";
   installStart: string;
@@ -612,96 +588,6 @@ function AnalyticsContent({
         </div>
       )}
 
-      {/* Network Performance */}
-      {networkData && networkData.enabled && (
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Network Performance</h2>
-
-          {/* Summary stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: "Customers Sent", value: networkData.customers_sent, color: "text-blue-600" },
-              { label: "Customers Received", value: networkData.customers_received, color: "text-green-600" },
-              { label: "Net Gain", value: networkData.net_gain, color: networkData.net_gain >= 0 ? "text-green-600" : "text-red-500", prefix: networkData.net_gain > 0 ? "+" : "" },
-              { label: "Active Partners", value: networkData.activePartners, color: "text-purple-600" },
-            ].map((s) => (
-              <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-xs text-gray-500 mb-1">{s.label}</p>
-                <p className={`text-2xl font-bold ${s.color}`}>{s.prefix ?? ""}{s.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {networkData.referral_earnings_cents > 0 || networkData.total_credits_cents > 0 ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-xs text-gray-500 mb-1">Referral Earnings</p>
-                <p className="text-xl font-bold text-green-600">{fmt(networkData.referral_earnings_cents)}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-xs text-gray-500 mb-1">Total Credits</p>
-                <p className="text-xl font-bold text-purple-600">{fmt(networkData.total_credits_cents)}</p>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Active Offers */}
-          {networkData.offers.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700">Your Offers</h3>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {networkData.offers.map((o) => (
-                  <div key={o.id} className="px-6 py-3 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">{o.title}</p>
-                      <p className="text-xs text-gray-400 capitalize">
-                        {o.offer_type === "dollar_off" ? `$${o.amount} off` : `${o.amount}% off`}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-purple-600">{o.usage_count}</p>
-                      <p className="text-xs text-gray-400">uses</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recent Activity */}
-          {networkData.recentActivity.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700">Recent Referral Activity</h3>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {networkData.recentActivity.map((a) => (
-                  <div key={a.id} className="px-6 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{a.direction === "sent" ? "↗️" : "↙️"}</span>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800 capitalize">
-                          {a.direction === "sent" ? "Sent" : "Received"} · {a.type === "direct" ? "Direct referral" : "Offer link"}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {new Date(a.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
-                      a.status === "completed" ? "bg-green-100 text-green-700" :
-                      a.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                      "bg-gray-100 text-gray-500"
-                    }`}>{a.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
