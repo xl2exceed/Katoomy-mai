@@ -1,6 +1,5 @@
-// GET /api/hub/businesses?phone=<phone>
-// Returns the server-side business list for a hub account identified by phone.
-// Called by the hub page on load to sync the Supabase hub with localStorage.
+// GET  /api/hub/businesses?phone=<phone>  — returns server-side business list
+// POST /api/hub/businesses               — adds a business by phone (called after booking)
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -35,4 +34,36 @@ export async function GET(req: NextRequest) {
       netRefVia: r.net_ref_via ?? null,
     })),
   });
+}
+
+export async function POST(req: NextRequest) {
+  const { phone, businessSlug } = await req.json() as { phone: string; businessSlug: string };
+  if (!phone || !businessSlug) {
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  const { data: account, error: accountError } = await supabaseAdmin
+    .from("hub_accounts")
+    .upsert({ phone }, { onConflict: "phone" })
+    .select("id")
+    .single();
+
+  if (accountError || !account) {
+    console.error("[hub/businesses POST] hub_account upsert failed:", accountError);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+
+  const { error: bizError } = await supabaseAdmin
+    .from("hub_businesses")
+    .upsert(
+      { hub_account_id: account.id, business_slug: businessSlug },
+      { onConflict: "hub_account_id,business_slug" }
+    );
+
+  if (bizError) {
+    console.error("[hub/businesses POST] hub_businesses upsert failed:", bizError);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
 }

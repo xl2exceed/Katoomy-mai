@@ -144,6 +144,27 @@ export default function ConfirmationPage() {
       }
     } catch { /* ignore */ }
 
+    // If the customer came from the hub, add this business to their hub
+    try {
+      const fromHub = sessionStorage.getItem("katoomy:fromHub");
+      const savedPhone = localStorage.getItem("katoomy:customerPhone");
+      if (fromHub && savedPhone && slug) {
+        // Update localStorage immediately
+        const BUSINESSES_KEY = "katoomy:businesses";
+        const current = JSON.parse(localStorage.getItem(BUSINESSES_KEY) || "[]") as string[];
+        if (!current.includes(slug)) {
+          localStorage.setItem(BUSINESSES_KEY, JSON.stringify([...current, slug]));
+        }
+        // Sync to server — fire-and-forget
+        fetch("/api/hub/businesses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: savedPhone, businessSlug: slug }),
+        }).catch(() => {});
+        sessionStorage.removeItem("katoomy:fromHub");
+      }
+    } catch { /* non-critical */ }
+
     setLoading(false);
 
     // Clear sessionStorage
