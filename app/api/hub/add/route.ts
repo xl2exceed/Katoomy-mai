@@ -1,27 +1,20 @@
 // POST /api/hub/add
-// Validates a signed hub token, then adds the business to the customer's
+// Looks up a short hub code, then adds the business to the customer's
 // server-side hub. Called by the /hub/add landing page when an iOS user
 // clicks an SMS referral link.
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { verifyHubToken } from "@/lib/hubToken";
+import { lookupHubCode } from "@/lib/hubCode";
 
 export async function POST(req: NextRequest) {
-  const { token, businessSlug, bizRefId, netRefOfferId, netRefVia } =
-    await req.json() as {
-      token: string;
-      businessSlug: string;
-      bizRefId?: string;
-      netRefOfferId?: string;
-      netRefVia?: string;
-    };
+  const { code } = await req.json() as { code: string };
 
-  if (!token || !businessSlug) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  if (!code) {
+    return NextResponse.json({ error: "Missing code" }, { status: 400 });
   }
 
-  const payload = verifyHubToken(token);
+  const payload = await lookupHubCode(code);
   if (!payload) {
     return NextResponse.json({ error: "expired" }, { status: 401 });
   }
@@ -29,14 +22,13 @@ export async function POST(req: NextRequest) {
   const { data: biz } = await supabaseAdmin
     .from("businesses")
     .select("name, app_name")
-    .eq("slug", businessSlug)
+    .eq("slug", payload.businessSlug)
     .maybeSingle();
 
   if (!biz) {
     return NextResponse.json({ error: "Business not found" }, { status: 404 });
   }
 
-  // Upsert hub_account keyed by phone — idempotent, safe to call multiple times
   const { data: account, error: accountError } = await supabaseAdmin
     .from("hub_accounts")
     .upsert({ phone: payload.phone }, { onConflict: "phone" })
@@ -53,10 +45,10 @@ export async function POST(req: NextRequest) {
     .upsert(
       {
         hub_account_id: account.id,
-        business_slug: businessSlug,
-        biz_ref_id: bizRefId ?? null,
-        net_ref_offer_id: netRefOfferId ?? null,
-        net_ref_via: netRefVia ?? null,
+        business_slug: payload.businessSlug,
+        biz_ref_id: payload.bizRefId ?? null,
+        net_ref_offer_id: payload.netRefOfferId ?? null,
+        net_ref_via: payload.netRefVia ?? null,
       },
       { onConflict: "hub_account_id,business_slug" }
     );

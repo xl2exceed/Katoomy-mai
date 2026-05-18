@@ -1,13 +1,10 @@
 // /hub/add — iOS referral landing page.
-// SMS referral links point here. The page validates the signed token,
-// adds the business to the customer's server-side hub, then tells them
-// to open Katoomy from their home screen.
-//
-// Token expired / missing: shows a graceful fallback message instead of
-// requiring a full OTP flow.
+// SMS referral links point here as: /hub/add?c=XXXXXXXX
+// The short code is looked up in hub_add_codes, the business is added to the
+// customer's server-side hub, then they're told to open Katoomy from home screen.
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { verifyHubToken } from "@/lib/hubToken";
+import { lookupHubCode } from "@/lib/hubCode";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -20,50 +17,41 @@ function param(v: string | string[] | undefined): string | null {
 
 export default async function HubAddPage({ searchParams }: PageProps) {
   const sp = await searchParams;
-  const businessSlug = param(sp.business);
-  const token = param(sp.t);
-  const bizRefId = param(sp.biz_ref);
-  const netRefOfferId = param(sp.net_ref);
-  const netRefVia = param(sp.via);
+  const code = param(sp.c);
 
-  // ── Missing business slug ──────────────────────────────────────────────────
-  if (!businessSlug) {
-    return <Message icon="❌" heading="Invalid link" body="This referral link is missing the business. Ask the sender to resend it." />;
+  // ── Missing code ───────────────────────────────────────────────────────────
+  if (!code) {
+    return (
+      <Message
+        icon="🔗"
+        heading="Invalid link"
+        body="This referral link is missing required information. Ask the sender to resend it."
+      />
+    );
+  }
+
+  // ── Look up code ───────────────────────────────────────────────────────────
+  const payload = await lookupHubCode(code);
+
+  if (!payload) {
+    return (
+      <Message
+        icon="⏱️"
+        heading="Link expired"
+        body="This link is more than 7 days old. Open Katoomy from your home screen, tap the + button, and scan the QR code to add the business to your hub."
+      />
+    );
   }
 
   // ── Fetch business details for display ────────────────────────────────────
   const { data: biz } = await supabaseAdmin
     .from("businesses")
     .select("name, app_name, logo_url, primary_color")
-    .eq("slug", businessSlug)
+    .eq("slug", payload.businessSlug)
     .maybeSingle();
 
-  const businessName = biz?.app_name || biz?.name || businessSlug;
+  const businessName = biz?.app_name || biz?.name || payload.businessSlug;
   const primaryColor = biz?.primary_color || "#422354";
-
-  // ── Missing or expired token ───────────────────────────────────────────────
-  if (!token) {
-    return (
-      <Message
-        icon="🔗"
-        heading="Link expired"
-        body={`Open Katoomy from your home screen, tap the + button, and scan the QR code for ${businessName} to add it to your hub.`}
-        primaryColor={primaryColor}
-      />
-    );
-  }
-
-  const payload = verifyHubToken(token);
-  if (!payload) {
-    return (
-      <Message
-        icon="⏱️"
-        heading="Link expired"
-        body={`This link is more than 7 days old. Open Katoomy from your home screen, tap the + button, and scan the QR code for ${businessName} to add it to your hub.`}
-        primaryColor={primaryColor}
-      />
-    );
-  }
 
   // ── Add business to hub server-side ───────────────────────────────────────
   const { data: account } = await supabaseAdmin
@@ -78,17 +66,17 @@ export default async function HubAddPage({ searchParams }: PageProps) {
       .upsert(
         {
           hub_account_id: account.id,
-          business_slug: businessSlug,
-          biz_ref_id: bizRefId ?? null,
-          net_ref_offer_id: netRefOfferId ?? null,
-          net_ref_via: netRefVia ?? null,
+          business_slug: payload.businessSlug,
+          biz_ref_id: payload.bizRefId ?? null,
+          net_ref_offer_id: payload.netRefOfferId ?? null,
+          net_ref_via: payload.netRefVia ?? null,
         },
         { onConflict: "hub_account_id,business_slug" }
       );
   }
 
   // ── Success ────────────────────────────────────────────────────────────────
-  const hasDiscount = !!(bizRefId || netRefOfferId);
+  const hasDiscount = !!(payload.bizRefId || payload.netRefOfferId);
 
   return (
     <div

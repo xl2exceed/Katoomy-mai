@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getTwilio, getRouting } from "@/lib/twilio";
-import { signHubToken } from "@/lib/hubToken";
+import { createHubCode } from "@/lib/hubCode";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -101,15 +101,17 @@ export async function POST(req: NextRequest) {
     pwaUrl += `&net_ref=${availableOffer.id}&via=${business.id}`;
   }
 
-  // smsUrl: used in SMS text links — goes to /hub/add with a signed token so
-  // iOS Safari can add the business to the server-side hub without losing context.
-  const hubToken = signHubToken({ phone: customer.phone, customerId: customer.id });
-  const smsParams = new URLSearchParams({ business: partnerBiz.slug, t: hubToken, biz_ref: referral.id });
-  if (availableOffer) {
-    smsParams.set("net_ref", availableOffer.id);
-    smsParams.set("via", business.id);
-  }
-  const smsUrl = `${appUrl}/hub/add?${smsParams.toString()}`;
+  // smsUrl: short-code link for SMS — keeps the URL under 45 chars so
+  // carrier spam filters don't block delivery.
+  const hubCode = await createHubCode({
+    phone: customer.phone,
+    customerId: customer.id,
+    businessSlug: partnerBiz.slug,
+    bizRefId: referral.id,
+    netRefOfferId: availableOffer?.id ?? null,
+    netRefVia: availableOffer ? business.id : null,
+  });
+  const smsUrl = `${appUrl}/hub/add?c=${hubCode}`;
 
   // QR mode — return the PWA URL so the frontend can render the QR code; skip SMS.
   // QR codes are scanned from within the installed PWA so localStorage works fine.
