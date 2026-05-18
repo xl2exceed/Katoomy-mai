@@ -80,6 +80,15 @@ export async function POST(req: NextRequest) {
     feedback_enabled: false,
   });
 
+  await supabaseAdmin.from("loyalty_settings").insert({
+    business_id: business.id,
+    enabled: true,
+    points_per_event: 10,
+    earn_on_completion: true,
+    referral_enabled: true,
+    referrer_reward_points: 15,
+  });
+
   await supabaseAdmin.from("onboarding_state").insert({
     business_id: business.id,
     current_step: "branding",

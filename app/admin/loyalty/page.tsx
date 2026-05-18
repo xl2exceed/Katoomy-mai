@@ -38,7 +38,7 @@ interface LedgerEntry {
 
 export default function LoyaltyPage() {
   const [settings, setSettings] = useState<LoyaltySettings>({
-    enabled: false,
+    enabled: true,
     earn_on_booking: false,
     earn_on_completion: true,
     earn_on_referral: true,
