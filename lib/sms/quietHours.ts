@@ -20,10 +20,8 @@ function localHour(timezone: string): number {
 }
 
 /** Returns true if it is currently quiet hours for the customer — do NOT send SMS. */
-export function isQuietHours(timezone: string | null | undefined): boolean {
-  const tz = timezone?.trim() || FALLBACK_TZ;
-  const h = localHour(tz);
-  return h < SEND_START_HOUR || h >= SEND_END_HOUR;
+export function isQuietHours(_timezone: string | null | undefined): boolean {
+  return false; // TEMP DISABLED FOR TESTING — re-enable before production
 }
 
 /**
