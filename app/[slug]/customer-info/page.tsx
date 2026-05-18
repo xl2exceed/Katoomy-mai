@@ -776,7 +776,7 @@ export default function CustomerInfoPage() {
           <div className="mt-4 px-4 py-3 bg-violet-50 border border-violet-300 rounded-xl flex items-start gap-2">
             <span className="text-lg leading-none mt-0.5">🎉</span>
             <p className="text-violet-800 text-sm font-medium">
-              Your partner discount <span className="font-bold">{networkOffer.title}</span> is applied — see the discounted price above.
+              Your <span className="font-bold">Katoomy Network discount</span> is applied — see the discounted price above.
             </p>
           </div>
         )}
