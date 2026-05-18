@@ -154,6 +154,12 @@ export default function MobileMenuPage() {
     //   description: "Full dashboard",
     // },
     {
+      title: "Network",
+      icon: "🤝",
+      href: "/admin/mobile/network",
+      description: "Partner with local businesses",
+    },
+    {
       title: "Notifications",
       icon: "🔔",
       href: "/admin/mobile/notifications",
