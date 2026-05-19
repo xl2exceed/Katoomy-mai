@@ -594,7 +594,7 @@ function BusinessOverview({ detail, pushView }: { detail: BusinessDetail; pushVi
         {/* Referrals */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-white">Referrals</h3>
+            <h3 className="font-bold text-white">Customer Referrals</h3>
             <select value={referralDays} onChange={(e) => setReferralDays(Number(e.target.value))}
               className="bg-gray-800 text-gray-300 text-xs rounded px-2 py-1 focus:outline-none">
               <option value={7}>Last 7d</option>

@@ -31,9 +31,9 @@ export async function GET() {
   ] = await Promise.all([
     supabaseAdmin.from("network_settings").select("enabled, referral_reward_cents").eq("business_id", businessId).maybeSingle(),
     supabaseAdmin.from("network_offers").select("id, title, offer_type, amount, created_at").eq("business_id", businessId).order("created_at", { ascending: false }),
-    supabaseAdmin.from("network_partners").select("id").eq("business_id", businessId).eq("status", "active"),
-    supabaseAdmin.from("network_referrals").select("id, status, reward_cents, created_at, network_offer_id").eq("referring_business_id", businessId),
-    supabaseAdmin.from("network_referrals").select("id, status, discount_applied_cents, created_at, network_offer_id").eq("receiving_business_id", businessId),
+    supabaseAdmin.from("network_partners").select("id", { count: "exact", head: true }).or(`business_a_id.eq.${businessId},business_b_id.eq.${businessId}`).eq("status", "active"),
+    supabaseAdmin.from("network_referrals").select("id, status, reward_cents, created_at, offer_id").eq("referring_business_id", businessId),
+    supabaseAdmin.from("network_referrals").select("id, status, discount_applied_cents, created_at, offer_id").eq("receiving_business_id", businessId),
     supabaseAdmin.from("network_credits").select("amount_cents").eq("business_id", businessId),
     supabaseAdmin.from("network_direct_referrals").select("id, status, created_at").eq("sending_business_id", businessId),
     supabaseAdmin.from("network_direct_referrals").select("id, status, created_at").eq("receiving_business_id", businessId),
@@ -43,7 +43,7 @@ export async function GET() {
   // so usage = network_referrals where receiving_business_id = this business and offer matches
   const offerUsage = new Map<string, number>();
   (received ?? []).forEach((r) => {
-    if (r.network_offer_id) offerUsage.set(r.network_offer_id, (offerUsage.get(r.network_offer_id) || 0) + 1);
+    if (r.offer_id) offerUsage.set(r.offer_id, (offerUsage.get(r.offer_id) || 0) + 1);
   });
   const offersWithStats = (offers ?? []).map((o) => ({
     ...o,
