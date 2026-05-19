@@ -33,15 +33,16 @@ export async function GET() {
     supabaseAdmin.from("network_offers").select("id, title, offer_type, amount, created_at").eq("business_id", businessId).order("created_at", { ascending: false }),
     supabaseAdmin.from("network_partners").select("id").eq("business_id", businessId).eq("status", "active"),
     supabaseAdmin.from("network_referrals").select("id, status, reward_cents, created_at, network_offer_id").eq("referring_business_id", businessId),
-    supabaseAdmin.from("network_referrals").select("id, status, discount_applied_cents, created_at").eq("receiving_business_id", businessId),
+    supabaseAdmin.from("network_referrals").select("id, status, discount_applied_cents, created_at, network_offer_id").eq("receiving_business_id", businessId),
     supabaseAdmin.from("network_credits").select("amount_cents").eq("business_id", businessId),
     supabaseAdmin.from("network_direct_referrals").select("id, status, created_at").eq("sending_business_id", businessId),
     supabaseAdmin.from("network_direct_referrals").select("id, status, created_at").eq("receiving_business_id", businessId),
   ]);
 
-  // Per-offer usage stats
+  // Per-offer usage stats — count from the received side: offers belong to this business,
+  // so usage = network_referrals where receiving_business_id = this business and offer matches
   const offerUsage = new Map<string, number>();
-  (sent ?? []).forEach((r) => {
+  (received ?? []).forEach((r) => {
     if (r.network_offer_id) offerUsage.set(r.network_offer_id, (offerUsage.get(r.network_offer_id) || 0) + 1);
   });
   const offersWithStats = (offers ?? []).map((o) => ({

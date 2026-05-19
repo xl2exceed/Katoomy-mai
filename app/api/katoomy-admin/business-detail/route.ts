@@ -171,7 +171,7 @@ export async function GET(req: NextRequest) {
 
     supabaseAdmin
       .from("network_referrals")
-      .select("id, status")
+      .select("id, status, network_offer_id")
       .eq("receiving_business_id", businessId),
 
     supabaseAdmin
@@ -196,7 +196,7 @@ export async function GET(req: NextRequest) {
   const networkOfferSent = networkSentResult.data || [];
   const networkOfferReceived = networkReceivedResult.data || [];
   const networkOfferUsage = new Map<string, number>();
-  networkOfferSent.forEach((r) => {
+  networkOfferReceived.forEach((r) => {
     if (r.network_offer_id) networkOfferUsage.set(r.network_offer_id, (networkOfferUsage.get(r.network_offer_id) || 0) + 1);
   });
   const networkOffers = (networkOffersResult.data || []).map((o) => ({
