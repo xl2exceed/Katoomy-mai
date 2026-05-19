@@ -5,7 +5,7 @@ interface PartnerOffer {
   amount: number;
   partnerName: string;
   partnerSlug: string;
-  qrDataUrl: string;
+  claimUrl: string;
 }
 
 interface ReceiptTemplateData {
@@ -30,21 +30,22 @@ export function receiptEmailHtml(data: ReceiptTemplateData): string {
 
   const offersHtml = partnerOffers.length === 0 ? "" : `
     <tr><td style="padding:32px 0 0;">
-      <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;color:#111827;">Exclusive Partner Offers</h2>
-      <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">Scan a QR code to redeem at any of these partner businesses.</p>
+      <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;color:#111827;">Exclusive Partner Discounts</h2>
+      <p style="margin:0 0 6px;font-size:13px;color:#374151;">As a thank-you for your visit, you've unlocked these discounts at partner businesses in the Katoomy network.</p>
+      <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">Tap any offer to add it to your Katoomy app. Offers are valid for <strong>15 days</strong>.</p>
       <table width="100%" cellpadding="0" cellspacing="0">
         ${partnerOffers.map((o) => `
         <tr>
-          <td style="padding:16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:12px;display:block;">
+          <td style="padding:16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;display:block;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="vertical-align:middle;padding-right:16px;">
+                <td style="vertical-align:middle;">
                   <p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111827;">${o.partnerName}</p>
-                  <p style="margin:0 0 4px;font-size:16px;font-weight:800;color:#2563eb;">${formatOffer(o)}</p>
-                  <p style="margin:0;font-size:12px;color:#6b7280;">${o.title}</p>
-                </td>
-                <td style="text-align:right;vertical-align:middle;white-space:nowrap;">
-                  <img src="${o.qrDataUrl}" width="90" height="90" alt="QR code for ${o.partnerName}" style="display:block;border-radius:6px;" />
+                  <p style="margin:0 0 4px;font-size:18px;font-weight:800;color:#2563eb;">${formatOffer(o)}</p>
+                  <p style="margin:0 0 12px;font-size:12px;color:#6b7280;">${o.title}</p>
+                  <a href="${o.claimUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;padding:10px 20px;border-radius:50px;">
+                    Claim in Katoomy App →
+                  </a>
                 </td>
               </tr>
             </table>
@@ -53,6 +54,7 @@ export function receiptEmailHtml(data: ReceiptTemplateData): string {
         <tr><td style="height:10px;"></td></tr>
         `).join("")}
       </table>
+      <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;text-align:center;">Don't have the Katoomy app? Tap any offer to get started.</p>
     </td></tr>
   `;
 

@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getResend, FROM } from "@/lib/email/resend";
 import { receiptEmailHtml } from "@/lib/email/templates/receipt";
-import QRCode from "qrcode";
+import { createHubCode } from "@/lib/hubCode";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.katoomy.com";
 
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       .from("bookings")
       .select(`
         id, total_price_cents, start_ts,
-        customers(full_name, email),
+        customers(id, full_name, email, phone),
         businesses(id, name, slug),
         services(name)
       `)
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
-    const customer = booking.customers as unknown as { full_name: string | null; email: string | null } | null;
+    const customer = booking.customers as unknown as { id: string; full_name: string | null; email: string | null; phone: string } | null;
     const business = booking.businesses as unknown as { id: string; name: string; slug: string } | null;
     const service = booking.services as unknown as { name: string } | null;
 
@@ -83,8 +83,8 @@ export async function POST(req: NextRequest) {
     );
 
     let partnerOffers: Awaited<ReturnType<typeof buildPartnerOffers>> = [];
-    if (partnerIds.length > 0) {
-      partnerOffers = await buildPartnerOffers(partnerIds, business!.id);
+    if (partnerIds.length > 0 && customer.phone) {
+      partnerOffers = await buildPartnerOffers(partnerIds, business!.id, customer.phone, customer.id);
     }
 
     const appointmentDate = new Date(booking.start_ts).toLocaleString("en-US", {
@@ -126,7 +126,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function buildPartnerOffers(partnerIds: string[], myBusinessId: string) {
+async function buildPartnerOffers(
+  partnerIds: string[],
+  myBusinessId: string,
+  customerPhone: string,
+  customerId: string,
+) {
   const { data: offers } = await supabaseAdmin
     .from("network_offers")
     .select("id, title, offer_type, amount, business_id, businesses(name, slug)")
@@ -138,8 +143,19 @@ async function buildPartnerOffers(partnerIds: string[], myBusinessId: string) {
   return Promise.all(
     offers.map(async (o) => {
       const biz = o.businesses as unknown as { name: string; slug: string } | null;
-      const url = `${APP_URL}/${biz?.slug}?net_ref=${o.id}&via=${myBusinessId}`;
-      const qrDataUrl = await QRCode.toDataURL(url, { width: 180, margin: 1 });
+      let claimUrl = `${APP_URL}/hub`;
+      try {
+        const code = await createHubCode({
+          phone: customerPhone,
+          customerId,
+          businessSlug: biz?.slug || "",
+          netRefOfferId: o.id,
+          netRefVia: myBusinessId,
+        });
+        claimUrl = `${APP_URL}/hub/add?c=${code}`;
+      } catch (err) {
+        console.error("Failed to create hub code for offer", o.id, err);
+      }
       return {
         id: o.id,
         title: o.title,
@@ -147,7 +163,7 @@ async function buildPartnerOffers(partnerIds: string[], myBusinessId: string) {
         amount: o.amount,
         partnerName: biz?.name || "Partner",
         partnerSlug: biz?.slug || "",
-        qrDataUrl,
+        claimUrl,
       };
     })
   );

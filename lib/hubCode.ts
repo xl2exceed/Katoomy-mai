@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 // Unambiguous characters — no 0/O or 1/I confusion
 const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 8;
-const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const TTL_MS = 15 * 24 * 60 * 60 * 1000; // 15 days
 
 function generateCode(): string {
   const bytes = randomBytes(CODE_LENGTH);
