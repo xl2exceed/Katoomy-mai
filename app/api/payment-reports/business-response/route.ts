@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { createStaffClient } from "@/lib/supabase/staff-client";
+import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 
 export async function POST(req: NextRequest) {
   // Support both admin (cookie) and staff (Bearer token) auth
@@ -160,6 +161,8 @@ export async function POST(req: NextRequest) {
       fee_should_charge: true,
       resolved_at: now.toISOString(),
     }).eq("id", reportId);
+
+    try { await sendReceiptEmail(report.booking_id); } catch (err) { console.error("[receipt] Failed:", err); }
 
   } else {
     // ── Business says unpaid — send SMS to customer ───────────────────

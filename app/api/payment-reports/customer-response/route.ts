@@ -115,6 +115,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Send receipt immediately when customer claims payment
+  try { await sendReceiptEmail(bookingId); } catch (err) { console.error("[receipt] Failed:", err); }
+
   // Run resolver — for qr flow this will immediately confirm the payment
   await resolveReport(report.id);
 
@@ -177,7 +180,6 @@ async function resolveReport(reportId: string) {
       await awardLoyaltyOnPayment(report.business_id, report.customer_id, report.booking_id);
     }
 
-    try { await sendReceiptEmail(report.booking_id); } catch (err) { console.error("[receipt] Failed:", err); }
   }
 
   // If fee should charge, record in alternative_payment_ledger for monthly billing.
