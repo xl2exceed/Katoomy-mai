@@ -206,8 +206,10 @@ export async function GET(req: NextRequest) {
   const networkStats = {
     enabled: networkSettingsResult.data?.enabled ?? false,
     active_partners: networkPartnersResult.count ?? 0,
-    customers_sent: (networkSentResult.data?.length ?? 0) + (networkDirectSentResult.count ?? 0),
-    customers_received: (networkReceivedResult.data?.length ?? 0) + (networkDirectReceivedResult.count ?? 0),
+    customers_sent: networkOfferSent.length + (networkDirectSentResult.count ?? 0),
+    customers_received: networkOfferReceived.length + (networkDirectReceivedResult.count ?? 0),
+    offer_link_received: networkOfferReceived.length,
+    direct_received: networkDirectReceivedResult.count ?? 0,
     referral_earnings_cents: networkOfferSent.reduce((s, r) => s + (r.reward_cents ?? 0), 0),
     completed_received: networkOfferReceived.filter((r) => r.status !== "pending").length,
     offers: networkOffers,

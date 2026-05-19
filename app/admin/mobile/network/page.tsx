@@ -36,7 +36,8 @@ interface Partner {
 interface OverviewStats {
   customers_sent: number;
   customers_received: number;
-  net_gain: number;
+  offer_link_received: number;
+  direct_received: number;
   referral_earnings_cents: number;
   total_credits_cents: number;
   completed_received: number;
@@ -609,7 +610,7 @@ export default function MobileNetworkPage() {
               {[
                 { label: "Sent", value: overview?.customers_sent ?? 0, icon: "📤", color: "text-blue-600" },
                 { label: "Received", value: overview?.customers_received ?? 0, icon: "📥", color: "text-green-600" },
-                { label: "Net Gain", value: overview ? (overview.net_gain >= 0 ? `+${overview.net_gain}` : String(overview.net_gain)) : "0", icon: "📊", color: overview && overview.net_gain < 0 ? "text-red-500" : "text-green-600" },
+                { label: "Offer Links", value: overview?.offer_link_received ?? 0, icon: "🔗", color: "text-purple-600" },
                 { label: "Credits Earned", value: cents(overview?.referral_earnings_cents ?? 0), icon: "💰", color: "text-purple-600" },
                 { label: "Total Credits", value: cents(overview?.total_credits_cents ?? 0), icon: "🏦", color: "text-indigo-600" },
                 { label: "Completed", value: overview?.completed_received ?? 0, icon: "✅", color: "text-teal-600" },

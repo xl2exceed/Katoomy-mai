@@ -40,7 +40,8 @@ interface Partner {
 interface OverviewStats {
   customers_sent: number;
   customers_received: number;
-  net_gain: number;
+  offer_link_received: number;
+  direct_received: number;
   referral_earnings_cents: number;
   total_credits_cents: number;
   completed_received: number;
@@ -705,7 +706,7 @@ export default function NetworkPage() {
             {[
               { label: "Customers Sent", value: overview?.customers_sent ?? 0, icon: "📤", color: "text-blue-600", bg: "bg-blue-50" },
               { label: "Customers Received", value: overview?.customers_received ?? 0, icon: "📥", color: "text-green-600", bg: "bg-green-50" },
-              { label: "Net Gain", value: overview ? (overview.net_gain >= 0 ? `+${overview.net_gain}` : String(overview.net_gain)) : "0", icon: "📊", color: overview && overview.net_gain >= 0 ? "text-green-600" : "text-red-500", bg: overview && overview.net_gain >= 0 ? "bg-green-50" : "bg-red-50" },
+              { label: "Offer Links", value: overview?.offer_link_received ?? 0, icon: "🔗", color: "text-purple-600", bg: "bg-purple-50" },
               { label: "Credits Earned", value: cents(overview?.referral_earnings_cents ?? 0), icon: "💰", color: "text-purple-600", bg: "bg-purple-50" },
               { label: "Total Credits", value: cents(overview?.total_credits_cents ?? 0), icon: "🏦", color: "text-indigo-600", bg: "bg-indigo-50" },
               { label: "Completed Bookings", value: overview?.completed_received ?? 0, icon: "✅", color: "text-teal-600", bg: "bg-teal-50" },

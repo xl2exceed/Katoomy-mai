@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const businessId = req.nextUrl.searchParams.get("businessId");
   if (!businessId) return NextResponse.json({ error: "Missing businessId" }, { status: 400 });
 
-  const [{ data: sent }, { data: received }, { data: credits }] = await Promise.all([
+  const [{ data: offerSent }, { data: offerReceived }, { data: credits }, { data: directSent }, { data: directReceived }] = await Promise.all([
     supabaseAdmin.from("network_referrals")
       .select("id, status, reward_cents")
       .eq("referring_business_id", businessId),
@@ -20,18 +20,27 @@ export async function GET(req: NextRequest) {
       .eq("receiving_business_id", businessId),
     supabaseAdmin.from("network_credits")
       .select("amount_cents").eq("business_id", businessId),
+    supabaseAdmin.from("network_direct_referrals")
+      .select("id, status")
+      .eq("sending_business_id", businessId),
+    supabaseAdmin.from("network_direct_referrals")
+      .select("id, status")
+      .eq("receiving_business_id", businessId),
   ]);
 
-  const sentCount = sent?.length ?? 0;
-  const receivedCount = received?.length ?? 0;
-  const referralEarningsCents = (sent ?? []).reduce((s, r) => s + (r.reward_cents ?? 0), 0);
+  const offerSentCount = offerSent?.length ?? 0;
+  const offerReceivedCount = offerReceived?.length ?? 0;
+  const directSentCount = directSent?.length ?? 0;
+  const directReceivedCount = directReceived?.length ?? 0;
+  const referralEarningsCents = (offerSent ?? []).reduce((s, r) => s + (r.reward_cents ?? 0), 0);
   const totalCreditsCents = (credits ?? []).reduce((s, c) => s + (c.amount_cents ?? 0), 0);
-  const completedReceived = (received ?? []).filter((r) => r.status !== "pending").length;
+  const completedReceived = (offerReceived ?? []).filter((r) => r.status !== "pending").length;
 
   return NextResponse.json({
-    customers_sent: sentCount,
-    customers_received: receivedCount,
-    net_gain: receivedCount - sentCount,
+    customers_sent: offerSentCount + directSentCount,
+    customers_received: offerReceivedCount + directReceivedCount,
+    offer_link_received: offerReceivedCount,
+    direct_received: directReceivedCount,
     referral_earnings_cents: referralEarningsCents,
     total_credits_cents: totalCreditsCents,
     completed_received: completedReceived,

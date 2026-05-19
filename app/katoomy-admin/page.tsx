@@ -51,6 +51,8 @@ interface BusinessDetail {
     active_partners: number;
     customers_sent: number;
     customers_received: number;
+    offer_link_received: number;
+    direct_received: number;
     referral_earnings_cents: number;
     offers: Array<{ id: string; title: string; offer_type: string; amount: number; usage_count: number }>;
   } | null;
@@ -617,6 +619,8 @@ function BusinessOverview({ detail, pushView }: { detail: BusinessDetail; pushVi
               <div className="flex justify-between"><span className="text-gray-400">Active partners</span><span className="text-white font-medium">{network.active_partners}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Customers sent to partners</span><span className="text-white font-medium">{network.customers_sent}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">New customers received</span><span className="text-green-400 font-medium">{network.customers_received}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">— via offer link</span><span className="text-gray-300 font-medium">{network.offer_link_received}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">— via direct referral</span><span className="text-gray-300 font-medium">{network.direct_received}</span></div>
               {network.referral_earnings_cents > 0 && <div className="flex justify-between"><span className="text-gray-400">Referral earnings</span><span className="text-green-400 font-medium">{fmt$(network.referral_earnings_cents / 100)}</span></div>}
               {network.offers.length > 0 && (
                 <div className="pt-2 border-t border-gray-800 mt-2">
