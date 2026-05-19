@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -86,16 +87,7 @@ export async function POST(req: NextRequest) {
     .update({ payment_status: "paid", updated_at: now.toISOString() })
     .eq("id", bookingId);
 
-  // Send receipt after payment is confirmed (non-fatal)
-  try {
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-receipt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingId }),
-    });
-  } catch (err) {
-    console.error("Failed to send receipt email (non-fatal):", err);
-  }
+  try { await sendReceiptEmail(bookingId); } catch (err) { console.error("[receipt] Failed:", err); }
 
   return NextResponse.json({
     success: true,

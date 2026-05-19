@@ -4,6 +4,7 @@ import { getStripeForAccount } from "@/lib/stripe/getStripeForAccount";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushNotification } from "@/lib/webpush";
 import { ensureUniqueReferralCode } from "@/lib/utils/generateReferralCode";
+import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -587,18 +588,7 @@ export async function POST(req: NextRequest) {
       console.error("Failed to schedule reminder (non-fatal):", reminderErr);
     }
 
-    // Auto-send receipt email (non-fatal)
-    if (customerEmail) {
-      try {
-        await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-receipt`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookingId }),
-        });
-      } catch (err) {
-        console.error("Failed to send receipt email (non-fatal):", err);
-      }
-    }
+    try { await sendReceiptEmail(bookingId); } catch (err) { console.error("[receipt] Failed:", err); }
 
     return NextResponse.json({ bookingId });
   } catch (err) {

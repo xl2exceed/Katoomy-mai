@@ -5,6 +5,7 @@
 // and awards loyalty points to the customer.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 
 async function awardLoyaltyOnPayment(businessId: string, customerId: string, bookingId: string) {
   const { data: loyalty } = await supabaseAdmin
@@ -144,16 +145,7 @@ export async function POST(req: NextRequest) {
       await awardLoyaltyOnPayment(staff.business_id, resolvedCustomerId, resolvedBookingId);
     }
 
-    // Send receipt after payment is confirmed (non-fatal)
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-receipt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId: resolvedBookingId }),
-      });
-    } catch (err) {
-      console.error("Failed to send receipt email (non-fatal):", err);
-    }
+    try { await sendReceiptEmail(resolvedBookingId); } catch (err) { console.error("[receipt] Failed:", err); }
   }
 
   return NextResponse.json({ success: true });

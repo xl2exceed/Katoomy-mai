@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { sendReceiptEmail } from '@/lib/email/sendReceipt';
 
 // POST /api/admin/mark-booking-paid
 // Marks a booking as paid (cash), logs to alternative_payment_ledger, awards loyalty points.
@@ -140,16 +141,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Send receipt after payment is confirmed (non-fatal)
-  try {
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-receipt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingId }),
-    });
-  } catch (err) {
-    console.error("Failed to send receipt email (non-fatal):", err);
-  }
+  try { await sendReceiptEmail(bookingId); } catch (err) { console.error("[receipt] Failed:", err); }
 
   return NextResponse.json({ success: true });
 }

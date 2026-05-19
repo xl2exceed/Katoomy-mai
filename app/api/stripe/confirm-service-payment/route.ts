@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripeForAccount } from "@/lib/stripe/getStripeForAccount";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -239,16 +240,7 @@ export async function POST(req: NextRequest) {
     // Award loyalty points now that payment is confirmed
     await awardLoyaltyOnPayment(supabaseAdmin, businessId, customerId, bookingId);
 
-    // Send receipt after payment is confirmed (non-fatal)
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-receipt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId }),
-      });
-    } catch (err) {
-      console.error("Failed to send receipt email (non-fatal):", err);
-    }
+    try { await sendReceiptEmail(bookingId); } catch (err) { console.error("[receipt] Failed:", err); }
 
     // Return referral code so pay-success page can show referral prompt
     const { data: customer } = await supabaseAdmin
