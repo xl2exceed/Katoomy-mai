@@ -3,7 +3,6 @@
 // For source=qr (business-initiated take-payment), auto-confirms immediately.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 
 async function awardLoyaltyOnPayment(businessId: string, customerId: string, bookingId: string) {
   const { data: loyalty } = await supabaseAdmin
@@ -114,9 +113,6 @@ export async function POST(req: NextRequest) {
     console.error("[customer-response] Error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  // Send receipt immediately when customer claims payment
-  try { await sendReceiptEmail(bookingId); } catch (err) { console.error("[receipt] Failed:", err); }
 
   // Run resolver — for qr flow this will immediately confirm the payment
   await resolveReport(report.id);
