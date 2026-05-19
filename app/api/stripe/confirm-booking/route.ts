@@ -587,6 +587,19 @@ export async function POST(req: NextRequest) {
       console.error("Failed to schedule reminder (non-fatal):", reminderErr);
     }
 
+    // Auto-send receipt email (non-fatal)
+    if (customerEmail) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-receipt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId }),
+        });
+      } catch (err) {
+        console.error("Failed to send receipt email (non-fatal):", err);
+      }
+    }
+
     return NextResponse.json({ bookingId });
   } catch (err) {
     console.error("Confirm booking error:", err);

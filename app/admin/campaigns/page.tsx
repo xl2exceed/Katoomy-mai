@@ -50,7 +50,15 @@ export default function CampaignsPage() {
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ simulated: boolean; sentCount: number; failedCount: number } | null>(null);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<"builder" | "history">("builder");
+  const [activeTab, setActiveTab] = useState<"builder" | "history" | "email">("builder");
+
+  // Email campaign state
+  const [appInstallDiscount, setAppInstallDiscount] = useState("");
+  const [appInstallSending, setAppInstallSending] = useState(false);
+  const [appInstallResult, setAppInstallResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [smsOptinSending, setSmsOptinSending] = useState(false);
+  const [smsOptinResult, setSmsOptinResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [emailError, setEmailError] = useState("");
 
   const loadCampaigns = useCallback(async () => {
     const res = await fetch("/api/admin/campaigns");
@@ -127,25 +135,137 @@ export default function CampaignsPage() {
     setSendResult(null); setError("");
   }
 
+  async function handleSendAppInstall() {
+    setEmailError("");
+    setAppInstallSending(true);
+    setAppInstallResult(null);
+    const res = await fetch("/api/email/campaign/app-install", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ discountText: appInstallDiscount.trim() || undefined }),
+    });
+    const data = await res.json();
+    setAppInstallSending(false);
+    if (!res.ok) { setEmailError(data.error || "Failed"); return; }
+    setAppInstallResult(data);
+  }
+
+  async function handleSendSmsOptin() {
+    setEmailError("");
+    setSmsOptinSending(true);
+    setSmsOptinResult(null);
+    const res = await fetch("/api/email/campaign/sms-optin", { method: "POST" });
+    const data = await res.json();
+    setSmsOptinSending(false);
+    if (!res.ok) { setEmailError(data.error || "Failed"); return; }
+    setSmsOptinResult(data);
+  }
+
   const charsLeft = MAX_SMS_LENGTH - messageTemplate.length;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">SMS Campaigns</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Campaigns</h1>
         <div className="flex gap-2">
-          {(["builder", "history"] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition ${
-                activeTab === tab ? "bg-purple-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}>
-              {tab === "builder" ? "New Campaign" : `History (${campaigns.length})`}
-            </button>
-          ))}
+          <button onClick={() => setActiveTab("builder")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition ${
+              activeTab === "builder" ? "bg-purple-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}>
+            New SMS
+          </button>
+          <button onClick={() => setActiveTab("history")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition ${
+              activeTab === "history" ? "bg-purple-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}>
+            SMS History ({campaigns.length})
+          </button>
+          <button onClick={() => setActiveTab("email")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition ${
+              activeTab === "email" ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}>
+            Email Campaigns
+          </button>
         </div>
       </div>
 
-      {activeTab === "builder" ? (
+      {activeTab === "email" ? (
+        <div className="space-y-6">
+          {emailError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{emailError}</div>
+          )}
+
+          {/* App Install Campaign */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-start gap-4">
+              <div className="text-3xl">📱</div>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-gray-900 mb-1">App Install Campaign</h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Email customers who haven&apos;t installed the app. Optionally include a discount to encourage installs.
+                </p>
+                <div className="flex items-center gap-3 mb-4">
+                  <input
+                    value={appInstallDiscount}
+                    onChange={(e) => setAppInstallDiscount(e.target.value)}
+                    placeholder="e.g. 10% off your next visit (optional)"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {appInstallResult ? (
+                  <div className="flex items-center gap-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                    <div className="text-2xl">✅</div>
+                    <div>
+                      <p className="font-semibold text-green-800">Campaign sent!</p>
+                      <p className="text-sm text-green-700">{appInstallResult.sent} sent · {appInstallResult.failed} failed · {appInstallResult.total} total eligible</p>
+                    </div>
+                    <button onClick={() => setAppInstallResult(null)} className="ml-auto text-sm text-green-700 underline">Send Again</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSendAppInstall}
+                    disabled={appInstallSending}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50"
+                  >
+                    {appInstallSending ? "Sending…" : "Send App Install Emails"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* SMS Opt-in Campaign */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-start gap-4">
+              <div className="text-3xl">💬</div>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-gray-900 mb-1">SMS Opt-in Campaign</h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Email customers who haven&apos;t opted into SMS yet, giving them a chance to enable text reminders and offers.
+                </p>
+                {smsOptinResult ? (
+                  <div className="flex items-center gap-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                    <div className="text-2xl">✅</div>
+                    <div>
+                      <p className="font-semibold text-green-800">Campaign sent!</p>
+                      <p className="text-sm text-green-700">{smsOptinResult.sent} sent · {smsOptinResult.failed} failed · {smsOptinResult.total} total eligible</p>
+                    </div>
+                    <button onClick={() => setSmsOptinResult(null)} className="ml-auto text-sm text-green-700 underline">Send Again</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSendSmsOptin}
+                    disabled={smsOptinSending}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50"
+                  >
+                    {smsOptinSending ? "Sending…" : "Send SMS Opt-in Emails"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : activeTab === "builder" ? (
         sendResult ? (
           // Success state
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-4">

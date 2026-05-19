@@ -69,6 +69,8 @@ export default function BookingsPage() {
 
   const [businessId, setBusinessId] = useState("");
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
+  const [receiptSending, setReceiptSending] = useState<string | null>(null);
+  const [receiptMsg, setReceiptMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null);
 
   const supabase = createClient();
 
@@ -358,6 +360,24 @@ export default function BookingsPage() {
     }
   };
 
+  const handleSendReceipt = async (bookingId: string) => {
+    setReceiptSending(bookingId);
+    setReceiptMsg(null);
+    const res = await fetch("/api/email/send-receipt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId, isResend: true }),
+    });
+    const data = await res.json();
+    setReceiptSending(null);
+    setReceiptMsg({
+      id: bookingId,
+      ok: res.ok,
+      text: res.ok ? "Receipt sent!" : (data.error || "Failed to send"),
+    });
+    setTimeout(() => setReceiptMsg(null), 4000);
+  };
+
   const navigateToDate = (d: Date) => {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     localStorage.setItem(STORAGE_KEY, key);
@@ -628,6 +648,19 @@ export default function BookingsPage() {
                         </span>
 
                         <div className="flex flex-col gap-2">
+                          {booking.customers.email && (
+                            <button
+                              onClick={() => handleSendReceipt(booking.id)}
+                              disabled={receiptSending === booking.id}
+                              className="px-3 py-1.5 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition disabled:opacity-50"
+                            >
+                              {receiptSending === booking.id
+                                ? "Sending…"
+                                : receiptMsg?.id === booking.id
+                                  ? receiptMsg.text
+                                  : "Send Receipt"}
+                            </button>
+                          )}
                           {booking.payment_status === "paid" && (
                             <button
                               onClick={() => {
