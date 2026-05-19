@@ -1,8 +1,7 @@
 interface PartnerOffer {
   id: string;
   title: string;
-  description: string | null;
-  offer_type: "percent_off" | "dollar_off" | "free_service";
+  offer_type: "percent_off" | "dollar_off";
   amount: number;
   partnerName: string;
   partnerSlug: string;
@@ -42,7 +41,7 @@ export function receiptEmailHtml(data: ReceiptTemplateData): string {
                 <td style="vertical-align:middle;padding-right:16px;">
                   <p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111827;">${o.partnerName}</p>
                   <p style="margin:0 0 4px;font-size:16px;font-weight:800;color:#2563eb;">${formatOffer(o)}</p>
-                  <p style="margin:0;font-size:12px;color:#6b7280;">${o.title}${o.description ? ` — ${o.description}` : ""}</p>
+                  <p style="margin:0;font-size:12px;color:#6b7280;">${o.title}</p>
                 </td>
                 <td style="text-align:right;vertical-align:middle;white-space:nowrap;">
                   <img src="${o.qrDataUrl}" width="90" height="90" alt="QR code for ${o.partnerName}" style="display:block;border-radius:6px;" />

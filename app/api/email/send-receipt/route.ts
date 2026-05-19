@@ -63,8 +63,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Customer has no email address" }, { status: 422 });
     }
 
+    // Fetch platform fee mode — add $1 if fee is passed to customer
+    const { data: cashSettings } = await supabaseAdmin
+      .from("cashapp_settings")
+      .select("fee_mode")
+      .eq("business_id", business!.id)
+      .maybeSingle();
+    const platformFeeCents = cashSettings?.fee_mode === "pass_to_customer" ? 100 : 0;
+
     // Fetch active partner offers for this business
-    // Partners = businesses connected via network_partners, offers from those partners
     const { data: partners } = await supabaseAdmin
       .from("network_partners")
       .select("business_a_id, business_b_id")
@@ -93,7 +100,7 @@ export async function POST(req: NextRequest) {
       customerName: customer.full_name || "Valued Customer",
       businessName: business!.name,
       serviceName: service?.name || "Service",
-      priceCents: booking.total_price_cents,
+      priceCents: booking.total_price_cents + platformFeeCents,
       appointmentDate,
       bookingId,
       partnerOffers,
@@ -122,7 +129,7 @@ export async function POST(req: NextRequest) {
 async function buildPartnerOffers(partnerIds: string[], myBusinessId: string) {
   const { data: offers } = await supabaseAdmin
     .from("network_offers")
-    .select("id, title, description, offer_type, amount, business_id, businesses(name, slug)")
+    .select("id, title, offer_type, amount, business_id, businesses(name, slug)")
     .in("business_id", partnerIds)
     .eq("active", true);
 
@@ -136,8 +143,7 @@ async function buildPartnerOffers(partnerIds: string[], myBusinessId: string) {
       return {
         id: o.id,
         title: o.title,
-        description: o.description,
-        offer_type: o.offer_type as "percent_off" | "dollar_off" | "free_service",
+        offer_type: o.offer_type as "percent_off" | "dollar_off",
         amount: o.amount,
         partnerName: biz?.name || "Partner",
         partnerSlug: biz?.slug || "",
