@@ -609,7 +609,7 @@ export default function MobileNetworkPage() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: "Sent", value: overview?.customers_sent ?? 0, icon: "📤", color: "text-blue-600" },
-                { label: "Received", value: overview?.customers_received ?? 0, icon: "📥", color: "text-green-600" },
+                { label: "Received", value: overview?.direct_received ?? 0, icon: "📥", color: "text-green-600" },
                 { label: "Offer Links", value: overview?.offer_link_received ?? 0, icon: "🔗", color: "text-purple-600" },
                 { label: "Credits Earned", value: cents(overview?.referral_earnings_cents ?? 0), icon: "💰", color: "text-purple-600" },
                 { label: "Total Credits", value: cents(overview?.total_credits_cents ?? 0), icon: "🏦", color: "text-indigo-600" },

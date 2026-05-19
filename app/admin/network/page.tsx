@@ -705,7 +705,7 @@ export default function NetworkPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
               { label: "Customers Sent", value: overview?.customers_sent ?? 0, icon: "📤", color: "text-blue-600", bg: "bg-blue-50" },
-              { label: "Customers Received", value: overview?.customers_received ?? 0, icon: "📥", color: "text-green-600", bg: "bg-green-50" },
+              { label: "Customers Received", value: overview?.direct_received ?? 0, icon: "📥", color: "text-green-600", bg: "bg-green-50" },
               { label: "Offer Links", value: overview?.offer_link_received ?? 0, icon: "🔗", color: "text-purple-600", bg: "bg-purple-50" },
               { label: "Credits Earned", value: cents(overview?.referral_earnings_cents ?? 0), icon: "💰", color: "text-purple-600", bg: "bg-purple-50" },
               { label: "Total Credits", value: cents(overview?.total_credits_cents ?? 0), icon: "🏦", color: "text-indigo-600", bg: "bg-indigo-50" },
