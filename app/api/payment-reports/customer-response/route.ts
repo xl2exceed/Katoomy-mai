@@ -3,6 +3,7 @@
 // For source=qr (business-initiated take-payment), auto-confirms immediately.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 
 async function awardLoyaltyOnPayment(businessId: string, customerId: string, bookingId: string) {
   const { data: loyalty } = await supabaseAdmin
@@ -175,6 +176,8 @@ async function resolveReport(reportId: string) {
     if (report.business_id && report.customer_id) {
       await awardLoyaltyOnPayment(report.business_id, report.customer_id, report.booking_id);
     }
+
+    try { await sendReceiptEmail(report.booking_id); } catch (err) { console.error("[receipt] Failed:", err); }
   }
 
   // If fee should charge, record in alternative_payment_ledger for monthly billing.
