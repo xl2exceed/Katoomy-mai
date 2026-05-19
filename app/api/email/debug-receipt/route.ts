@@ -1,9 +1,11 @@
-// GET /api/email/debug-receipt?bookingId=<id>&send=1
+// GET /api/email/debug-receipt?bookingId=<id>&send=1&useUtil=1
 // Diagnostic endpoint — checks RESEND_API_KEY, customer email, and optionally sends a test.
+// useUtil=1 calls sendReceiptEmail() directly (same as payment routes); send=1 sends manually.
 // Protected by CRON_SECRET so it's not publicly callable.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getResend, FROM } from "@/lib/email/resend";
+import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
@@ -14,6 +16,7 @@ export async function GET(req: NextRequest) {
 
   const bookingId = req.nextUrl.searchParams.get("bookingId");
   const shouldSend = req.nextUrl.searchParams.get("send") === "1";
+  const useUtil = req.nextUrl.searchParams.get("useUtil") === "1";
 
   const result: Record<string, unknown> = {
     RESEND_API_KEY_set: !!process.env.RESEND_API_KEY,
@@ -75,6 +78,15 @@ export async function GET(req: NextRequest) {
       }
     } else if (shouldSend) {
       result.send_skipped_reason = "customer email is null";
+    }
+
+    if (useUtil) {
+      try {
+        await sendReceiptEmail(bookingId);
+        result.util_result = "sendReceiptEmail completed without throwing";
+      } catch (err: unknown) {
+        result.util_result = "sendReceiptEmail THREW: " + (err instanceof Error ? err.message : String(err));
+      }
     }
   }
 
