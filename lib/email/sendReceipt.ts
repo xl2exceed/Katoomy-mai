@@ -33,7 +33,7 @@ async function buildPartnerOffers(
         });
         claimUrl = `${APP_URL}/hub/add?c=${code}`;
       } catch (err) {
-        console.error("Failed to create hub code for offer", o.id, err);
+        console.error("[sendReceiptEmail] hub code error for offer", o.id, err);
       }
       return {
         id: o.id,
@@ -49,7 +49,9 @@ async function buildPartnerOffers(
 }
 
 export async function sendReceiptEmail(bookingId: string): Promise<void> {
-  const { data: booking } = await supabaseAdmin
+  console.log("[sendReceiptEmail] called for booking:", bookingId);
+
+  const { data: booking, error: bookingError } = await supabaseAdmin
     .from("bookings")
     .select(`
       id, total_price_cents, start_ts,
@@ -60,16 +62,35 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
     .eq("id", bookingId)
     .maybeSingle();
 
-  if (!booking) {
-    console.error("[sendReceiptEmail] Booking not found:", bookingId);
+  if (bookingError) {
+    console.error("[sendReceiptEmail] DB error:", bookingError);
     return;
   }
 
-  const customer = booking.customers as unknown as { id: string; full_name: string | null; email: string | null; phone: string } | null;
-  const business = booking.businesses as unknown as { id: string; name: string; slug: string } | null;
-  const service = booking.services as unknown as { name: string } | null;
+  if (!booking) {
+    console.error("[sendReceiptEmail] booking not found:", bookingId);
+    return;
+  }
 
-  if (!customer?.email) return; // No email on file — silently skip
+  // Supabase may return embedded relations as array or single object depending on schema
+  const rawCustomer = booking.customers;
+  const customerRaw = Array.isArray(rawCustomer) ? rawCustomer[0] : rawCustomer;
+  const customer = customerRaw as { id: string; full_name: string | null; email: string | null; phone: string } | null;
+
+  const rawBusiness = booking.businesses;
+  const businessRaw = Array.isArray(rawBusiness) ? rawBusiness[0] : rawBusiness;
+  const business = businessRaw as { id: string; name: string; slug: string } | null;
+
+  const rawService = booking.services;
+  const serviceRaw = Array.isArray(rawService) ? rawService[0] : rawService;
+  const service = serviceRaw as { name: string } | null;
+
+  console.log("[sendReceiptEmail] customer:", customer?.email ?? "NO EMAIL", "business:", business?.name ?? "NONE");
+
+  if (!customer?.email) {
+    console.log("[sendReceiptEmail] skipping — no email on file for booking", bookingId);
+    return;
+  }
 
   const { data: cashSettings } = await supabaseAdmin
     .from("cashapp_settings")
@@ -112,6 +133,8 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
     partnerOffers,
   });
 
+  console.log("[sendReceiptEmail] sending to:", customer.email);
+
   const resend = getResend();
   const { error } = await resend.emails.send({
     from: FROM,
@@ -122,5 +145,7 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
 
   if (error) {
     console.error("[sendReceiptEmail] Resend error:", error);
+  } else {
+    console.log("[sendReceiptEmail] sent successfully to:", customer.email);
   }
 }
