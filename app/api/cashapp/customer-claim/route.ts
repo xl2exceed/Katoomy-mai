@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { sendReceiptEmail } from "@/lib/email/sendReceipt";
 
 async function awardLoyaltyOnPayment(
   db: SupabaseClient,
@@ -153,6 +154,8 @@ export async function POST(req: NextRequest) {
 
   // Award loyalty points
   await awardLoyaltyOnPayment(supabaseAdmin, booking.business_id, booking.customer_id, bookingId);
+
+  try { await sendReceiptEmail(bookingId); } catch (err) { console.error("[receipt] Failed:", err); }
 
   return NextResponse.json({
     success: true,
