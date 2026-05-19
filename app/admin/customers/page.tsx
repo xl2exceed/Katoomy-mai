@@ -12,10 +12,31 @@ interface Customer {
   phone: string;
   email: string | null;
   created_at: string;
+  device_type: string | null;
+  app_installed: boolean | null;
   booking_count?: number;
   total_spent?: number;
   last_visit?: string;
   loyalty_points?: number;
+}
+
+function DeviceBadge({ type, installed }: { type: string | null; installed: boolean | null }) {
+  if (type === "ios") return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+      🍎 iOS{installed ? " · App" : ""}
+    </span>
+  );
+  if (type === "android") return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+      🤖 Android{installed ? " · App" : ""}
+    </span>
+  );
+  if (type === "desktop") return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+      💻 Desktop
+    </span>
+  );
+  return <span className="text-gray-300 text-xs">—</span>;
 }
 
 export default function CustomersPage() {
@@ -331,6 +352,9 @@ export default function CustomersPage() {
                             Last Visit
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Device
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
@@ -390,6 +414,9 @@ export default function CustomersPage() {
                                     customer.last_visit,
                                   ).toLocaleDateString()
                                 : "Never"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <DeviceBadge type={customer.device_type} installed={customer.app_installed} />
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               <button
