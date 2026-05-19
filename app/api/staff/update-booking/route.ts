@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getSmsTemplate, fillSmsTemplate } from '@/lib/smsTemplates';
+import { sendReceiptEmail } from '@/lib/email/sendReceipt';
 
 const VALID_STATUSES = ['requested', 'confirmed', 'completed', 'cancelled', 'no_show', 'incomplete', 'custom'];
 
@@ -155,6 +156,8 @@ export async function POST(req: NextRequest) {
         }).eq('id', referral.id);
       }
     }
+
+    try { await sendReceiptEmail(bookingId); } catch (err) { console.error("[receipt] Failed:", err); }
   }
 
   return NextResponse.json({ success: true });
