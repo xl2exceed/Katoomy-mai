@@ -124,7 +124,7 @@ export default function HubOffersPage() {
                       className="w-full py-2.5 text-white text-sm font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-60"
                       style={{ backgroundColor: color }}
                     >
-                      {isChecking ? "Checking…" : "Get It Now →"}
+                      {isChecking ? "Checking…" : "Get Discount Now"}
                     </button>
 
                     {/* Eligibility error */}

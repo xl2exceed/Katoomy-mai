@@ -220,6 +220,17 @@ export async function POST(req: NextRequest) {
 
     await awardLoyaltyOnPayment(businessId, customerId, cashBookingId);
 
+    // Send receipt after payment is confirmed (non-fatal)
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-receipt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: cashBookingId }),
+      });
+    } catch (err) {
+      console.error("Failed to send receipt email (non-fatal):", err);
+    }
+
     const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const feeAbsorbedBy = cashSettings?.fee_mode === "business_absorbs" ? "business" : "customer";
     const { data: existingLedger } = await supabaseAdmin

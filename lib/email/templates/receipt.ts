@@ -20,7 +20,7 @@ interface ReceiptTemplateData {
 
 function formatOffer(o: PartnerOffer): string {
   if (o.offer_type === "percent_off") return `${o.amount}% off`;
-  if (o.offer_type === "dollar_off") return `$${o.amount} off`;
+  if (o.offer_type === "dollar_off") return `$${(o.amount / 100).toFixed(2).replace(/\.00$/, "")} off`;
   return "Free service";
 }
 

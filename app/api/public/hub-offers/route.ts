@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     const biz = bizById[offer.business_id];
     const amountStr = offer.offer_type === "percent_off"
       ? `${offer.amount}% off`
-      : `$${offer.amount} off`;
+      : `$${(offer.amount / 100).toFixed(2).replace(/\.00$/, "")} off`;
     const minSpend = offer.min_spend_cents
       ? ` on orders over $${(offer.min_spend_cents / 100).toFixed(0)}`
       : "";
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
       primaryColor: biz.primary_color || "#7C3AED",
       title: offer.title,
       body: `Get ${amountStr}${minSpend} at ${biz.app_name || biz.name}`,
-      ctaLabel: "Get It Now",
+      ctaLabel: "Get Discount Now",
     };
   });
 
