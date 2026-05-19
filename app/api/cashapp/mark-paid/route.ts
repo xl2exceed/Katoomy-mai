@@ -86,6 +86,17 @@ export async function POST(req: NextRequest) {
     .update({ payment_status: "paid", updated_at: now.toISOString() })
     .eq("id", bookingId);
 
+  // Send receipt after payment is confirmed (non-fatal)
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-receipt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId }),
+    });
+  } catch (err) {
+    console.error("Failed to send receipt email (non-fatal):", err);
+  }
+
   return NextResponse.json({
     success: true,
     ledgerEntry,
