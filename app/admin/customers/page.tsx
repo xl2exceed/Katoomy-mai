@@ -83,17 +83,10 @@ export default function CustomersPage() {
         .order("created_at", { ascending: false });
 
       if (customersData) {
-        // Batch-fetch device info from customer_devices
-        const customerIds = customersData.map((c: { id: string }) => c.id);
-        const { data: deviceData } = await supabase
-          .from("customer_devices")
-          .select("customer_id, device_type, app_installed")
-          .in("customer_id", customerIds);
-
-        const deviceMap: Record<string, { device_type: string | null; app_installed: boolean | null }> = {};
-        for (const d of deviceData || []) {
-          deviceMap[d.customer_id] = { device_type: d.device_type, app_installed: d.app_installed };
-        }
+        // Fetch device info via server route (customer_devices has deny_all RLS)
+        const deviceRes = await fetch("/api/admin/customer-devices");
+        const deviceJson = deviceRes.ok ? await deviceRes.json() : { deviceMap: {} };
+        const deviceMap: Record<string, { device_type: string | null; app_installed: boolean | null }> = deviceJson.deviceMap || {};
 
         // Get booking counts and totals for each customer
         const enrichedCustomers = await Promise.all(
