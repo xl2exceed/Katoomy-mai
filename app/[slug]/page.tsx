@@ -12,7 +12,7 @@ export default async function CustomerLandingPage({
   searchParams,
 }: {
   params: { slug: string } | Promise<{ slug: string }>;
-  searchParams?: { ref?: string; net_ref?: string; biz_ref?: string; via?: string; sms_optin?: string; cid?: string } | Promise<{ ref?: string; net_ref?: string; biz_ref?: string; via?: string; sms_optin?: string; cid?: string }>;
+  searchParams?: { ref?: string; net_ref?: string; biz_ref?: string; via?: string; sms_optin?: string; cid?: string; v?: string } | Promise<{ ref?: string; net_ref?: string; biz_ref?: string; via?: string; sms_optin?: string; cid?: string; v?: string }>;
 }) {
   const { slug } = await Promise.resolve(params);
 
@@ -23,6 +23,7 @@ export default async function CustomerLandingPage({
   const bizRef = sp.biz_ref ?? null;
   const smsOptin = sp.sms_optin === "1";
   const smsOptinCustomerId = sp.cid ?? null;
+  const smsOptinVariant = (sp.v === "2" ? 2 : sp.v === "3" ? 3 : 1) as 1 | 2 | 3;
 
   const supabase = await createClient();
 
@@ -53,7 +54,7 @@ export default async function CustomerLandingPage({
       <HubBackButton />
       <ReferralCapture businessSlug={slug} referralCode={referralCode} netRef={netRef} netRefVia={netRefVia} bizRef={bizRef} />
       {smsOptin && smsOptinCustomerId && (
-        <SmsOptinCapture customerId={smsOptinCustomerId} businessId={business.id} businessSlug={slug} />
+        <SmsOptinCapture customerId={smsOptinCustomerId} businessId={business.id} businessSlug={slug} variant={smsOptinVariant} businessName={business.name} />
       )}
 
       <div className="min-h-screen bg-gray-50">

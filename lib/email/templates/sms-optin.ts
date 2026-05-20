@@ -72,7 +72,7 @@ export function smsOptinEmailSubject(emailNumber: 1 | 2 | 3, businessName: strin
 
 export function smsOptinEmailHtml(data: SmsOptinTemplateData): string {
   const { customerName, businessName, businessSlug, appUrl, emailNumber, customerId } = data;
-  const optinLink = `${appUrl}/${businessSlug}?sms_optin=1&cid=${customerId}`;
+  const optinLink = `${appUrl}/${businessSlug}?sms_optin=1&cid=${customerId}&v=${emailNumber}`;
   const v = VARIANTS[emailNumber];
 
   const headlineText = emailNumber === 3

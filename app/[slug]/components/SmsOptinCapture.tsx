@@ -1,14 +1,35 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface Props {
   customerId: string;
   businessId: string;
   businessSlug: string;
+  businessName: string;
+  variant: 1 | 2 | 3;
 }
 
-export default function SmsOptinCapture({ customerId, businessId, businessSlug }: Props) {
+const COPY: Record<1 | 2 | 3, { title: string; body: string; cta: string }> = {
+  1: {
+    title: "Get appointment reminders 🔔",
+    body: "One tap and we'll text you a reminder before every appointment — plus instant booking confirmations. No more wondering if you're confirmed.",
+    cta: "Yes, text me",
+  },
+  2: {
+    title: "Join the VIP text list ⚡",
+    body: "When a cancellation opens up or an exclusive deal drops, SMS subscribers hear first — before anyone else. Tap in to never miss out.",
+    cta: "Add me to the list",
+  },
+  3: {
+    title: "Last chance for text alerts 💬",
+    body: "This is the last time we'll ask. Enable text reminders and we'll make sure you never miss an appointment. Reply STOP any time to opt out instantly.",
+    cta: "Yes, enable texts",
+  },
+};
+
+export default function SmsOptinCapture({ customerId, businessId, businessSlug, businessName, variant }: Props) {
   const [state, setState] = useState<"idle" | "confirming" | "done" | "error">("confirming");
+  const copy = COPY[variant];
 
   const handleConfirm = async () => {
     setState("idle");
@@ -25,10 +46,10 @@ export default function SmsOptinCapture({ customerId, businessId, businessSlug }
   };
 
   const handleDismiss = () => {
-    // Remove the query param without reloading
     const url = new URL(window.location.href);
     url.searchParams.delete("sms_optin");
     url.searchParams.delete("cid");
+    url.searchParams.delete("v");
     window.history.replaceState({}, "", url.toString());
     setState("done");
   };
@@ -48,10 +69,13 @@ export default function SmsOptinCapture({ customerId, businessId, businessSlug }
         {state === "confirming" && (
           <>
             <p style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700, color: "#111827" }}>
-              Enable text alerts? 💬
+              {copy.title}
+            </p>
+            <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: "#059669" }}>
+              {businessName}
             </p>
             <p style={{ margin: "0 0 16px", fontSize: 14, color: "#6b7280", lineHeight: 1.5 }}>
-              Get appointment reminders, confirmations, and exclusive offers by text. Reply STOP any time to opt out.
+              {copy.body} Reply STOP any time to opt out.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button
@@ -61,7 +85,7 @@ export default function SmsOptinCapture({ customerId, businessId, businessSlug }
                   fontWeight: 700, fontSize: 15, borderRadius: 10, border: "none", cursor: "pointer",
                 }}
               >
-                Yes, text me
+                {copy.cta}
               </button>
               <button
                 onClick={handleDismiss}
