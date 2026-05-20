@@ -90,7 +90,9 @@ async function callOpenAI(prompt: string): Promise<string> {
           role: "system",
           content:
             "You are an expert business analyst for appointment-based businesses (salons, barbershops, spas, etc.). " +
-            "Analyze the provided analytics data and return ONLY a raw JSON object — no markdown, no code fences, no explanation. " +
+            "Generate actionable insights using ONLY the features listed in the AVAILABLE FEATURES section of the user prompt. " +
+            "Never suggest social media posting, third-party integrations, or any feature not explicitly listed. " +
+            "Return ONLY a raw JSON object — no markdown, no code fences, no explanation. " +
             "Return exactly this structure: { \"summary\": \"string\", \"insights\": [ { \"id\": \"string\", \"category\": \"revenue|bookings|customers|marketing|operations\", \"priority\": \"high|medium|low\", \"title\": \"string\", \"description\": \"string\", \"action\": \"string\", \"metricLabel\": \"string or null\", \"metricValue\": \"string or null\" } ] }",
         },
         { role: "user", content: prompt },
@@ -135,13 +137,24 @@ ${JSON.stringify((analyticsData.topServices as unknown[] ?? []).slice(0, 5), nul
 EXISTING ALERTS FROM SYSTEM:
 ${JSON.stringify(analyticsData.alerts ?? [], null, 2)}
 
-CURRENT SETTINGS:
-- Win-back texts: ${settings.winback_enabled ? "enabled" : "disabled"} (${settings.winback_inactive_days} day threshold)
-- Referral reminders: ${settings.referral_enabled ? "enabled" : "disabled"}
-- Social media posting: ${settings.social_enabled ? "enabled" : "disabled"}
+AUTOMATED CAMPAIGNS STATUS:
+- Appointment Reminder (24h before): ${settings.appt_reminder_enabled !== false ? "active" : "disabled"}
+- Win-Back at 30 days (friendly check-in): ${settings.winback_30_enabled !== false ? "active" : "disabled"}
+- Win-Back at 60 days (discount offer): ${settings.winback_60_enabled !== false ? "active" : "disabled"}
+- Win-Back at 90 days (last chance): ${settings.winback_90_enabled !== false ? "active" : "disabled"}
+- Referral nudge after visit: ${settings.referral_post_visit_enabled !== false ? "active" : "disabled"}
+- Re-engagement nudge (visit pattern-based): ${settings.reengage_enabled !== false ? "active" : "disabled"}
 
-Focus on: slow days, revenue opportunities, customer retention, and specific actionable recommendations.
-Each insight should be specific to this business's data, not generic advice.
+AVAILABLE FEATURES THIS BUSINESS CAN USE:
+- Automated Smart Campaigns (listed above) — toggled on/off in the Messages page
+- Manual SMS campaigns — one-off text blasts to segments (all customers, at-risk, VIP, members, new, etc.)
+- Loyalty points program — award points per completed appointment
+- Member subscriptions — recurring membership plans
+- Referral program — customers share links to earn rewards
+
+Focus on: slow days, revenue opportunities, customer retention, and specific actionable steps.
+Each insight must be specific to this business's data. If a campaign is disabled and the data shows it would help, suggest enabling it.
+Only recommend actions using the features listed above — do not suggest social media, third-party tools, or anything not listed.
 `;
 
   const raw = await callOpenAI(prompt);
