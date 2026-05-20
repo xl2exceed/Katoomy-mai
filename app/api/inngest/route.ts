@@ -7,6 +7,7 @@ import { autoMarkIncomplete } from "@/inngest/functions/auto-mark-incomplete";
 import { monthlyBilling } from "@/inngest/functions/monthly-billing";
 import { runDue } from "@/inngest/functions/run-due";
 import { sendReminders } from "@/inngest/functions/send-reminders";
+import { onboardingSequences } from "@/inngest/functions/onboarding-sequences";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -18,5 +19,6 @@ export const { GET, POST, PUT } = serve({
     monthlyBilling,
     runDue,
     sendReminders,
+    onboardingSequences,
   ],
 });

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendPushNotification } from "@/lib/webpush";
 import { ensureUniqueReferralCode } from "@/lib/utils/generateReferralCode";
+import { inngest, bookingCreatedEvent } from "@/lib/inngest";
 
 export async function POST(req: NextRequest) {
   try {
@@ -352,7 +353,7 @@ export async function POST(req: NextRequest) {
 
     // Notify customer — push + notification_log so it shows in the bell
     const { data: bizForSlug } = await supabaseAdmin
-      .from("businesses").select("slug").eq("id", businessId).maybeSingle();
+      .from("businesses").select("slug, name").eq("id", businessId).maybeSingle();
     const bizSlug = bizForSlug?.slug;
 
     const { data: customerSubs } = await supabaseAdmin
@@ -445,6 +446,18 @@ export async function POST(req: NextRequest) {
       console.error("Failed to schedule reminder (non-fatal):", err);
     }
 
+
+    // Fire onboarding sequence — non-blocking
+    inngest.send(bookingCreatedEvent.create({
+      customerId,
+      businessId,
+      businessSlug: bizSlug ?? "",
+      businessName: bizForSlug?.name ?? "",
+      customerName,
+      customerEmail: customerEmail || null,
+      customerPhone: cleanPhone,
+      hasSmsTransactional: hasTransactionalConsent,
+    })).catch(() => {});
 
     return NextResponse.json({ bookingId: booking.id });
   } catch (err) {

@@ -50,6 +50,8 @@ export async function POST() {
               businessName: business.name,
               businessSlug: business.slug,
               appUrl: APP_URL,
+              emailNumber: 1,
+              customerId: c.id,
             });
             const { error } = await resend.emails.send({
               from: FROM,

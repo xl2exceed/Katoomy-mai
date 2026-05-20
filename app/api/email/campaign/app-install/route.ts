@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { discountText } = await req.json().catch(() => ({ discountText: undefined }));
+    await req.json().catch(() => {});
 
     const { data: business } = await supabaseAdmin
       .from("businesses")
@@ -63,12 +63,13 @@ export async function POST(req: NextRequest) {
               businessName: business.name,
               businessSlug: business.slug,
               appUrl: APP_URL,
-              discountText,
+              emailNumber: 1,
             });
+            const subject = `Get the ${business.name} app — book faster, earn rewards`;
             const { error } = await resend.emails.send({
               from: FROM,
               to: c.email!,
-              subject: `Get the ${business.name} app — book faster, earn rewards`,
+              subject,
               html,
             });
             if (error) {

@@ -1,6 +1,7 @@
 // file: app/[slug]/page.tsx
 
 import ReferralCapture from "./components/ReferralCapture";
+import SmsOptinCapture from "./components/SmsOptinCapture";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import InstallGate from "@/components/InstallGate";
@@ -11,7 +12,7 @@ export default async function CustomerLandingPage({
   searchParams,
 }: {
   params: { slug: string } | Promise<{ slug: string }>;
-  searchParams?: { ref?: string; net_ref?: string; biz_ref?: string; via?: string } | Promise<{ ref?: string; net_ref?: string; biz_ref?: string; via?: string }>;
+  searchParams?: { ref?: string; net_ref?: string; biz_ref?: string; via?: string; sms_optin?: string; cid?: string } | Promise<{ ref?: string; net_ref?: string; biz_ref?: string; via?: string; sms_optin?: string; cid?: string }>;
 }) {
   const { slug } = await Promise.resolve(params);
 
@@ -20,6 +21,8 @@ export default async function CustomerLandingPage({
   const netRef = sp.net_ref ?? null;
   const netRefVia = sp.via ?? null;
   const bizRef = sp.biz_ref ?? null;
+  const smsOptin = sp.sms_optin === "1";
+  const smsOptinCustomerId = sp.cid ?? null;
 
   const supabase = await createClient();
 
@@ -48,8 +51,10 @@ export default async function CustomerLandingPage({
     // even before children render
     <InstallGate business={business} slug={slug}>
       <HubBackButton />
-      {/* Capture lastBusiness + pending referral (runs when gate is skipped/installed) */}
       <ReferralCapture businessSlug={slug} referralCode={referralCode} netRef={netRef} netRefVia={netRefVia} bizRef={bizRef} />
+      {smsOptin && smsOptinCustomerId && (
+        <SmsOptinCapture customerId={smsOptinCustomerId} businessId={business.id} businessSlug={slug} />
+      )}
 
       <div className="min-h-screen bg-gray-50">
         {/* Header with Brand Color */}
