@@ -1,116 +1,56 @@
-// file: app/admin/notifications/page.tsx
-
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import Pagination from "@/components/Pagination";
 
-interface NotificationSettings {
-  booking_confirmations: boolean;
-  appointment_reminders: boolean;
-  cancellation_notices: boolean;
-  promotions: boolean;
-  loyalty_updates: boolean;
-  channels: string[];
-}
-
-interface Customer {
-  id: string;
-  full_name: string | null;
-  phone: string;
-  email: string | null;
-}
-
-interface SendResult {
-  phone: string;
-  name: string | null;
-  success: boolean;
-  error?: string;
-}
-
-type MessageType = "all" | "upcoming" | "at_risk" | "vip" | "members" | "new_customers" | "no_bookings" | "test";
-
-const AUDIENCE_OPTIONS: { value: MessageType; label: string; description: string }[] = [
-  { value: "all",           label: "All Customers",         description: "Every customer with a phone number" },
-  { value: "upcoming",      label: "Upcoming Appointments", description: "Appointments in the next 5 days" },
-  { value: "at_risk",       label: "At-Risk Customers",     description: "No visit in 30+ days and no upcoming appointment" },
-  { value: "vip",           label: "VIP Customers",         description: "Top 20% by total spend, active in the last 2 months" },
-  { value: "members",       label: "Members",               description: "Customers with an active membership" },
-  { value: "new_customers", label: "New Customers",         description: "First booking within the last 14 days" },
-  { value: "no_bookings",   label: "No Current Bookings",   description: "No active upcoming appointment on the books" },
-  { value: "test",          label: "Test",                  description: "3 test numbers for messaging tests" },
-];
-
-const TEST_CUSTOMERS: Customer[] = [
-  { id: "test-1", full_name: "Test 1", phone: "+16786093826", email: null },
-  { id: "test-2", full_name: "Test 2", phone: "+14049601553", email: null },
-  { id: "test-3", full_name: "Test 3", phone: "+14046425637", email: null },
-];
-
-interface NotificationRule {
-  id: string;
-  business_id: string;
-  kind: "appointment_reminder" | "winback";
-  enabled: boolean;
-  offset_minutes: number | null;
-  inactive_days: number | null;
-  template: string;
-}
-
-export default function NotificationsPage() {
-  const [settings, setSettings] = useState<NotificationSettings>({
-    booking_confirmations: true,
-    appointment_reminders: true,
-    cancellation_notices: true,
-    promotions: false,
-    loyalty_updates: true,
-    channels: ["email", "sms"],
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
-
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [sendProgress, setSendProgress] = useState<{
-    current: number;
-    total: number;
-  } | null>(null);
-  const [sendResults, setSendResults] = useState<SendResult[]>([]);
-  const [resultsPage, setResultsPage] = useState(1);
-  const [resultsPerPage, setResultsPerPage] = useState(20);
-  const [audiencePage, setAudiencePage] = useState(1);
-  const [audiencePerPage, setAudiencePerPage] = useState(20);
-
-  // Manual message state
-  const [messageType, setMessageType] = useState<MessageType>("all");
-  const [messageText, setMessageText] = useState("");
-  const [resolvedAudience, setResolvedAudience] = useState<Customer[]>([]);
-  const [audienceLoading, setAudienceLoading] = useState(false);
-
-  // Automated message state
-  const [automatedMessages, setAutomatedMessages] = useState({
-    reminder_enabled: false,
-    reminder_hours_before: 24,
-    reminder_message: "Reminder: You have an appointment tomorrow at {time}",
-    winback_enabled: false,
-    winback_days_inactive: 30,
-    winback_message: "We miss you! Book your next appointment and get 10% off",
-  });
-
+export default function MessagesPage() {
   const supabase = createClient();
 
+  const [loading, setLoading] = useState(true);
+  const [businessId, setBusinessId] = useState("");
+
+  // SMS Templates
+  const [smsTemplates, setSmsTemplates] = useState({
+    reminder:        "Hi {{customer_name}}! Reminder: your {{service_name}} appointment is tomorrow at {{appt_time}}. Reply STOP to opt out.",
+    cancel_customer: "Hi {{customer_name}}! Your {{appt_time}} appointment has been cancelled. Contact {{business_name}} to reschedule.",
+    cancel_staff:    "Hi {{customer_name}}! Your {{service_name}} appointment on {{appt_time}} has been cancelled. Contact {{business_name}} to reschedule.",
+    payment_dispute: "Hi {{customer_name}}! {{business_name}} did not receive your payment of ${{amount}}. Please send payment or visit {{pay_link}} to pay online.",
+    winback:         "Hey {{customer_name}}! We miss you at {{business_name}}. Come back and book: {{booking_link}}",
+    referral:        "Hi {{customer_name}}! Thanks for visiting {{business_name}}. Refer a friend and you both get a discount: {{referral_link}}",
+  });
+  const [smsTemplateSaving, setSmsTemplateSaving] = useState(false);
+  const [smsTemplateMsg, setSmsTemplateMsg] = useState("");
+
+  // Smart Campaigns
+  const [smartCampaigns, setSmartCampaigns] = useState({
+    appt_reminder_enabled: true,
+    winback_30_enabled: true,
+    winback_60_enabled: true,
+    winback_90_enabled: true,
+    referral_post_visit_enabled: true,
+    reengage_enabled: true,
+  });
+  const [smartCampaignTemplates, setSmartCampaignTemplates] = useState({
+    appt_reminder_template: "Hey {{customer_name}}! Just a reminder that you have an appointment at {{business_name}} tomorrow at {{appt_time}}. See you soon!",
+    winback_30_template: "Hey {{customer_name}}! It's been a little while since we've seen you at {{business_name}}. We miss you! Tap here to book your next appointment whenever you're ready: {{booking_link}}",
+    winback_60_template: "Hey {{customer_name}}, we haven't seen you in a while and we want to make it worth your while to come back. Use code COMEBACK for 10% off your next visit at {{business_name}}. Book here: {{booking_link}} — offer expires in 7 days!",
+    winback_90_template: "Hey {{customer_name}}, we'd love to have you back at {{business_name}}! It's been 3 months and we're offering you a special returning customer deal — mention this text when you book and we'll take care of you. Book here: {{booking_link}}",
+    referral_post_visit_template: "Hey {{customer_name}}, hope you're loving your results from {{business_name}}! If you know someone who'd love our services, send them your referral link and you'll both get rewarded: {{referral_link}}",
+    reengage_template: "Hey {{customer_name}}! It's about that time — you're usually in to see us around now. Ready to book your next appointment at {{business_name}}? It only takes a minute: {{booking_link}}",
+  });
+  const [smartCampaignSaving, setSmartCampaignSaving] = useState(false);
+  const [smartCampaignMsg, setSmartCampaignMsg] = useState("");
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
-    loadSettings();
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadSettings = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+  const loadData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
 
     const { data: business } = await supabase
       .from("businesses")
@@ -121,764 +61,319 @@ export default function NotificationsPage() {
     if (business) {
       setBusinessId(business.id);
 
-      // Load notification settings
-      const { data: notifData } = await supabase
-        .from("notification_settings")
-        .select("*")
+      const { data: tmplData } = await supabase
+        .from("sms_templates")
+        .select("reminder, cancel_customer, cancel_staff, payment_dispute, winback, referral")
         .eq("business_id", business.id)
-        .single();
+        .maybeSingle();
+      if (tmplData) setSmsTemplates((prev) => ({ ...prev, ...tmplData }));
 
-      if (notifData) {
-        setSettings(notifData as NotificationSettings);
-      }
-
-      // Load automated message settings from notification_rules
-      const { data: rules } = await supabase
-        .from("notification_rules")
-        .select("*")
+      const { data: scData } = await supabase
+        .from("ai_marketing_settings")
+        .select("appt_reminder_enabled, winback_30_enabled, winback_60_enabled, winback_90_enabled, referral_post_visit_enabled, reengage_enabled, appt_reminder_template, winback_30_template, winback_60_template, winback_90_template, referral_post_visit_template, reengage_template")
         .eq("business_id", business.id)
-        .order("created_at", { ascending: false }); // Get most recent first
-
-      if (rules && rules.length > 0) {
-        // Find reminder rule (most recent)
-        const reminderRule = rules.find(
-          (r: NotificationRule) => r.kind === "appointment_reminder",
-        );
-        if (reminderRule) {
-          setAutomatedMessages((prev) => ({
-            ...prev,
-            reminder_enabled: reminderRule.enabled,
-            reminder_hours_before: Math.floor(
-              reminderRule.offset_minutes! / 60,
-            ),
-            reminder_message: reminderRule.template,
-          }));
-        }
-
-        // Find winback rule (most recent)
-        const winbackRule = rules.find(
-          (r: NotificationRule) => r.kind === "winback",
-        );
-        if (winbackRule) {
-          setAutomatedMessages((prev) => ({
-            ...prev,
-            winback_enabled: winbackRule.enabled,
-            winback_days_inactive: winbackRule.inactive_days,
-            winback_message: winbackRule.template,
-          }));
-        }
+        .maybeSingle();
+      if (scData) {
+        setSmartCampaigns({
+          appt_reminder_enabled: scData.appt_reminder_enabled ?? true,
+          winback_30_enabled: scData.winback_30_enabled ?? true,
+          winback_60_enabled: scData.winback_60_enabled ?? true,
+          winback_90_enabled: scData.winback_90_enabled ?? true,
+          referral_post_visit_enabled: scData.referral_post_visit_enabled ?? true,
+          reengage_enabled: scData.reengage_enabled ?? true,
+        });
+        setSmartCampaignTemplates((prev) => ({
+          ...prev,
+          ...(scData.appt_reminder_template ? { appt_reminder_template: scData.appt_reminder_template } : {}),
+          ...(scData.winback_30_template ? { winback_30_template: scData.winback_30_template } : {}),
+          ...(scData.winback_60_template ? { winback_60_template: scData.winback_60_template } : {}),
+          ...(scData.winback_90_template ? { winback_90_template: scData.winback_90_template } : {}),
+          ...(scData.referral_post_visit_template ? { referral_post_visit_template: scData.referral_post_visit_template } : {}),
+          ...(scData.reengage_template ? { reengage_template: scData.reengage_template } : {}),
+        }));
       }
     }
 
     setLoading(false);
   };
 
-  const resolveAudience = useCallback(async (type: MessageType, bizId: string): Promise<Customer[]> => {
-    const now = new Date();
-
-    if (type === "test") return TEST_CUSTOMERS;
-
-    if (type === "all") {
-      const { data } = await supabase.from("customers").select("id, full_name, phone, email").eq("business_id", bizId).not("phone", "is", null);
-      return (data as Customer[]) || [];
-    }
-
-    if (type === "upcoming") {
-      const fiveDays = new Date(); fiveDays.setDate(fiveDays.getDate() + 5);
-      const { data: bookings } = await supabase.from("bookings").select("customer_id, customers(id, full_name, phone, email)").eq("business_id", bizId).gte("start_ts", now.toISOString()).lte("start_ts", fiveDays.toISOString()).in("status", ["confirmed", "requested"]);
-      const map = new Map<string, Customer>();
-      (bookings || []).forEach((b: { customer_id: string; customers: Customer | Customer[] }) => { const c = Array.isArray(b.customers) ? b.customers[0] : b.customers; if (c?.phone) map.set(b.customer_id, c); });
-      return Array.from(map.values());
-    }
-
-    if (type === "at_risk") {
-      const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { data: futureBookings } = await supabase.from("bookings").select("customer_id").eq("business_id", bizId).gt("start_ts", now.toISOString()).in("status", ["confirmed", "requested"]);
-      const hasUpcoming = new Set((futureBookings || []).map((b: { customer_id: string }) => b.customer_id));
-      const { data: recentBookings } = await supabase.from("bookings").select("customer_id").eq("business_id", bizId).gte("start_ts", thirtyDaysAgo.toISOString()).lte("start_ts", now.toISOString());
-      const hasRecent = new Set((recentBookings || []).map((b: { customer_id: string }) => b.customer_id));
-      const { data: all } = await supabase.from("customers").select("id, full_name, phone, email").eq("business_id", bizId).not("phone", "is", null);
-      return ((all as Customer[]) || []).filter(c => !hasUpcoming.has(c.id) && !hasRecent.has(c.id));
-    }
-
-    if (type === "vip") {
-      const twoMonthsAgo = new Date(); twoMonthsAgo.setDate(twoMonthsAgo.getDate() - 60);
-      const { data: bookings } = await supabase.from("bookings").select("customer_id, total_price_cents, start_ts, customers(id, full_name, phone, email)").eq("business_id", bizId).eq("status", "completed");
-      const spendMap = new Map<string, { customer: Customer; totalSpend: number; lastBooking: Date }>();
-      (bookings || []).forEach((b: { customer_id: string; total_price_cents: number; start_ts: string; customers: Customer | Customer[] }) => {
-        const c = Array.isArray(b.customers) ? b.customers[0] : b.customers;
-        if (!c?.phone) return;
-        const date = new Date(b.start_ts);
-        const ex = spendMap.get(b.customer_id);
-        if (!ex) { spendMap.set(b.customer_id, { customer: c, totalSpend: b.total_price_cents || 0, lastBooking: date }); }
-        else { ex.totalSpend += b.total_price_cents || 0; if (date > ex.lastBooking) ex.lastBooking = date; }
-      });
-      const active = Array.from(spendMap.values()).filter(v => v.lastBooking >= twoMonthsAgo);
-      active.sort((a, b) => b.totalSpend - a.totalSpend);
-      return active.slice(0, Math.max(1, Math.ceil(active.length * 0.2))).map(v => v.customer);
-    }
-
-    if (type === "members") {
-      const { data: subs } = await supabase.from("member_subscriptions").select("customer_id, customers(id, full_name, phone, email)").eq("business_id", bizId).eq("status", "active");
-      const map = new Map<string, Customer>();
-      (subs || []).forEach((s: { customer_id: string; customers: Customer | Customer[] }) => { const c = Array.isArray(s.customers) ? s.customers[0] : s.customers; if (c?.phone) map.set(s.customer_id, c); });
-      return Array.from(map.values());
-    }
-
-    if (type === "new_customers") {
-      const fourteenDaysAgo = new Date(); fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-      const { data: bookings } = await supabase.from("bookings").select("customer_id, start_ts, customers(id, full_name, phone, email)").eq("business_id", bizId).order("start_ts", { ascending: true });
-      const firstMap = new Map<string, { customer: Customer; firstBooking: Date }>();
-      (bookings || []).forEach((b: { customer_id: string; start_ts: string; customers: Customer | Customer[] }) => { const c = Array.isArray(b.customers) ? b.customers[0] : b.customers; if (!c?.phone || firstMap.has(b.customer_id)) return; firstMap.set(b.customer_id, { customer: c, firstBooking: new Date(b.start_ts) }); });
-      return Array.from(firstMap.values()).filter(v => v.firstBooking >= fourteenDaysAgo).map(v => v.customer);
-    }
-
-    if (type === "no_bookings") {
-      const { data: futureBookings } = await supabase.from("bookings").select("customer_id").eq("business_id", bizId).gt("start_ts", now.toISOString()).in("status", ["confirmed", "requested"]);
-      const hasUpcoming = new Set((futureBookings || []).map((b: { customer_id: string }) => b.customer_id));
-      const { data: all } = await supabase.from("customers").select("id, full_name, phone, email").eq("business_id", bizId).not("phone", "is", null);
-      return ((all as Customer[]) || []).filter(c => !hasUpcoming.has(c.id));
-    }
-
-    return [];
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!businessId) return;
-    setAudienceLoading(true);
-    setAudiencePage(1);
-    resolveAudience(messageType, businessId).then((customers: typeof resolvedAudience) => {
-      setResolvedAudience(customers);
-      setAudienceLoading(false);
+  const handleSaveSmsTemplates = async () => {
+    setSmsTemplateSaving(true);
+    setSmsTemplateMsg("");
+    const res = await fetch("/api/admin/sms-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(smsTemplates),
     });
-  }, [messageType, businessId, resolveAudience]);
-
-  const handleSaveSettings = async () => {
-    if (!businessId) return;
-
-    setSaving(true);
-
-    try {
-      // Save notification settings
-      await supabase.from("notification_settings").upsert({
-        business_id: businessId,
-        ...settings,
-      });
-
-      // Handle appointment reminder rule
-      // First, delete ALL existing reminder rules to prevent duplicates
-      await supabase
-        .from("notification_rules")
-        .delete()
-        .eq("business_id", businessId)
-        .eq("kind", "appointment_reminder");
-
-      if (automatedMessages.reminder_enabled) {
-        // Create new reminder rule
-        await supabase.from("notification_rules").insert({
-          business_id: businessId,
-          channel: "sms" as const,
-          kind: "appointment_reminder" as const,
-          offset_minutes: automatedMessages.reminder_hours_before * 60,
-          template: automatedMessages.reminder_message,
-          enabled: true,
-          applies_to: "all" as const,
-        });
-      }
-
-      // Handle win-back rule
-      // First, delete ALL existing winback rules to prevent duplicates
-      await supabase
-        .from("notification_rules")
-        .delete()
-        .eq("business_id", businessId)
-        .eq("kind", "winback");
-
-      if (automatedMessages.winback_enabled) {
-        // Create new winback rule
-        await supabase.from("notification_rules").insert({
-          business_id: businessId,
-          channel: "sms" as const,
-          kind: "winback" as const,
-          inactive_days: automatedMessages.winback_days_inactive,
-          template: automatedMessages.winback_message,
-          enabled: true,
-          applies_to: "all" as const,
-        });
-      }
-
-      alert("All settings saved successfully!");
-    } catch (error) {
-      console.error("Error saving settings:", error);
-      alert("Failed to save settings. Please try again.");
+    setSmsTemplateSaving(false);
+    if (res.ok) {
+      setSmsTemplateMsg("✅ SMS templates saved!");
+      setTimeout(() => setSmsTemplateMsg(""), 3000);
+    } else {
+      setSmsTemplateMsg("❌ Failed to save templates.");
     }
-
-    setSaving(false);
   };
 
-  const handleProcessWinbacks = async () => {
-    if (!businessId) return;
+  const handleSaveSmartCampaigns = async () => {
+    setSmartCampaignSaving(true);
+    setSmartCampaignMsg("");
+    const { error } = await supabase
+      .from("ai_marketing_settings")
+      .upsert(
+        { business_id: businessId, ...smartCampaigns, ...smartCampaignTemplates },
+        { onConflict: "business_id" }
+      );
+    setSmartCampaignSaving(false);
+    if (error) {
+      setSmartCampaignMsg("❌ Failed to save campaign settings.");
+    } else {
+      setSmartCampaignMsg("✅ Campaign settings saved!");
+      setTimeout(() => setSmartCampaignMsg(""), 3000);
+    }
+  };
 
-    const confirmed = confirm(
-      "This will send win-back messages to all inactive customers based on your settings. Continue?",
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+      </div>
     );
-
-    if (!confirmed) return;
-
-    try {
-      const response = await fetch("/api/notifications/process-winbacks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business_id: businessId }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert(
-          `Win-back messages scheduled!\n\n${data.scheduled_count} messages will be sent in the next 5 minutes.`,
-        );
-      } else {
-        alert(`Error: ${data.error || "Failed to process win-backs"}`);
-      }
-    } catch (error) {
-      console.error("Error processing win-backs:", error);
-      alert("Failed to process win-back messages. Please try again.");
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!messageText.trim()) { alert("Please enter a message"); return; }
-    if (!businessId) { alert("Business ID not found"); return; }
-    if (!settings.channels.includes("sms")) { alert("SMS channel is not enabled. Please enable it in settings first."); return; }
-    if (resolvedAudience.length === 0) { alert("No customers found for this audience"); return; }
-
-    setSendingMessage(true);
-    setSendProgress(null);
-    setSendResults([]);
-    setResultsPage(1);
-    const results: SendResult[] = [];
-    setSendProgress({ current: 0, total: resolvedAudience.length });
-
-    for (let i = 0; i < resolvedAudience.length; i++) {
-      const customer = resolvedAudience[i];
-      try {
-        const response = await fetch("/api/sms/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to: customer.phone, body: messageText, business_id: businessId }),
-        });
-        const data = await response.json();
-        results.push({ phone: customer.phone, name: customer.full_name, success: response.ok, error: response.ok ? undefined : (data.error || "Unknown error") });
-      } catch (error) {
-        results.push({ phone: customer.phone, name: customer.full_name, success: false, error: error instanceof Error ? error.message : "Network error" });
-      }
-      setSendProgress({ current: i + 1, total: resolvedAudience.length });
-      setSendResults([...results]);
-    }
-
-    const successCount = results.filter(r => r.success).length;
-    const failCount = results.filter(r => !r.success).length;
-    alert(`Messages sent!\n\nSuccess: ${successCount}\nFailed: ${failCount}`);
-    if (successCount > 0) setMessageText("");
-    setSendingMessage(false);
-    setSendProgress(null);
-  };
-
-  const handleToggleChannel = (channel: string) => {
-    const newChannels = settings.channels.includes(channel)
-      ? settings.channels.filter((c) => c !== channel)
-      : [...settings.channels, channel];
-
-    setSettings({ ...settings, channels: newChannels });
-  };
+  }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
+    <div className="min-h-screen bg-gray-50">
+      <main className="p-8 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+          <p className="text-gray-600 mt-1">Automated campaigns and message templates</p>
+        </div>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-8 max-w-6xl">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
-            <p className="text-gray-600 mt-1">
-              Send messages and manage notification settings
-            </p>
+        {/* Delivery Status */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Delivery Status</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Check delivery reports and message history</p>
+          </div>
+          <Link
+            href="/admin/delivery-status"
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition whitespace-nowrap"
+          >
+            Check Delivery Status →
+          </Link>
+        </div>
+
+        {/* Automated Smart Campaigns */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <span className="text-2xl">🤖</span>
+            <h2 className="text-xl font-bold text-gray-900">Automated Smart Campaigns</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-5">
+            Automated text messages sent to your customers at the right time — all on autopilot.
+            All campaigns are <strong>on by default</strong>. Toggle any off to disable it.
+          </p>
+
+          <div className="space-y-3">
+            {([
+              {
+                key: "appt_reminder_enabled" as const,
+                templateKey: "appt_reminder_template" as const,
+                label: "Appointment Reminder",
+                desc: "Sent 24 hours before each appointment to reduce no-shows.",
+                icon: "⏰",
+                vars: "{{customer_name}}, {{business_name}}, {{appt_time}}",
+              },
+              {
+                key: "winback_30_enabled" as const,
+                templateKey: "winback_30_template" as const,
+                label: "Win-Back — 30 Days (Friendly Check-In)",
+                desc: "Sent when a customer hasn't booked in 30 days. A friendly nudge to come back.",
+                icon: "👋",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
+              },
+              {
+                key: "winback_60_enabled" as const,
+                templateKey: "winback_60_template" as const,
+                label: "Win-Back — 60 Days (Discount Offer)",
+                desc: "Sent at 60 days inactive. Offers a discount code to bring them back.",
+                icon: "🎁",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
+              },
+              {
+                key: "winback_90_enabled" as const,
+                templateKey: "winback_90_template" as const,
+                label: "Win-Back — 90 Days (Last Chance)",
+                desc: "Sent at 90 days inactive. A final personalized offer to re-engage the customer.",
+                icon: "🚨",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
+              },
+              {
+                key: "referral_post_visit_enabled" as const,
+                templateKey: "referral_post_visit_template" as const,
+                label: "Referral Nudge (After Visit)",
+                desc: "Sent 3 days after a completed appointment, asking happy customers to refer friends.",
+                icon: "🙌",
+                vars: "{{customer_name}}, {{business_name}}, {{referral_link}}",
+              },
+              {
+                key: "reengage_enabled" as const,
+                templateKey: "reengage_template" as const,
+                label: "Re-Engagement Nudge",
+                desc: "Sent when a customer is overdue based on their personal visit pattern.",
+                icon: "📅",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
+              },
+            ] as { key: keyof typeof smartCampaigns; templateKey: keyof typeof smartCampaignTemplates; label: string; desc: string; icon: string; vars: string }[]).map(({ key, templateKey, label, desc, icon, vars }) => (
+              <div key={key} className={`rounded-xl border-2 transition ${
+                smartCampaigns[key] ? "border-green-200 bg-green-50" : "border-gray-200 bg-gray-50"
+              }`}>
+                <div className="flex items-start justify-between p-4">
+                  <div className="flex items-start gap-3 flex-1 mr-4">
+                    <span className="text-xl mt-0.5">{icon}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs font-medium ${smartCampaigns[key] ? "text-green-700" : "text-gray-500"}`}>
+                      {smartCampaigns[key] ? "On" : "Off"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSmartCampaigns({ ...smartCampaigns, [key]: !smartCampaigns[key] })}
+                      style={{
+                        width: "44px", height: "24px",
+                        backgroundColor: smartCampaigns[key] ? "#16a34a" : "#d1d5db",
+                        borderRadius: "12px", position: "relative",
+                        transition: "background-color 0.2s", border: "none",
+                        cursor: "pointer", flexShrink: 0,
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute", top: "2px",
+                        left: smartCampaigns[key] ? "22px" : "2px",
+                        width: "20px", height: "20px",
+                        backgroundColor: "white", borderRadius: "10px",
+                        transition: "left 0.2s", boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      }} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="px-4 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedCards((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition"
+                  >
+                    {expandedCards[key] ? "▲ Hide message" : "▼ Edit message"}
+                  </button>
+                </div>
+
+                {expandedCards[key] && (
+                  <div className="px-4 pb-4">
+                    <div className="border-t border-gray-200 pt-3">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Message Text</label>
+                      <textarea
+                        rows={3}
+                        value={smartCampaignTemplates[templateKey]}
+                        onChange={(e) => setSmartCampaignTemplates({ ...smartCampaignTemplates, [templateKey]: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-y"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Available variables: <span className="font-mono">{vars}</span></p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
 
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column - Messaging */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Manual Message */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-900">Send Message</h2>
-                    <Link
-                      href="/admin/delivery-status"
-                      className="text-sm font-semibold text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition"
-                    >
-                      Check Delivery Status →
-                    </Link>
-                  </div>
+          <div className="flex items-center justify-between mt-5">
+            <p className={`text-sm font-medium ${smartCampaignMsg.startsWith("✅") ? "text-green-600" : "text-red-600"}`}>
+              {smartCampaignMsg}
+            </p>
+            <button
+              onClick={handleSaveSmartCampaigns}
+              disabled={smartCampaignSaving}
+              className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 text-sm"
+            >
+              {smartCampaignSaving ? "Saving…" : "Save Campaign Settings"}
+            </button>
+          </div>
+        </div>
 
-                  <div className="space-y-4">
-                    {/* Recipient Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Send To
-                      </label>
-                      <select
-                        value={messageType}
-                        onChange={e => setMessageType(e.target.value as MessageType)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                      >
-                        {AUDIENCE_OPTIONS.map(o => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                      <div className="mt-1 flex items-center justify-between">
-                        <p className="text-xs text-gray-500">{AUDIENCE_OPTIONS.find(o => o.value === messageType)?.description}</p>
-                        <span className="text-xs font-semibold text-blue-600 ml-3 whitespace-nowrap">
-                          {audienceLoading ? "..." : `${resolvedAudience.length} recipient${resolvedAudience.length !== 1 ? "s" : ""}`}
-                        </span>
-                      </div>
-                      {!audienceLoading && resolvedAudience.length > 0 && (
-                        <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
-                          <div className="divide-y divide-gray-100">
-                            {resolvedAudience.slice((audiencePage - 1) * audiencePerPage, audiencePage * audiencePerPage).map((c) => (
-                              <div key={c.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                                <span className="font-medium text-gray-900">{c.full_name || "Guest"}</span>
-                                <span className="text-gray-500 text-xs">{c.phone}</span>
-                              </div>
-                            ))}
-                          </div>
-                          <Pagination
-                            total={resolvedAudience.length} perPage={audiencePerPage} page={audiencePage}
-                            onPageChange={setAudiencePage} onPerPageChange={(n) => { setAudiencePerPage(n); setAudiencePage(1); }}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Message Text */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Message
-                      </label>
-                      <textarea
-                        value={messageText}
-                        onChange={(e) => setMessageText(e.target.value)}
-                        placeholder="Type your message here..."
-                        rows={4}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        {messageText.length} characters
-                      </p>
-                    </div>
-
-                    {/* Send Progress */}
-                    {sendProgress && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-blue-900">
-                            Sending messages...
-                          </span>
-                          <span className="text-sm text-blue-700">
-                            {sendProgress.current} / {sendProgress.total}
-                          </span>
-                        </div>
-                        <div className="w-full bg-blue-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{
-                              width: `${
-                                (sendProgress.current / sendProgress.total) *
-                                100
-                              }%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Send Results */}
-                    {sendResults.length > 0 && !sendProgress && (
-                      <div className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div className="p-4 pb-2">
-                          <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                            Send Results
-                          </h3>
-                          <div className="space-y-2">
-                            {sendResults.slice((resultsPage - 1) * resultsPerPage, resultsPage * resultsPerPage).map((result, index) => (
-                              <div
-                                key={index}
-                                className={`flex items-center justify-between p-2 rounded ${
-                                  result.success
-                                    ? "bg-green-50 text-green-900"
-                                    : "bg-red-50 text-red-900"
-                                }`}
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <span>{result.success ? "✓" : "✗"}</span>
-                                  <span className="text-sm font-medium">
-                                    {result.name || "Unknown"}
-                                  </span>
-                                  <span className="text-xs text-gray-600">
-                                    {result.phone}
-                                  </span>
-                                </div>
-                                {!result.success && result.error && (
-                                  <span className="text-xs">{result.error}</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <Pagination
-                          total={sendResults.length} perPage={resultsPerPage} page={resultsPage}
-                          onPageChange={setResultsPage} onPerPageChange={(n) => { setResultsPerPage(n); setResultsPage(1); }}
-                        />
-                      </div>
-                    )}
-
-                    {/* Send Button */}
-                    <button
-                      onClick={handleSendMessage}
-                      disabled={sendingMessage || !messageText.trim() || audienceLoading || resolvedAudience.length === 0}
-                      className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    >
-                      {sendingMessage ? "Sending..." : `Send to ${resolvedAudience.length} Recipient${resolvedAudience.length !== 1 ? "s" : ""}`}
-                    </button>
-
-                    {!settings.channels.includes("sms") && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <p className="text-sm text-yellow-800">
-                          ⚠️ SMS channel is disabled. Enable it in settings to
-                          send messages.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Automated Messages */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">
-                    Automated Messages
-                  </h2>
-
-                  <div className="space-y-6">
-                    {/* Appointment Reminders */}
-                    <div className="border-b border-gray-200 pb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-900">
-                            Appointment Reminders
-                          </h3>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Send automatic reminders before appointments
-                          </p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={automatedMessages.reminder_enabled}
-                            onChange={(e) =>
-                              setAutomatedMessages({
-                                ...automatedMessages,
-                                reminder_enabled: e.target.checked,
-                              })
-                            }
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                      </div>
-
-                      {automatedMessages.reminder_enabled && (
-                        <div className="space-y-3 pl-4 border-l-2 border-blue-200">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Send reminder (hours before)
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="168"
-                              value={automatedMessages.reminder_hours_before}
-                              onChange={(e) =>
-                                setAutomatedMessages({
-                                  ...automatedMessages,
-                                  reminder_hours_before: parseInt(
-                                    e.target.value,
-                                  ),
-                                })
-                              }
-                              className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Message template
-                            </label>
-                            <textarea
-                              value={automatedMessages.reminder_message}
-                              onChange={(e) =>
-                                setAutomatedMessages({
-                                  ...automatedMessages,
-                                  reminder_message: e.target.value,
-                                })
-                              }
-                              rows={2}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-gray-900"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Use {`{{customer_name}}`},{" "}
-                              {`{{appointment_date}}`}, {`{{appointment_time}}`}
-                            </p>
-                          </div>
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                            <p className="text-xs text-blue-900 font-semibold">
-                              ℹ️ How it works
-                            </p>
-                            <p className="text-xs text-blue-800 mt-1">
-                              Reminders are automatically scheduled when
-                              appointments are created. They will be sent{" "}
-                              {automatedMessages.reminder_hours_before} hours
-                              before each appointment.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Win-back Messages */}
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-900">
-                            Win-back Messages
-                          </h3>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Re-engage inactive customers
-                          </p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={automatedMessages.winback_enabled}
-                            onChange={(e) =>
-                              setAutomatedMessages({
-                                ...automatedMessages,
-                                winback_enabled: e.target.checked,
-                              })
-                            }
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                      </div>
-
-                      {automatedMessages.winback_enabled && (
-                        <div className="space-y-3 pl-4 border-l-2 border-purple-200">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Days of inactivity
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="365"
-                              value={automatedMessages.winback_days_inactive}
-                              onChange={(e) =>
-                                setAutomatedMessages({
-                                  ...automatedMessages,
-                                  winback_days_inactive: parseInt(
-                                    e.target.value,
-                                  ),
-                                })
-                              }
-                              className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Message template
-                            </label>
-                            <textarea
-                              value={automatedMessages.winback_message}
-                              onChange={(e) =>
-                                setAutomatedMessages({
-                                  ...automatedMessages,
-                                  winback_message: e.target.value,
-                                })
-                              }
-                              rows={2}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-gray-900"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Use {`{{customer_name}}`} for personalization
-                            </p>
-                          </div>
-                          <button
-                            onClick={handleProcessWinbacks}
-                            className="w-full px-4 py-2 bg-purple-600 text-white text-sm rounded-lg font-semibold hover:bg-purple-700 transition"
-                          >
-                            Send Win-backs Now
-                          </button>
-                          <p className="text-xs text-gray-500">
-                            This will send to all customers who haven&apos;t
-                            booked in {automatedMessages.winback_days_inactive}{" "}
-                            days
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+        {/* SMS Message Templates */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-1">SMS Message Templates</h2>
+          <p className="text-sm text-gray-600 mb-1">
+            Customize the text messages sent to your customers. Use <code className="bg-gray-100 px-1 rounded text-xs">{"{{variable}}"}</code> placeholders — they are replaced automatically.
+          </p>
+          <div className="space-y-5 mt-5">
+            {([
+              {
+                key: "reminder",
+                label: "Appointment Reminder",
+                hint: "Sent the day before an appointment.",
+                vars: "{{customer_name}}, {{service_name}}, {{appt_time}}",
+              },
+              {
+                key: "cancel_customer",
+                label: "Cancellation (customer cancels)",
+                hint: "Sent to the customer when they cancel their own booking.",
+                vars: "{{customer_name}}, {{appt_time}}, {{business_name}}",
+              },
+              {
+                key: "cancel_staff",
+                label: "Cancellation (staff/admin cancels)",
+                hint: "Sent to the customer when a staff member cancels their booking.",
+                vars: "{{customer_name}}, {{service_name}}, {{appt_time}}, {{business_name}}",
+              },
+              {
+                key: "payment_dispute",
+                label: "Payment Dispute",
+                hint: "Sent when the business marks a claimed payment as not received.",
+                vars: "{{customer_name}}, {{business_name}}, {{amount}}, {{pay_link}}",
+              },
+              {
+                key: "winback",
+                label: "Win-Back (inactive customers)",
+                hint: "Also editable via Smart Campaigns above. This template is used as a fallback.",
+                vars: "{{customer_name}}, {{business_name}}, {{booking_link}}",
+              },
+              {
+                key: "referral",
+                label: "Referral Reminder",
+                hint: "Also editable via Smart Campaigns above. This template is used as a fallback.",
+                vars: "{{customer_name}}, {{business_name}}, {{referral_link}}",
+              },
+            ] as { key: keyof typeof smsTemplates; label: string; hint: string; vars: string }[]).map(({ key, label, hint, vars }) => (
+              <div key={key}>
+                <label className="block text-sm font-semibold text-gray-800 mb-0.5">{label}</label>
+                <p className="text-xs text-gray-500 mb-1">{hint}</p>
+                <textarea
+                  rows={3}
+                  value={smsTemplates[key]}
+                  onChange={(e) => setSmsTemplates({ ...smsTemplates, [key]: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-y"
+                />
+                <p className="text-xs text-gray-400 mt-0.5">Variables: <span className="font-mono">{vars}</span></p>
               </div>
-
-              {/* Right Column - Settings */}
-              <div className="space-y-6">
-                {/* Notification Types */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">
-                    Notification Settings
-                  </h2>
-
-                  <div className="space-y-6">
-                    {/* Types */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Send Notifications For
-                      </label>
-                      <div className="space-y-2">
-                        <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                          <span className="text-sm text-gray-900">
-                            Booking confirmations
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={settings.booking_confirmations}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                booking_confirmations: e.target.checked,
-                              })
-                            }
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                          <span className="text-sm text-gray-900">
-                            Appointment reminders
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={settings.appointment_reminders}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                appointment_reminders: e.target.checked,
-                              })
-                            }
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                          <span className="text-sm text-gray-900">
-                            Cancellation notices
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={settings.cancellation_notices}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                cancellation_notices: e.target.checked,
-                              })
-                            }
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                          <span className="text-sm text-gray-900">
-                            Loyalty updates
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={settings.loyalty_updates}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                loyalty_updates: e.target.checked,
-                              })
-                            }
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Channels */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Send Via
-                      </label>
-                      <div className="space-y-2">
-                        <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                          <span className="text-sm text-gray-900">SMS</span>
-                          <input
-                            type="checkbox"
-                            checked={settings.channels.includes("sms")}
-                            onChange={() => handleToggleChannel("sms")}
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                          <span className="text-sm text-gray-900">Email</span>
-                          <input
-                            type="checkbox"
-                            checked={settings.channels.includes("email")}
-                            onChange={() => handleToggleChannel("email")}
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                          <span className="text-sm text-gray-900">
-                            Push Notifications
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={settings.channels.includes("push")}
-                            onChange={() => handleToggleChannel("push")}
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleSaveSettings}
-                      disabled={saving}
-                      className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
-                    >
-                      {saving ? "Saving..." : "Save Settings"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-5">
+            <p className={`text-sm font-medium ${smsTemplateMsg.startsWith("✅") ? "text-green-600" : "text-red-600"}`}>
+              {smsTemplateMsg}
+            </p>
+            <button
+              onClick={handleSaveSmsTemplates}
+              disabled={smsTemplateSaving}
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 text-sm"
+            >
+              {smsTemplateSaving ? "Saving…" : "Save SMS Templates"}
+            </button>
+          </div>
         </div>
       </main>
     </div>
