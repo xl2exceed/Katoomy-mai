@@ -39,6 +39,34 @@ interface Business {
   logo_url: string | null;
 }
 
+interface RecurringSchedule {
+  id: string;
+  frequency: "weekly" | "biweekly" | "monthly";
+  preferred_time: string;
+  day_of_week: number;
+  price_cents: number;
+  status: "active" | "paused";
+  next_booking_date: string;
+  services: { id: string; name: string } | null;
+}
+
+const RECURRING_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const RECURRING_FREQ: Record<string, string> = {
+  weekly: "Weekly",
+  biweekly: "Every 2 Weeks",
+  monthly: "Monthly",
+};
+function formatRecurringTime(t: string) {
+  const [h, m] = t.split(":");
+  const hour = parseInt(h);
+  return `${hour > 12 ? hour - 12 : hour || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
+}
+function formatRecurringNextDate(d: string) {
+  return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", {
+    weekday: "short", month: "short", day: "numeric",
+  });
+}
+
 const PHONE_STORAGE_KEY = "katoomy:customerPhone";
 
 export default function DashboardPage() {
@@ -63,6 +91,8 @@ export default function DashboardPage() {
   const [cancelError, setCancelError] = useState("");
   const [loading, setLoading] = useState(true);
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
+  const [recurringSchedules, setRecurringSchedules] = useState<RecurringSchedule[]>([]);
+  const [recurringActionId, setRecurringActionId] = useState<string | null>(null);
   const [paymentReports, setPaymentReports] = useState<Record<string, { customer_response: string | null; resolution_status: string }>>({});
 
   // Phone prompt states
@@ -327,6 +357,12 @@ export default function DashboardPage() {
       setMemberDiscount(plans.discount_percent);
     }
 
+    // Load recurring schedules (lawn care)
+    const recurringRes = await fetch(
+      `/api/recurring/my-schedules?customerId=${customerData.id}&businessId=${biz.id}`
+    );
+    if (recurringRes.ok) setRecurringSchedules(await recurringRes.json());
+
     return true;
   };
 
@@ -409,6 +445,26 @@ export default function DashboardPage() {
     }
 
     setCancelling(false);
+  };
+
+  const handleRecurringAction = async (id: string, action: "pause" | "resume" | "cancel") => {
+    if (!customer) return;
+    if (action === "cancel" && !window.confirm("Cancel your recurring service? No more automatic bookings will be created.")) return;
+    setRecurringActionId(id);
+    const res = await fetch(`/api/recurring/${id}/customer-action`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customerId: customer.id, action }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setRecurringSchedules((prev) =>
+        action === "cancel"
+          ? prev.filter((s) => s.id !== id)
+          : prev.map((s) => s.id === id ? { ...s, status: updated.status } : s)
+      );
+    }
+    setRecurringActionId(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -816,6 +872,71 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Recurring Services */}
+        {recurringSchedules.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">🔄 Recurring Service</h2>
+            <p className="text-sm text-gray-500 mb-4">Your automatic repeat bookings</p>
+            <div className="space-y-4">
+              {recurringSchedules.map((s) => (
+                <div key={s.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="font-bold text-gray-900">{s.services?.name ?? "Service"}</p>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      s.status === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                      {s.status === "active" ? "Active" : "Paused"}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <span className="px-2.5 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full">
+                      {RECURRING_FREQ[s.frequency]}
+                    </span>
+                    <span className="px-2.5 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-full">
+                      {RECURRING_DAYS[s.day_of_week]}s at {formatRecurringTime(s.preferred_time)}
+                    </span>
+                    <span className="px-2.5 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-full">
+                      ${(s.price_cents / 100).toFixed(2)}/visit
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-gray-500 mb-3">
+                    Next visit: <span className="font-semibold text-gray-800">{formatRecurringNextDate(s.next_booking_date)}</span>
+                  </p>
+
+                  <div className="flex gap-2">
+                    {s.status === "active" ? (
+                      <button
+                        onClick={() => handleRecurringAction(s.id, "pause")}
+                        disabled={recurringActionId === s.id}
+                        className="flex-1 py-2 text-xs font-semibold rounded-lg border border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 disabled:opacity-40 transition"
+                      >
+                        {recurringActionId === s.id ? "..." : "⏸ Pause"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleRecurringAction(s.id, "resume")}
+                        disabled={recurringActionId === s.id}
+                        className="flex-1 py-2 text-xs font-semibold rounded-lg border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-40 transition"
+                      >
+                        {recurringActionId === s.id ? "..." : "▶ Resume"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleRecurringAction(s.id, "cancel")}
+                      disabled={recurringActionId === s.id}
+                      className="flex-1 py-2 text-xs font-semibold rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Refer & Earn */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
