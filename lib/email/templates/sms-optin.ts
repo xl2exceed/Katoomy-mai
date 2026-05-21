@@ -99,8 +99,7 @@ export function smsOptinEmailHtml(data: SmsOptinTemplateData): string {
 
         <!-- Katoomy brand bar -->
         <tr><td style="background:#ffffff;padding:14px 40px;text-align:center;border-bottom:1px solid #f3f4f6;">
-          <span style="display:inline-block;background:#2563eb;border-radius:7px;padding:3px 10px;font-size:14px;font-weight:900;color:#ffffff;vertical-align:middle;letter-spacing:0.3px;">K</span>
-          <span style="font-size:16px;font-weight:800;color:#111827;vertical-align:middle;margin-left:8px;">Katoomy</span>
+          <img src="https://katoomy.com/brand/katoomy-namelogo.png" alt="Katoomy" height="44" style="display:inline-block;border:0;height:44px;width:auto;">
         </td></tr>
 
         <!-- Header -->
