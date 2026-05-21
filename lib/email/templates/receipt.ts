@@ -94,7 +94,7 @@ export function receiptEmailHtml(data: ReceiptTemplateData): string {
         <!-- Business header -->
         <tr><td style="background:${headerBg};padding:28px 40px;text-align:center;">
           <p style="margin:0 0 8px;font-size:20px;font-weight:800;color:#ffffff;">${businessName}</p>
-          <h1 style="margin:0;font-size:22px;font-weight:600;color:rgba(255,255,255,0.85);">Payment Receipt</h1>
+          <h1 style="margin:0;font-size:14px;font-weight:500;color:rgba(255,255,255,0.75);letter-spacing:0.5px;text-transform:uppercase;">Payment Receipt</h1>
         </td></tr>
 
         <!-- Body -->
