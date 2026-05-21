@@ -9,6 +9,7 @@ import { runDue } from "@/inngest/functions/run-due";
 import { sendReminders } from "@/inngest/functions/send-reminders";
 import { onboardingSequences } from "@/inngest/functions/onboarding-sequences";
 import { emailCampaigns } from "@/inngest/functions/email-campaigns";
+import { generateRecurring } from "@/inngest/functions/generate-recurring";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -22,5 +23,6 @@ export const { GET, POST, PUT } = serve({
     sendReminders,
     onboardingSequences,
     emailCampaigns,
+    generateRecurring,
   ],
 });
