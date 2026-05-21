@@ -119,6 +119,7 @@ export default function Sidebar({ businessId, plan, status, niche = "barber" }: 
           : navLink("/admin/services", "✂️", "Services")}
         {isCarwash && navLink("/admin/carwash", "⚙️", "Car Wash Settings")}
         {isLawnCare && navLink("/admin/lawncare", "🌿", "Lawn Care Settings")}
+        {isLawnCare && navLink("/admin/recurring", "🔄", "Recurring Schedules")}
         {navLink("/admin/availability", "🕒", "Availability")}
         {hasStaffAccess && navLink("/admin/staff", "👔", "Staff")}
         {navLink("/admin/customers", "👥", "Customers")}

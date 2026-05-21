@@ -57,6 +57,9 @@ export default function BookPage() {
   const [vehicleBasedPriceCents, setVehicleBasedPriceCents] = useState<number | null>(null);
   const [addonTotalCents, setAddonTotalCents] = useState(0);
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
+  const [isLawnCare, setIsLawnCare] = useState(false);
+  const [recurringEnabled, setRecurringEnabled] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState<"weekly" | "biweekly" | "monthly">("biweekly");
 
   useEffect(() => {
     loadData();
@@ -106,12 +109,14 @@ export default function BookPage() {
     // Get business
     const { data: businessData } = await supabase
       .from("businesses")
-      .select("id, name, primary_color")
+      .select("id, name, primary_color, features")
       .eq("slug", slug)
       .single();
 
     if (businessData) {
       setBusiness(businessData);
+      const features = businessData.features as Record<string, unknown> | null;
+      if ((features?.niche as string) === "lawn_care") setIsLawnCare(true);
 
       // Get business hours
       const { data: hoursData } = await supabase
@@ -396,6 +401,11 @@ export default function BookPage() {
     sessionStorage.setItem("bookingDate", selectedDate);
     sessionStorage.setItem("bookingTime", selectedTime);
     sessionStorage.setItem("selectedStaffId", selectedStaffId);
+    if (isLawnCare && recurringEnabled) {
+      sessionStorage.setItem("recurringFrequency", recurringFrequency);
+    } else {
+      sessionStorage.removeItem("recurringFrequency");
+    }
     router.push(`/${slug}/customer-info`);
   };
 
@@ -659,15 +669,52 @@ export default function BookPage() {
             </div>
           )}
           {selectedTime && (
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
-              <button
-                onClick={handleContinue}
-                className="w-full text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition"
-                style={{ backgroundColor: business?.primary_color || "#2563EB" }}
-              >
-                {rescheduleBookingId ? "Confirm Reschedule →" : "Continue →"}
-              </button>
-            </div>
+            <>
+              {/* Recurring option — lawn care only */}
+              {isLawnCare && (
+                <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">Make this recurring?</p>
+                      <p className="text-xs text-gray-400 mt-0.5">We&apos;ll automatically book future visits on this schedule.</p>
+                    </div>
+                    <button
+                      onClick={() => setRecurringEnabled((v) => !v)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition flex-shrink-0 ${recurringEnabled ? "bg-green-500" : "bg-gray-200"}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${recurringEnabled ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                  {recurringEnabled && (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {(["weekly", "biweekly", "monthly"] as const).map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => setRecurringFrequency(f)}
+                          className={`py-2 rounded-xl text-xs font-bold border-2 transition ${
+                            recurringFrequency === f
+                              ? "border-green-500 bg-green-50 text-green-700"
+                              : "border-gray-200 text-gray-600 hover:border-gray-300"
+                          }`}
+                        >
+                          {f === "weekly" ? "Weekly" : f === "biweekly" ? "Every 2 Wks" : "Monthly"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
+                <button
+                  onClick={handleContinue}
+                  className="w-full text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition"
+                  style={{ backgroundColor: business?.primary_color || "#2563EB" }}
+                >
+                  {rescheduleBookingId ? "Confirm Reschedule →" : "Continue →"}
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

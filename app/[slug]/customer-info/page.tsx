@@ -484,6 +484,30 @@ export default function CustomerInfoPage() {
       }
       if (bizRefId) localStorage.removeItem("katoomy:bizRef");
       sessionStorage.setItem("bookingId", data.bookingId);
+
+      // If customer opted into a recurring schedule, create it now
+      const recurringFrequency = sessionStorage.getItem("recurringFrequency");
+      if (recurringFrequency && data.customerId && business) {
+        try {
+          await fetch("/api/recurring/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              businessId: business.id,
+              customerId: data.customerId,
+              serviceId: service.id,
+              frequency: recurringFrequency,
+              preferredTime: bookingTime,
+              firstBookingDate: bookingDate,
+              propertySize: sessionStorage.getItem("selectedPropertySize") ?? undefined,
+              priceCents: effectiveTotalCents(),
+              addonIds: JSON.parse(sessionStorage.getItem("selectedAddonIds") || "[]"),
+            }),
+          });
+        } catch { /* non-critical — booking already created */ }
+        sessionStorage.removeItem("recurringFrequency");
+      }
+
       router.push(`/${slug}/confirmation`);
     } catch (err) {
       console.error("Error creating booking:", err);

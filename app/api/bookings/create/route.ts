@@ -459,7 +459,7 @@ export async function POST(req: NextRequest) {
       hasSmsTransactional: hasTransactionalConsent,
     })).catch(() => {});
 
-    return NextResponse.json({ bookingId: booking.id });
+    return NextResponse.json({ bookingId: booking.id, customerId });
   } catch (err) {
     console.error("Create booking error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
