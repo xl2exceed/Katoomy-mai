@@ -447,6 +447,81 @@ async function processReengagement(
   return { sent, failed, skipped };
 }
 
+/**
+ * App-install SMS nudge.
+ * Sent to customers who have SMS consent but haven't installed the app.
+ * Cooldown: 90 days (sent at most once per quarter).
+ */
+async function processAppInstallSms(
+  business: Business,
+  twilioClient: ReturnType<typeof getTwilio>["client"],
+  routing: { from: string } | { messagingServiceSid: string },
+  baseUrl: string
+): Promise<{ sent: number; failed: number; skipped: number }> {
+  let sent = 0, failed = 0, skipped = 0;
+
+  const installLink = `${baseUrl}/${business.slug}`;
+
+  // Customers with SMS consent
+  const { data: customers } = await supabaseAdmin
+    .from("customers")
+    .select("id, full_name, phone, sms_marketing_consent, sms_consent")
+    .eq("business_id", business.id)
+    .not("phone", "is", null);
+
+  if (!customers?.length) return { sent, failed, skipped };
+
+  // Find customers who already have the app installed
+  const { data: devices } = await supabaseAdmin
+    .from("customer_devices")
+    .select("customer_id")
+    .eq("business_id", business.id)
+    .eq("app_installed", true);
+
+  const installedIds = new Set((devices || []).map((d: { customer_id: string }) => d.customer_id));
+
+  const template = `Hey {{customer_name}}! Book with {{business_name}} faster using our free app — one-tap rebooking, loyalty rewards, and instant confirmations. Install it here (takes 30 seconds): {{install_link}}`;
+
+  for (const customer of customers) {
+    if (!customer.phone) { skipped++; continue; }
+
+    // Only send to customers who opted into marketing SMS
+    const hasConsent = customer.sms_marketing_consent === true ||
+      (customer.sms_marketing_consent === null && customer.sms_consent === true);
+    if (!hasConsent) { skipped++; continue; }
+
+    // Skip if already installed
+    if (installedIds.has(customer.id)) { skipped++; continue; }
+
+    const phone = normalizePhone(customer.phone);
+    if (!phone) { skipped++; continue; }
+
+    // 90-day cooldown — don't re-send if they already got one recently
+    const alreadySent = await wasRecentlySent(business.id, customer.id, "app_install_sms", 90);
+    if (alreadySent) { skipped++; continue; }
+
+    const message = fillTemplate(template, {
+      customer_name: customer.full_name?.split(" ")[0] ?? "there",
+      business_name: business.name,
+      install_link: installLink,
+    });
+
+    const ok = await sendAndLog({
+      twilioClient,
+      routing,
+      toPhone: phone,
+      message,
+      businessId: business.id,
+      customerId: customer.id,
+      campaignType: "app_install_sms",
+    });
+
+    ok ? sent++ : failed++;
+  }
+
+  return { sent, failed, skipped };
+}
+
 // ─── Main Handler ─────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -526,6 +601,16 @@ export async function GET(req: NextRequest) {
     } catch (err) {
       bizResult.reengage = { error: String(err) };
       console.error(`[smart-campaigns] reengage error for ${business.id}:`, err);
+    }
+
+    // App-install SMS nudge
+    try {
+      bizResult.appInstallSms = await processAppInstallSms(business, twilioClient, routing, baseUrl);
+      totalSent += (bizResult.appInstallSms as { sent: number }).sent;
+      totalFailed += (bizResult.appInstallSms as { failed: number }).failed;
+    } catch (err) {
+      bizResult.appInstallSms = { error: String(err) };
+      console.error(`[smart-campaigns] app-install-sms error for ${business.id}:`, err);
     }
 
     results[business.id] = bizResult;
