@@ -20,6 +20,13 @@ interface RecurringSchedule {
   services: { id: string; name: string } | null;
 }
 
+interface EditDraft {
+  dayOfWeek: number;
+  preferredTime: string;
+  frequency: "weekly" | "biweekly" | "monthly";
+}
+
+const DAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const FREQ_LABELS: Record<string, string> = {
   weekly: "Weekly",
@@ -52,6 +59,8 @@ export default function RecurringPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"active" | "paused" | "cancelled" | "all">("active");
   const [updating, setUpdating] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
 
   const load = async (status: string) => {
     setLoading(true);
@@ -63,19 +72,34 @@ export default function RecurringPage() {
 
   useEffect(() => { load(filter); }, [filter]);
 
-  const updateStatus = async (id: string, status: "active" | "paused" | "cancelled") => {
+  const patch = async (id: string, body: Record<string, unknown>) => {
     setUpdating(id);
     const res = await fetch(`/api/recurring/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
-      setSchedules((prev) =>
-        prev.map((s) => s.id === id ? { ...s, status } : s)
-      );
+      const updated = await res.json();
+      setSchedules((prev) => prev.map((s) => s.id === id ? { ...s, ...updated } : s));
     }
     setUpdating(null);
+    return res.ok;
+  };
+
+  const startEdit = (s: RecurringSchedule) => {
+    setEditingId(s.id);
+    setEditDraft({ dayOfWeek: s.day_of_week, preferredTime: s.preferred_time, frequency: s.frequency });
+  };
+
+  const saveEdit = async (id: string) => {
+    if (!editDraft) return;
+    const ok = await patch(id, {
+      dayOfWeek: editDraft.dayOfWeek,
+      preferredTime: editDraft.preferredTime,
+      frequency: editDraft.frequency,
+    });
+    if (ok) setEditingId(null);
   };
 
   return (
@@ -169,36 +193,102 @@ export default function RecurringPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col gap-2 flex-shrink-0">
-                  {s.status === "active" && (
+                {s.status !== "cancelled" && (
+                  <div className="flex flex-col gap-2 flex-shrink-0">
                     <button
-                      onClick={() => updateStatus(s.id, "paused")}
-                      disabled={updating === s.id}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 disabled:opacity-40 transition"
+                      onClick={() => editingId === s.id ? setEditingId(null) : startEdit(s)}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition"
                     >
-                      Pause
+                      {editingId === s.id ? "Cancel Edit" : "✏️ Reschedule"}
                     </button>
-                  )}
-                  {s.status === "paused" && (
+                    {s.status === "active" && (
+                      <button
+                        onClick={() => patch(s.id, { status: "paused" })}
+                        disabled={updating === s.id}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 disabled:opacity-40 transition"
+                      >
+                        Pause
+                      </button>
+                    )}
+                    {s.status === "paused" && (
+                      <button
+                        onClick={() => patch(s.id, { status: "active" })}
+                        disabled={updating === s.id}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-40 transition"
+                      >
+                        Resume
+                      </button>
+                    )}
                     <button
-                      onClick={() => updateStatus(s.id, "active")}
-                      disabled={updating === s.id}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-40 transition"
-                    >
-                      Resume
-                    </button>
-                  )}
-                  {s.status !== "cancelled" && (
-                    <button
-                      onClick={() => updateStatus(s.id, "cancelled")}
+                      onClick={() => patch(s.id, { status: "cancelled" })}
                       disabled={updating === s.id}
                       className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition"
                     >
                       Cancel
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+
+              {/* Inline reschedule form */}
+              {editingId === s.id && editDraft && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Reschedule</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Day of week */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">Day of Week</label>
+                      <select
+                        value={editDraft.dayOfWeek}
+                        onChange={(e) => setEditDraft((d) => d ? { ...d, dayOfWeek: Number(e.target.value) } : d)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        {DAYS_FULL.map((day, i) => (
+                          <option key={i} value={i}>{day}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Time */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">Preferred Time</label>
+                      <input
+                        type="time"
+                        value={editDraft.preferredTime}
+                        onChange={(e) => setEditDraft((d) => d ? { ...d, preferredTime: e.target.value } : d)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+
+                    {/* Frequency */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">Frequency</label>
+                      <select
+                        value={editDraft.frequency}
+                        onChange={(e) => setEditDraft((d) => d ? { ...d, frequency: e.target.value as "weekly" | "biweekly" | "monthly" } : d)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Every 2 Weeks</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-4">
+                    <button
+                      onClick={() => saveEdit(s.id)}
+                      disabled={updating === s.id}
+                      className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-40 transition"
+                    >
+                      {updating === s.id ? "Saving…" : "Save Changes"}
+                    </button>
+                    <p className="text-xs text-gray-400">
+                      Next booking will be recalculated to the next {DAYS_FULL[editDraft.dayOfWeek]}.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
