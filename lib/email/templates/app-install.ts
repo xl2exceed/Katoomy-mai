@@ -75,9 +75,16 @@ export function appInstallEmailHtml(data: AppInstallTemplateData): string {
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
 
+        <!-- Katoomy brand bar -->
+        <tr><td style="background:#ffffff;padding:14px 40px;text-align:center;border-bottom:1px solid #f3f4f6;">
+          <span style="display:inline-block;background:#2563eb;border-radius:7px;padding:3px 10px;font-size:14px;font-weight:900;color:#ffffff;vertical-align:middle;letter-spacing:0.3px;">K</span>
+          <span style="font-size:16px;font-weight:800;color:#111827;vertical-align:middle;margin-left:8px;">Katoomy</span>
+        </td></tr>
+
         <!-- Header -->
-        <tr><td style="background:${v.headerGradient};padding:32px 40px;text-align:center;">
-          <p style="margin:0 0 8px;font-size:40px;">📱</p>
+        <tr><td style="background:${v.headerGradient};padding:28px 40px;text-align:center;">
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:0.5px;text-transform:uppercase;">${businessName}</p>
+          <p style="margin:0 0 8px;font-size:36px;">📱</p>
           <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;line-height:1.3;">${v.headline}</h1>
           <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,.75);">${v.subheadline}</p>
         </td></tr>
