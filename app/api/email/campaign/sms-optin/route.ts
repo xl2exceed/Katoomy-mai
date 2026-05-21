@@ -1,6 +1,9 @@
 // POST /api/email/campaign/sms-optin
-// Sends SMS opt-in invite emails to customers who haven't opted in and haven't
-// received this email before. Works for both manual (admin cookie) and cron (CRON_SECRET).
+// Sends a 3-email sequence to customers who haven't opted into SMS:
+//   Email 1 (Day 0):  sms_optin_email_sent_at IS NULL
+//   Email 2 (Day 7):  email 1 sent 7+ days ago, email_2 not yet sent
+//   Email 3 (Day 14): email 2 sent 7+ days ago, email_3 not yet sent
+// Stops the sequence once the customer opts into SMS.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -8,6 +11,7 @@ import { getResend, FROM } from "@/lib/email/resend";
 import { smsOptinEmailHtml } from "@/lib/email/templates/sms-optin";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
+const DAYS_7 = 7 * 24 * 60 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,7 +40,6 @@ export async function POST(req: NextRequest) {
       businessId = biz.id; businessName = biz.name; businessSlug = biz.slug; brandColor = biz.primary_color ?? undefined;
     }
 
-    // Check if this campaign is enabled for this business
     const { data: campaignSettings } = await supabaseAdmin
       .from("ai_marketing_settings")
       .select("sms_optin_email_enabled")
@@ -46,8 +49,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ sent: 0, message: "Campaign disabled for this business" });
     }
 
-    // Eligible: has email, not opted into SMS, never received this email
-    const { data: customers } = await supabaseAdmin
+    const now = Date.now();
+    const cutoff7 = new Date(now - DAYS_7).toISOString();
+
+    // --- Tier 1: has email, not opted into SMS, never received email 1 ---
+    const { data: tier1Raw } = await supabaseAdmin
       .from("customers")
       .select("id, full_name, email")
       .eq("business_id", businessId)
@@ -55,50 +61,108 @@ export async function POST(req: NextRequest) {
       .not("email", "is", null)
       .is("sms_optin_email_sent_at", null);
 
-    const eligible = (customers || []).filter((c) => c.email);
+    // --- Tier 2: received email 1 7+ days ago, still not opted in, email 2 not sent ---
+    const { data: tier2Raw } = await supabaseAdmin
+      .from("customers")
+      .select("id, full_name, email")
+      .eq("business_id", businessId)
+      .eq("sms_consent", false)
+      .not("email", "is", null)
+      .not("sms_optin_email_sent_at", "is", null)
+      .lte("sms_optin_email_sent_at", cutoff7)
+      .is("sms_optin_email_2_sent_at", null);
 
-    if (eligible.length === 0) {
-      return NextResponse.json({ sent: 0, message: "No eligible customers" });
-    }
+    // --- Tier 3: received email 2 7+ days ago, still not opted in, email 3 not sent ---
+    const { data: tier3Raw } = await supabaseAdmin
+      .from("customers")
+      .select("id, full_name, email")
+      .eq("business_id", businessId)
+      .eq("sms_consent", false)
+      .not("email", "is", null)
+      .not("sms_optin_email_2_sent_at", "is", null)
+      .lte("sms_optin_email_2_sent_at", cutoff7)
+      .is("sms_optin_email_3_sent_at", null);
+
+    const tier1 = (tier1Raw || []).filter((c) => c.email);
+    const tier2 = (tier2Raw || []).filter((c) => c.email);
+    const tier3 = (tier3Raw || []).filter((c) => c.email);
 
     const resend = getResend();
-    const sentIds: string[] = [];
-    let failed = 0;
+    const results = { email1: { sent: 0, failed: 0 }, email2: { sent: 0, failed: 0 }, email3: { sent: 0, failed: 0 } };
 
-    for (let i = 0; i < eligible.length; i += 10) {
-      const batch = eligible.slice(i, i + 10);
-      await Promise.all(
-        batch.map(async (c) => {
-          try {
-            const html = smsOptinEmailHtml({
-              customerName: c.full_name || "Valued Customer",
-              businessName,
-              businessSlug,
-              appUrl: APP_URL,
-              emailNumber: 1,
-              customerId: c.id,
-              brandColor,
-            });
-            const { error } = await resend.emails.send({
-              from: FROM,
-              to: c.email!,
-              subject: `Stay connected with ${businessName} — enable text updates`,
-              html,
-            });
-            if (error) { failed++; } else { sentIds.push(c.id); }
-          } catch { failed++; }
-        })
-      );
+    async function sendTier(
+      customers: { id: string; full_name: string | null; email: string | null }[],
+      emailNumber: 1 | 2 | 3,
+      subject: string,
+      updateField: string,
+      tier: keyof typeof results,
+    ) {
+      const sentIds: string[] = [];
+      for (let i = 0; i < customers.length; i += 10) {
+        const batch = customers.slice(i, i + 10);
+        await Promise.all(
+          batch.map(async (c) => {
+            try {
+              const html = smsOptinEmailHtml({
+                customerName: c.full_name || "Valued Customer",
+                businessName,
+                businessSlug,
+                appUrl: APP_URL,
+                emailNumber,
+                customerId: c.id,
+                brandColor,
+              });
+              const { error } = await resend.emails.send({
+                from: FROM,
+                to: c.email!,
+                subject,
+                html,
+              });
+              if (error) { results[tier].failed++; } else { sentIds.push(c.id); }
+            } catch { results[tier].failed++; }
+          })
+        );
+      }
+      if (sentIds.length > 0) {
+        await supabaseAdmin
+          .from("customers")
+          .update({ [updateField]: new Date().toISOString() })
+          .in("id", sentIds);
+        results[tier].sent = sentIds.length;
+      }
     }
 
-    if (sentIds.length > 0) {
-      await supabaseAdmin
-        .from("customers")
-        .update({ sms_optin_email_sent_at: new Date().toISOString() })
-        .in("id", sentIds);
-    }
+    await sendTier(
+      tier1,
+      1,
+      `Stay connected with ${businessName} — enable text updates`,
+      "sms_optin_email_sent_at",
+      "email1",
+    );
+    await sendTier(
+      tier2,
+      2,
+      `${businessName} texts make it easier — here's what you're missing`,
+      "sms_optin_email_2_sent_at",
+      "email2",
+    );
+    await sendTier(
+      tier3,
+      3,
+      `One tap to stay in the loop with ${businessName}`,
+      "sms_optin_email_3_sent_at",
+      "email3",
+    );
 
-    return NextResponse.json({ sent: sentIds.length, failed, total: eligible.length });
+    const totalSent = results.email1.sent + results.email2.sent + results.email3.sent;
+    const totalFailed = results.email1.failed + results.email2.failed + results.email3.failed;
+
+    return NextResponse.json({
+      sent: totalSent,
+      failed: totalFailed,
+      breakdown: results,
+      totals: { tier1: tier1.length, tier2: tier2.length, tier3: tier3.length },
+    });
   } catch (err) {
     console.error("sms-optin campaign error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
