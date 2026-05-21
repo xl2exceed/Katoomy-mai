@@ -94,6 +94,16 @@ export async function resolveAudience(
     return customers.filter(c => new Date(c.created_at) >= cutoff);
   }
 
+  if (audienceType === "no_app") {
+    const { data: devices } = await supabaseAdmin
+      .from("customer_devices")
+      .select("customer_id")
+      .eq("business_id", businessId)
+      .eq("app_installed", true);
+    const installedIds = new Set((devices || []).map((d) => d.customer_id));
+    return customers.filter((c) => !installedIds.has(c.id));
+  }
+
   if (audienceType === "top_spenders") {
     const topN = config.top_n ?? 20;
     const { data: bookings } = await supabaseAdmin

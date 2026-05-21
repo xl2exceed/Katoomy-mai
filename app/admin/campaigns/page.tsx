@@ -23,6 +23,7 @@ const AUDIENCE_OPTIONS = [
   { key: "members", label: "Members Only", description: "Active Elite Members" },
   { key: "new", label: "New Customers", description: "Recently joined" },
   { key: "top_spenders", label: "Top Spenders", description: "Highest-value customers" },
+  { key: "no_app", label: "No App Install", description: "Haven't installed the Katoomy app" },
 ];
 
 const TEMPLATES = [
