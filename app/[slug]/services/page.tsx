@@ -32,9 +32,11 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [memberDiscountPct] = useState(0);
   const [isCarwash, setIsCarwash] = useState(false);
+  const [isLawnCare, setIsLawnCare] = useState(false);
   const [hasNetOffer, setHasNetOffer] = useState(false);
   const [surcharges, setSurcharges] = useState<Record<string, number>>({});
   const [vehicleType, setVehicleType] = useState<string>("");
+  const [propertySize, setPropertySize] = useState<string>("");
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   useEffect(() => {
@@ -55,27 +57,46 @@ export default function ServicesPage() {
         const features = businessData.features as Record<string, unknown> | null;
         const niche = (features?.niche as string) ?? "barber";
         const carwash = niche === "carwash";
+        const lawnCare = niche === "lawn_care";
         setIsCarwash(carwash);
+        setIsLawnCare(lawnCare);
 
         if (carwash) {
           // Car wash: vehicle must be selected first on every booking.
-          // vehicleJustSelected is a one-time flag set by the vehicle page on continue.
           const justSelected = sessionStorage.getItem("vehicleJustSelected");
           if (!justSelected) {
             router.replace(`/${slug}/vehicle`);
             return;
           }
-          // Consume the flag so the next booking starts at vehicle page again
           sessionStorage.removeItem("vehicleJustSelected");
           const savedVehicle = sessionStorage.getItem("selectedVehicleType") || "";
           setVehicleType(savedVehicle);
 
-          // Fetch surcharges
           try {
             const res = await fetch(`/api/carwash/settings?businessId=${businessData.id}`);
             if (res.ok) {
               const cs = await res.json();
               if (cs?.vehicle_surcharges) setSurcharges(cs.vehicle_surcharges);
+            }
+          } catch { /* ignore */ }
+        }
+
+        if (lawnCare) {
+          // Lawn care: property size must be selected first on every booking.
+          const justSelected = sessionStorage.getItem("lawnCareJustSelected");
+          if (!justSelected) {
+            router.replace(`/${slug}/property`);
+            return;
+          }
+          sessionStorage.removeItem("lawnCareJustSelected");
+          const savedSize = sessionStorage.getItem("selectedPropertySize") || "";
+          setPropertySize(savedSize);
+
+          try {
+            const res = await fetch(`/api/lawncare/settings?businessId=${businessData.id}`);
+            if (res.ok) {
+              const ls = await res.json();
+              if (ls?.property_surcharges) setSurcharges(ls.property_surcharges);
             }
           } catch { /* ignore */ }
         }
@@ -133,7 +154,7 @@ export default function ServicesPage() {
       return;
     }
 
-    if (isCarwash) {
+    if (isCarwash || isLawnCare) {
       // Save the surcharge-adjusted price so customer-info uses the correct amount
       sessionStorage.setItem("vehicleBasedPriceCents", String(adjustedPriceCents));
 
@@ -152,7 +173,7 @@ export default function ServicesPage() {
         router.push(`/${slug}/book`);
       }
     } else {
-      // Barber / default flow: clear any stale carwash data then go to book
+      // Barber / default flow
       sessionStorage.removeItem("vehicleBasedPriceCents");
       sessionStorage.removeItem("addonTotalCents");
       sessionStorage.removeItem("selectedAddonIds");
@@ -183,7 +204,7 @@ export default function ServicesPage() {
         }}
       >
         <Link
-          href={isCarwash ? `/${slug}/vehicle` : `/${slug}`}
+          href={isCarwash ? `/${slug}/vehicle` : isLawnCare ? `/${slug}/property` : `/${slug}`}
           className="text-white/80 hover:text-white text-sm mb-2 block"
         >
           ← Back
@@ -208,8 +229,9 @@ export default function ServicesPage() {
           </div>
         ) : (
           services.map((service) => {
-            // For carwash: bake the vehicle surcharge into the displayed price
-            const surcharge = isCarwash ? (surcharges[vehicleType] ?? 0) : 0;
+            // Bake niche surcharge into the displayed price
+            const surchargeKey = isCarwash ? vehicleType : isLawnCare ? propertySize : "";
+            const surcharge = surchargeKey ? (surcharges[surchargeKey] ?? 0) : 0;
             const displayPrice = service.price_cents + surcharge;
             // Bake the $1 platform fee into the displayed price when customer pays it
             const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;

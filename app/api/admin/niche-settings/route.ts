@@ -90,5 +90,15 @@ export async function POST(req: NextRequest) {
       );
   }
 
+  // If switching to lawn_care, ensure a lawn_care_settings row exists
+  if (niche === "lawn_care") {
+    await supabaseAdmin
+      .from("lawn_care_settings")
+      .upsert(
+        { business_id: business.id },
+        { onConflict: "business_id" }
+      );
+  }
+
   return NextResponse.json({ success: true, niche, service_mode });
 }

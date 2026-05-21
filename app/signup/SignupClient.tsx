@@ -511,7 +511,7 @@ export default function SignupClient({
                       { value: "nail_salon", label: "Nail Salon", icon: "💅", active: false },
                       { value: "personal_trainer", label: "Personal Trainer", icon: "💪", active: false },
                       { value: "massage_therapist", label: "Massage", icon: "🧘", active: false },
-                      { value: "lawn_care", label: "Lawn Care", icon: "🌿", active: false },
+                      { value: "lawn_care", label: "Lawn Care", icon: "🌿", active: true },
                       { value: "tattoo_artist", label: "Tattoo", icon: "🎨", active: false },
                       { value: "esthetician", label: "Esthetician", icon: "✨", active: false },
                     ].map(({ value, label, icon, active }) => (
