@@ -608,7 +608,7 @@ export default function SettingsPage() {
           <h2 className="text-xl font-bold text-gray-900 mb-1">Business Type</h2>
           <p className="text-sm text-gray-600 mb-6">Select your business niche to unlock the right features for your industry</p>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-3 gap-4 mb-6">
             <button
               type="button"
               onClick={() => setNiche("barber")}
@@ -634,6 +634,19 @@ export default function SettingsPage() {
               <div className="text-2xl mb-2">🚗</div>
               <div className="font-semibold text-gray-900">Car Wash / Mobile Detailer</div>
               <div className="text-xs text-gray-500 mt-1">Vehicle-based pricing, add-ons, mobile or in-shop service</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNiche("lawn_care")}
+              className={`p-4 rounded-xl border-2 text-left transition ${
+                niche === "lawn_care"
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <div className="text-2xl mb-2">🌿</div>
+              <div className="font-semibold text-gray-900">Lawn Care</div>
+              <div className="text-xs text-gray-500 mt-1">Property-size pricing, travel fee, service radius</div>
             </button>
           </div>
 
