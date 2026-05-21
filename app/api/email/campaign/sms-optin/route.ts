@@ -36,6 +36,16 @@ export async function POST(req: NextRequest) {
       businessId = biz.id; businessName = biz.name; businessSlug = biz.slug; brandColor = biz.primary_color ?? undefined;
     }
 
+    // Check if this campaign is enabled for this business
+    const { data: campaignSettings } = await supabaseAdmin
+      .from("ai_marketing_settings")
+      .select("sms_optin_email_enabled")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (campaignSettings?.sms_optin_email_enabled === false) {
+      return NextResponse.json({ sent: 0, message: "Campaign disabled for this business" });
+    }
+
     // Eligible: has email, not opted into SMS, never received this email
     const { data: customers } = await supabaseAdmin
       .from("customers")

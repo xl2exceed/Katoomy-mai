@@ -24,6 +24,7 @@ import { getTwilio, getRouting } from "@/lib/twilio";
 
 interface SmartCampaignSettings {
   business_id: string;
+  app_install_sms_enabled: boolean;
   winback_30_enabled: boolean;
   winback_30_template: string | null;
   winback_60_enabled: boolean;
@@ -605,7 +606,9 @@ export async function GET(req: NextRequest) {
 
     // App-install SMS nudge
     try {
-      bizResult.appInstallSms = await processAppInstallSms(business, twilioClient, routing, baseUrl);
+      bizResult.appInstallSms = s.app_install_sms_enabled === false
+        ? { sent: 0, failed: 0, skipped: 0 }
+        : await processAppInstallSms(business, twilioClient, routing, baseUrl);
       totalSent += (bizResult.appInstallSms as { sent: number }).sent;
       totalFailed += (bizResult.appInstallSms as { failed: number }).failed;
     } catch (err) {

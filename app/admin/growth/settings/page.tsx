@@ -6,6 +6,9 @@ interface Settings {
   id: string;
   insights_enabled: boolean;
   insights_refresh_hours: number;
+  app_install_sms_enabled: boolean;
+  app_install_email_enabled: boolean;
+  sms_optin_email_enabled: boolean;
 }
 
 export default function GrowthSettingsPage() {
@@ -123,6 +126,35 @@ export default function GrowthSettingsPage() {
             />
           )}
         </SettingsSection>
+
+        {/* ── Automated Campaigns ── */}
+        <SettingsSection
+          icon="📲"
+          title="Automated Campaigns"
+          description="Toggle each campaign on or off. All run daily and respect customer consent settings."
+        >
+          <CampaignToggleRow
+            icon="📱"
+            title="App Install Text"
+            description="Texts customers who opted into SMS but haven't installed the app. Sends at most once every 90 days."
+            value={settings.app_install_sms_enabled ?? true}
+            onChange={(v) => update("app_install_sms_enabled", v)}
+          />
+          <CampaignToggleRow
+            icon="✉️"
+            title="App Install Email"
+            description="Emails customers who haven't installed the app. Sends up to 3 emails, spaced out over time."
+            value={settings.app_install_email_enabled ?? true}
+            onChange={(v) => update("app_install_email_enabled", v)}
+          />
+          <CampaignToggleRow
+            icon="💬"
+            title="SMS Opt-in Email"
+            description="Emails customers who haven't opted into text alerts. Up to 3 emails encouraging them to sign up."
+            value={settings.sms_optin_email_enabled ?? true}
+            onChange={(v) => update("sms_optin_email_enabled", v)}
+          />
+        </SettingsSection>
       </div>
 
       {/* Save Button (bottom) */}
@@ -171,6 +203,34 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
       <button
         onClick={() => onChange(!value)}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${value ? "bg-purple-600" : "bg-gray-200"}`}
+      >
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${value ? "translate-x-6" : "translate-x-1"}`} />
+      </button>
+    </div>
+  );
+}
+
+function CampaignToggleRow({
+  icon, title, description, value, onChange,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-gray-50 last:border-0">
+      <div className="flex items-start gap-3">
+        <span className="text-xl mt-0.5">{icon}</span>
+        <div>
+          <p className="text-sm font-semibold text-gray-800">{title}</p>
+          <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{description}</p>
+        </div>
+      </div>
+      <button
+        onClick={() => onChange(!value)}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition mt-0.5 ${value ? "bg-purple-600" : "bg-gray-200"}`}
       >
         <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${value ? "translate-x-6" : "translate-x-1"}`} />
       </button>

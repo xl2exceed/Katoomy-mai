@@ -56,6 +56,7 @@ export async function PUT(req: NextRequest) {
     "referral_template", "referral_cooldown_days",
     "social_enabled", "social_mode", "social_post_frequency_days",
     "social_default_platforms", "insights_enabled", "insights_refresh_hours",
+    "app_install_sms_enabled", "app_install_email_enabled", "sms_optin_email_enabled",
   ];
 
   const updates: Record<string, unknown> = {};
