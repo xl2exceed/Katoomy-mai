@@ -78,14 +78,23 @@ export function receiptEmailHtml(data: ReceiptTemplateData): string {
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
 
         <!-- Katoomy brand bar -->
-        <tr><td style="background:#ffffff;padding:14px 40px;text-align:center;border-bottom:1px solid #f3f4f6;">
-          <img src="https://katoomy.com/brand/katoomy-namelogo.png" alt="Katoomy" height="44" style="display:inline-block;border:0;height:44px;width:auto;">
+        <tr><td style="background:#ffffff;padding:16px 40px;text-align:center;border-bottom:1px solid #f0f0f0;">
+          <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+            <tr>
+              <td style="vertical-align:middle;padding-right:10px;">
+                <img src="https://katoomy.com/brand/katoomy-rocket.png" alt="" width="52" height="52" style="display:block;border:0;width:52px;height:52px;">
+              </td>
+              <td style="vertical-align:middle;">
+                <span style="font-size:30px;font-weight:800;color:#7C3AED;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">Katoomy</span>
+              </td>
+            </tr>
+          </table>
         </td></tr>
 
         <!-- Business header -->
         <tr><td style="background:${headerBg};padding:28px 40px;text-align:center;">
-          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:0.5px;text-transform:uppercase;">${businessName}</p>
-          <h1 style="margin:0;font-size:26px;font-weight:800;color:#ffffff;">Payment Receipt</h1>
+          <p style="margin:0 0 8px;font-size:20px;font-weight:800;color:#ffffff;">${businessName}</p>
+          <h1 style="margin:0;font-size:22px;font-weight:600;color:rgba(255,255,255,0.85);">Payment Receipt</h1>
         </td></tr>
 
         <!-- Body -->
