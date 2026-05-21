@@ -18,21 +18,22 @@ export async function POST(req: NextRequest) {
     let businessId: string;
     let businessName: string;
     let businessSlug: string;
+    let brandColor: string | undefined;
 
     if (isCron) {
       const body = await req.json().catch(() => ({}));
       if (!body.businessId) return NextResponse.json({ error: "Missing businessId" }, { status: 400 });
-      const { data: biz } = await supabaseAdmin.from("businesses").select("id, name, slug").eq("id", body.businessId).single();
+      const { data: biz } = await supabaseAdmin.from("businesses").select("id, name, slug, primary_color").eq("id", body.businessId).single();
       if (!biz) return NextResponse.json({ error: "Business not found" }, { status: 404 });
-      businessId = biz.id; businessName = biz.name; businessSlug = biz.slug;
+      businessId = biz.id; businessName = biz.name; businessSlug = biz.slug; brandColor = biz.primary_color ?? undefined;
     } else {
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       await req.json().catch(() => {});
-      const { data: biz } = await supabaseAdmin.from("businesses").select("id, name, slug").eq("owner_user_id", user.id).maybeSingle();
+      const { data: biz } = await supabaseAdmin.from("businesses").select("id, name, slug, primary_color").eq("owner_user_id", user.id).maybeSingle();
       if (!biz) return NextResponse.json({ error: "Business not found" }, { status: 404 });
-      businessId = biz.id; businessName = biz.name; businessSlug = biz.slug;
+      businessId = biz.id; businessName = biz.name; businessSlug = biz.slug; brandColor = biz.primary_color ?? undefined;
     }
 
     // Eligible: has email, not opted into SMS, never received this email
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
               appUrl: APP_URL,
               emailNumber: 1,
               customerId: c.id,
+              brandColor,
             });
             const { error } = await resend.emails.send({
               from: FROM,

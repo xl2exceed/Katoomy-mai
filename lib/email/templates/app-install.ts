@@ -4,6 +4,15 @@ interface AppInstallTemplateData {
   businessSlug: string;
   appUrl: string;
   emailNumber: 1 | 2 | 3;
+  brandColor?: string;
+}
+
+function darken(hex: string, amt: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const r = Math.max(0, (n >> 16) - amt);
+  const g = Math.max(0, ((n >> 8) & 0xff) - amt);
+  const b = Math.max(0, (n & 0xff) - amt);
+  return `#${[r, g, b].map(v => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 interface EmailVariant {
@@ -63,9 +72,10 @@ export function appInstallEmailSubject(emailNumber: 1 | 2 | 3, businessName: str
 }
 
 export function appInstallEmailHtml(data: AppInstallTemplateData): string {
-  const { customerName, businessName, businessSlug, appUrl, emailNumber } = data;
+  const { customerName, businessName, businessSlug, appUrl, emailNumber, brandColor } = data;
   const installLink = `${appUrl}/${businessSlug}`;
   const v = VARIANTS[emailNumber];
+  const headerBg = brandColor ? `linear-gradient(135deg, ${brandColor}, ${darken(brandColor, 40)})` : v.headerGradient;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -82,7 +92,7 @@ export function appInstallEmailHtml(data: AppInstallTemplateData): string {
         </td></tr>
 
         <!-- Header -->
-        <tr><td style="background:${v.headerGradient};padding:28px 40px;text-align:center;">
+        <tr><td style="background:${headerBg};padding:28px 40px;text-align:center;">
           <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:0.5px;text-transform:uppercase;">${businessName}</p>
           <p style="margin:0 0 8px;font-size:36px;">📱</p>
           <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;line-height:1.3;">${v.headline}</h1>
@@ -120,7 +130,7 @@ export function appInstallEmailHtml(data: AppInstallTemplateData): string {
 
             <!-- CTA -->
             <tr><td style="text-align:center;padding-bottom:8px;">
-              <a href="${installLink}" style="display:inline-block;background:${v.headerGradient};color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:14px 40px;border-radius:50px;">
+              <a href="${installLink}" style="display:inline-block;background:${headerBg};color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:14px 40px;border-radius:50px;">
                 ${v.ctaLabel}
               </a>
             </td></tr>

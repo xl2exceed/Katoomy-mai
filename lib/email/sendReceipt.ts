@@ -56,7 +56,7 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
     .select(`
       id, total_price_cents, start_ts,
       customers(id, full_name, email, phone),
-      businesses(id, name, slug),
+      businesses(id, name, slug, primary_color),
       services(name)
     `)
     .eq("id", bookingId)
@@ -79,7 +79,7 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
 
   const rawBusiness = booking.businesses;
   const businessRaw = Array.isArray(rawBusiness) ? rawBusiness[0] : rawBusiness;
-  const business = businessRaw as { id: string; name: string; slug: string } | null;
+  const business = businessRaw as { id: string; name: string; slug: string; primary_color?: string } | null;
 
   const rawService = booking.services;
   const serviceRaw = Array.isArray(rawService) ? rawService[0] : rawService;
@@ -131,6 +131,7 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
     appointmentDate,
     bookingId,
     partnerOffers,
+    brandColor: business!.primary_color || undefined,
   });
 
   console.log("[sendReceiptEmail] sending to:", customer.email);

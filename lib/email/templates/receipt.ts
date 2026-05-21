@@ -16,6 +16,15 @@ interface ReceiptTemplateData {
   appointmentDate: string;
   bookingId: string;
   partnerOffers: PartnerOffer[];
+  brandColor?: string;
+}
+
+function darken(hex: string, amt: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const r = Math.max(0, (n >> 16) - amt);
+  const g = Math.max(0, ((n >> 8) & 0xff) - amt);
+  const b = Math.max(0, (n & 0xff) - amt);
+  return `#${[r, g, b].map(v => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function formatOffer(o: PartnerOffer): string {
@@ -25,7 +34,9 @@ function formatOffer(o: PartnerOffer): string {
 }
 
 export function receiptEmailHtml(data: ReceiptTemplateData): string {
-  const { customerName, businessName, serviceName, priceCents, appointmentDate, partnerOffers } = data;
+  const { customerName, businessName, serviceName, priceCents, appointmentDate, partnerOffers, brandColor } = data;
+  const base = brandColor || "#2563eb";
+  const headerBg = `linear-gradient(135deg, ${base}, ${darken(base, 40)})`;
   const total = `$${(priceCents / 100).toFixed(2)}`;
 
   const offersHtml = partnerOffers.length === 0 ? "" : `
@@ -73,7 +84,7 @@ export function receiptEmailHtml(data: ReceiptTemplateData): string {
         </td></tr>
 
         <!-- Business header -->
-        <tr><td style="background:linear-gradient(135deg,#2563eb,#4f46e5);padding:28px 40px;text-align:center;">
+        <tr><td style="background:${headerBg};padding:28px 40px;text-align:center;">
           <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:0.5px;text-transform:uppercase;">${businessName}</p>
           <h1 style="margin:0;font-size:26px;font-weight:800;color:#ffffff;">Payment Receipt</h1>
         </td></tr>
