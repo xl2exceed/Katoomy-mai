@@ -626,7 +626,7 @@ export default function BookPage() {
 
           {/* Recurring option — lawn care only — shown ABOVE time slots so customers see it first */}
           {isLawnCare && (
-            <div className="mb-4 bg-green-50 border border-green-200 rounded-2xl p-4">
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-1">
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Make this recurring?</p>
@@ -634,7 +634,7 @@ export default function BookPage() {
                 </div>
                 <button
                   onClick={() => setRecurringEnabled((v) => !v)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition flex-shrink-0 ${recurringEnabled ? "bg-green-500" : "bg-gray-200"}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition flex-shrink-0 ${recurringEnabled ? "bg-red-500" : "bg-gray-200"}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${recurringEnabled ? "translate-x-6" : "translate-x-1"}`} />
                 </button>
@@ -647,7 +647,7 @@ export default function BookPage() {
                       onClick={() => setRecurringFrequency(f)}
                       className={`py-2 rounded-xl text-xs font-bold border-2 transition ${
                         recurringFrequency === f
-                          ? "border-green-500 bg-green-100 text-green-700"
+                          ? "border-red-500 bg-red-100 text-red-700"
                           : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                       }`}
                     >
