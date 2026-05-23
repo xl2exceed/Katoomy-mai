@@ -8,8 +8,21 @@ function dollars(cents: number) {
   return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function formatTime(ts: string) {
-  return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+function formatTime(ts: string, tz: string) {
+  return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
+}
+
+function tzMidnight(tz: string, offsetDays = 0): Date {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, hour: "numeric", minute: "numeric", second: "numeric", hour12: false,
+  }).formatToParts(now);
+  const h = parseInt(parts.find(p => p.type === "hour")!.value) % 24;
+  const m = parseInt(parts.find(p => p.type === "minute")!.value);
+  const s = parseInt(parts.find(p => p.type === "second")!.value);
+  const midnight = new Date(now.getTime() - (h * 3600 + m * 60 + s) * 1000 - now.getMilliseconds());
+  midnight.setUTCDate(midnight.getUTCDate() + offsetDays);
+  return midnight;
 }
 
 function greeting() {
@@ -33,15 +46,16 @@ export default async function AdminOverview() {
 
   const { data: business } = await supabaseAdmin
     .from("businesses")
-    .select("id, name, slug")
+    .select("id, name, slug, timezone")
     .eq("owner_user_id", user.id)
     .maybeSingle();
 
   if (!business) redirect("/admin/branding");
 
   const now = new Date();
-  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  const tz = business.timezone ?? "America/New_York";
+  const todayStart = tzMidnight(tz);
+  const todayEnd = tzMidnight(tz, 1);
   const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
   const twoWeeksAgo = new Date(now); twoWeeksAgo.setDate(now.getDate() - 14);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -211,7 +225,7 @@ export default async function AdminOverview() {
           {next ? (
             <>
               <p className="text-purple-200 text-sm font-medium mb-1">Next Appointment</p>
-              <p className="text-2xl font-bold">{formatTime(next.start_ts)}</p>
+              <p className="text-2xl font-bold">{formatTime(next.start_ts, tz)}</p>
               <p className="font-semibold mt-1">
                 {pick(next.customers, "full_name") || pick(next.customers, "phone")}
               </p>
@@ -338,7 +352,7 @@ export default async function AdminOverview() {
               {todayActive.slice(0, 7).map((b) => (
                 <div key={b.id} className="flex items-center gap-4 px-5 py-3">
                   <p className="text-sm font-semibold text-gray-500 w-16 flex-shrink-0 tabular-nums">
-                    {formatTime(b.start_ts)}
+                    {formatTime(b.start_ts, tz)}
                   </p>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">
