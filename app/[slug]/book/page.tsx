@@ -626,7 +626,7 @@ export default function BookPage() {
 
           {/* Recurring option — lawn care only — shown ABOVE time slots so customers see it first */}
           {isLawnCare && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
+            <div className="mb-4 bg-red-100 border border-red-400 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-1">
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Make this recurring?</p>
