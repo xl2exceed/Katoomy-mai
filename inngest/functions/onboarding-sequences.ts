@@ -80,8 +80,8 @@ export const onboardingSequences = inngest.createFunction(
 
     const firstName = customerName?.split(" ")[0] ?? "there";
 
-    // ── T+24h: SMS install nudge + SMS opt-in Email 1 ──────────────
-    await step.sleep("wait-24h", "24 hours");
+    // ── T+1h: SMS install nudge ────────────────────────────────────
+    await step.sleep("wait-1h", "1 hour");
 
     if (hasSmsTransactional) {
       await step.run("sms-install-nudge", async () => {
@@ -104,6 +104,9 @@ export const onboardingSequences = inngest.createFunction(
         }
       });
     }
+
+    // ── T+24h: SMS Opt-In Email 1 ─────────────────────────────────
+    await step.sleep("wait-24h", "23 hours"); // 1h+23h = 24h total
 
     if (customerEmail) {
       await step.run("sms-optin-email-1", async () => {
