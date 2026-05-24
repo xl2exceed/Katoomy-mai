@@ -40,6 +40,24 @@ interface BlockedNumber {
   customerName?: string | null;
 }
 
+interface SmsTemplates {
+  reminder: string;
+  cancel_customer: string;
+  cancel_staff: string;
+  payment_dispute: string;
+  winback: string;
+  referral: string;
+}
+
+const TEMPLATE_LABELS: Record<keyof SmsTemplates, string> = {
+  reminder:        "Appointment Reminder",
+  cancel_customer: "Customer Cancellation",
+  cancel_staff:    "Staff Cancellation",
+  payment_dispute: "Payment Dispute",
+  winback:         "Win-back",
+  referral:        "Referral",
+};
+
 type MessageType = "all" | "upcoming" | "at_risk" | "vip" | "members" | "new_customers" | "no_bookings" | "test";
 
 const AUDIENCE_OPTIONS: { value: MessageType; label: string; description: string }[] = [
@@ -100,6 +118,7 @@ export default function MobileMessagesPage() {
   const [blockedNumbers, setBlockedNumbers] = useState<BlockedNumber[]>([]);
   const [statsSummary, setStatsSummary] = useState({ delivered: 0, sent: 0, failed: 0, undelivered: 0, total: 0 });
   const [unblocking, setUnblocking] = useState<string | null>(null);
+  const [smsTemplates, setSmsTemplates] = useState<SmsTemplates | null>(null);
 
   const supabase = createClient();
 
@@ -128,6 +147,10 @@ export default function MobileMessagesPage() {
         .eq("business_id", bizResult.data.id)
         .single();
       if (notifData) setSettings(notifData as NotificationSettings);
+
+      // Load SMS templates configured on the desktop Messages page
+      const tmplRes = await fetch("/api/admin/sms-templates");
+      if (tmplRes.ok) setSmsTemplates(await tmplRes.json());
     }
     setLoading(false);
   };
@@ -402,11 +425,13 @@ export default function MobileMessagesPage() {
     setSendProgress(null);
   };
 
-  const templates = [
-    "Special offer: 20% off your next service! Book now.",
-    "We have a last-minute opening tomorrow. Interested?",
-    "Thank you for your business! We appreciate you.",
-  ];
+  const templateEntries = smsTemplates
+    ? (Object.keys(TEMPLATE_LABELS) as (keyof SmsTemplates)[]).map((key) => ({
+        key,
+        label: TEMPLATE_LABELS[key],
+        text: smsTemplates[key],
+      }))
+    : [];
 
   const selectedOption = AUDIENCE_OPTIONS.find(o => o.value === messageType)!;
 
@@ -528,17 +553,28 @@ export default function MobileMessagesPage() {
               </div>
             )}
 
-            {/* Quick Templates */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-              <label className="block text-sm font-bold text-gray-900 mb-3">Quick Templates</label>
-              <div className="space-y-2">
-                {templates.map((template, index) => (
-                  <button key={index} onClick={() => setMessage(template)} className="w-full text-left p-3 bg-gray-50 rounded-xl text-sm active:bg-gray-100 text-gray-900">
-                    {template}
-                  </button>
-                ))}
+            {/* SMS Templates */}
+            {templateEntries.length > 0 && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-bold text-gray-900">SMS Templates</label>
+                  <span className="text-xs text-gray-400">Tap to use</span>
+                </div>
+                <div className="space-y-2">
+                  {templateEntries.map(({ key, label, text }) => (
+                    <button
+                      key={key}
+                      onClick={() => setMessage(text)}
+                      className="w-full text-left p-3 bg-gray-50 rounded-xl active:bg-gray-100 transition"
+                    >
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-0.5">{label}</p>
+                      <p className="text-sm text-gray-900 line-clamp-2">{text}</p>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-3">Edit these templates on the desktop Messages page.</p>
               </div>
-            </div>
+            )}
 
             {/* Send Button */}
             <button
