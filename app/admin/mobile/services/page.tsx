@@ -78,7 +78,7 @@ export default function AdminMobileServicesPage() {
         ← Back to Menu
       </Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-1">
-        {niche === "carwash" ? "🚗 Services & Pricing" : "✂️ Services & Prices"}
+        {niche === "carwash" ? "🚗 Services & Pricing" : niche === "lawn_care" ? "🌿 Services & Pricing" : "✂️ Services & Prices"}
       </h1>
       <p className="text-sm text-gray-500 mb-5">View-only reference — edit services from the desktop.</p>
 

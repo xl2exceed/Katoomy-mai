@@ -167,7 +167,7 @@ export default function MobileMenuPage() {
     },
     {
       title: "Services",
-      icon: niche === "carwash" ? "🚗" : "✂️",
+      icon: niche === "carwash" ? "🚗" : niche === "lawn_care" ? "🌿" : "✂️",
       href: "/admin/mobile/services",
       description: "View service prices",
     },
