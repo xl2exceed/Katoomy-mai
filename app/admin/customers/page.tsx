@@ -4,10 +4,13 @@
 
 import { formatPhone } from "@/lib/utils/formatPhone";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 interface Customer {
   id: string;
+  first_name: string | null;
+  last_name: string | null;
   full_name: string | null;
   phone: string;
   email: string | null;
@@ -225,6 +228,29 @@ export default function CustomersPage() {
       }
     });
 
+  const exportCSV = () => {
+    const header = ["First Name", "Last Name", "Phone", "Email", "Total Bookings", "Total Spent ($)", "Last Visit", "Loyalty Points", "Joined"];
+    const rows = customers.map(c => [
+      c.first_name ?? "",
+      c.last_name ?? "",
+      c.phone,
+      c.email ?? "",
+      String(c.booking_count ?? 0),
+      ((c.total_spent ?? 0) / 100).toFixed(2),
+      c.last_visit ? new Date(c.last_visit).toLocaleDateString() : "",
+      String(c.loyalty_points ?? 0),
+      new Date(c.created_at).toLocaleDateString(),
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `katoomy-customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -233,11 +259,26 @@ export default function CustomersPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="p-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
-            <p className="text-gray-600 mt-1">
-              View and manage your customer contacts
-            </p>
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
+              <p className="text-gray-600 mt-1">View and manage your customer contacts</p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <button
+                onClick={exportCSV}
+                disabled={customers.length === 0}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                📤 Export CSV
+              </button>
+              <Link
+                href="/admin/import"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition"
+              >
+                📥 Import Customers
+              </Link>
+            </div>
           </div>
 
           {loading ? (

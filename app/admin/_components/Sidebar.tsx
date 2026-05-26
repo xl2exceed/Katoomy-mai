@@ -123,7 +123,6 @@ export default function Sidebar({ businessId, plan, status, niche = "barber" }: 
         {navLink("/admin/availability", "🕒", "Availability")}
         {hasStaffAccess && navLink("/admin/staff", "👔", "Staff")}
         {navLink("/admin/customers", "👥", "Customers")}
-        {navLink("/admin/import", "📥", "Import Customers")}
 
         {/* ── Payments ── */}
         <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Payments</p>
