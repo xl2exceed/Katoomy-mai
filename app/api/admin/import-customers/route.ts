@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 
 interface IncomingCustomer {
   phone: string;
+  firstName: string;
+  lastName: string;
   fullName: string;
   email: string | null;
 }
@@ -43,16 +45,19 @@ export async function POST(req: NextRequest) {
   }
 
   const skipped: SkippedRow[] = [];
-  const valid: { phone: string; fullName: string; email: string | null }[] = [];
+  const valid: { phone: string; firstName: string; lastName: string; fullName: string; email: string | null }[] = [];
 
   // Normalize and validate phones
   for (const c of incoming) {
     const phone = normalizePhone(c.phone ?? "");
+    const firstName = (c.firstName ?? "").trim();
+    const lastName = (c.lastName ?? "").trim();
+    const fullName = (c.fullName ?? "").trim() || [firstName, lastName].filter(Boolean).join(" ") || null;
     if (!phone) {
-      skipped.push({ name: c.fullName ?? "", phone: c.phone ?? "", email: c.email ?? "", reason: "Invalid or missing phone number" });
+      skipped.push({ name: fullName ?? c.fullName ?? "", phone: c.phone ?? "", email: c.email ?? "", reason: "Invalid or missing phone number" });
       continue;
     }
-    valid.push({ phone, fullName: (c.fullName ?? "").trim() || null, email: c.email?.trim() || null } as { phone: string; fullName: string; email: string | null });
+    valid.push({ phone, firstName, lastName, fullName: fullName ?? "", email: c.email?.trim() || null });
   }
 
   if (valid.length === 0) {
@@ -69,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   const existingPhones = new Set((existing ?? []).map(e => e.phone));
 
-  const toInsert: { business_id: string; phone: string; full_name: string | null; email: string | null }[] = [];
+  const toInsert: { business_id: string; phone: string; first_name: string | null; last_name: string | null; full_name: string | null; email: string | null }[] = [];
 
   for (const c of valid) {
     if (existingPhones.has(c.phone)) {
@@ -78,6 +83,8 @@ export async function POST(req: NextRequest) {
       toInsert.push({
         business_id: business.id,
         phone: c.phone,
+        first_name: c.firstName || null,
+        last_name: c.lastName || null,
         full_name: c.fullName || null,
         email: c.email || null,
       });

@@ -75,7 +75,8 @@ export default function CustomerInfoPage() {
   const [feeMode, setFeeMode] = useState<string>("pass_to_customer");
 
   // Form fields
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
@@ -236,13 +237,14 @@ export default function CustomerInfoPage() {
       if (savedPhone) {
         const { data: existingCustomer } = await supabase
           .from("customers")
-          .select("full_name, phone, email, sms_consent, sms_transactional_consent, sms_marketing_consent")
+          .select("first_name, last_name, full_name, phone, email, sms_consent, sms_transactional_consent, sms_marketing_consent")
           .eq("business_id", businessData.id)
           .eq("phone", savedPhone)
           .single();
 
         if (existingCustomer) {
-          setName(existingCustomer.full_name || "");
+          setFirstName(existingCustomer.first_name || existingCustomer.full_name || "");
+          setLastName(existingCustomer.last_name || "");
           setPhone(formatPhone(existingCustomer.phone || ""));
           setEmail(existingCustomer.email || "");
           setPrefilled(true);
@@ -393,7 +395,9 @@ export default function CustomerInfoPage() {
         priceCents,
         fullPriceCents: totalCents,
         paymentType: type,
-        customerName: name,
+        customerFirstName: firstName.trim(),
+        customerLastName: lastName.trim() || undefined,
+        customerName: [firstName.trim(), lastName.trim()].filter(Boolean).join(" "),
         customerPhone: cleanPhone,
         customerEmail: email || "",
         bookingDate,
@@ -444,7 +448,9 @@ export default function CustomerInfoPage() {
           serviceId: service.id,
           serviceName: service.name,
           priceCents: totalCents,
-          customerName: name,
+          customerFirstName: firstName.trim(),
+          customerLastName: lastName.trim() || undefined,
+          customerName: [firstName.trim(), lastName.trim()].filter(Boolean).join(" "),
           customerPhone: cleanPhone,
           customerEmail: email || "",
           bookingDate,
@@ -517,7 +523,7 @@ export default function CustomerInfoPage() {
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !phone.trim()) {
+    if (!firstName.trim() || !phone.trim()) {
       alert("Please enter your name and phone number");
       return;
     }
@@ -650,15 +656,27 @@ export default function CustomerInfoPage() {
 
         {/* Customer Info Form */}
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder=""
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder=""
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder=""
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              />
+            </div>
           </div>
 
           <div>
@@ -887,7 +905,7 @@ export default function CustomerInfoPage() {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
         <button
           onClick={handleSubmit}
-          disabled={submitting || !name.trim() || !phone.trim()}
+          disabled={submitting || !firstName.trim() || !phone.trim()}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting

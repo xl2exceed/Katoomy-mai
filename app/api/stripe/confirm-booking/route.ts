@@ -82,7 +82,9 @@ export async function POST(req: NextRequest) {
     const {
       businessId,
       serviceId,
-      customerName,
+      customerFirstName: customerFirstNameRaw,
+      customerLastName: customerLastNameRaw,
+      customerName: customerNameRaw,
       customerPhone,
       customerEmail,
       bookingDate,
@@ -107,6 +109,9 @@ export async function POST(req: NextRequest) {
       bizRefId: bizRefIdRaw,
       customerTimezone: customerTimezoneRaw,
     } = meta;
+    const firstName = customerFirstNameRaw?.trim() || (customerNameRaw ? customerNameRaw.split(" ")[0] : "");
+    const lastName = customerLastNameRaw?.trim() || (customerNameRaw && customerNameRaw.includes(" ") ? customerNameRaw.slice(customerNameRaw.indexOf(" ") + 1).trim() : "");
+    const customerName = [firstName, lastName].filter(Boolean).join(" ");
     const netRefOfferId = netRefOfferIdRaw || null;
     const netRefVia = netRefViaRaw || null;
     const bizRefId = bizRefIdRaw || null;
@@ -135,7 +140,7 @@ export async function POST(req: NextRequest) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
-      const updatePayload: Record<string, unknown> = { full_name: customerName, email: customerEmail || null, ...(customerTimezone ? { timezone: customerTimezone } : {}) };
+      const updatePayload: Record<string, unknown> = { full_name: customerName, first_name: firstName || null, last_name: lastName || null, email: customerEmail || null, ...(customerTimezone ? { timezone: customerTimezone } : {}) };
       // Only upgrade consent — never downgrade an existing opt-in
       if (hasTransactionalConsent && !existingCustomer.sms_transactional_consent) {
         updatePayload.sms_transactional_consent = true;
@@ -162,6 +167,8 @@ export async function POST(req: NextRequest) {
         .insert({
           business_id: businessId,
           full_name: customerName,
+          first_name: firstName || null,
+          last_name: lastName || null,
           phone: cleanPhone,
           email: customerEmail || null,
           referral_code: referralCode,

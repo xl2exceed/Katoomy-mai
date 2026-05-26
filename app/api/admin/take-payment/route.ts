@@ -82,6 +82,10 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const endTime = new Date(now.getTime() + service.duration_minutes * 60000);
 
+  const nameParts = customerName.trim().split(/\s+/);
+  const firstName = nameParts[0] || null;
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : null;
+
   // Upsert customer
   const { data: existingCustomer } = await supabaseAdmin
     .from("customers")
@@ -93,12 +97,12 @@ export async function POST(req: NextRequest) {
   let customerId: string;
   if (existingCustomer) {
     customerId = existingCustomer.id;
-    await supabaseAdmin.from("customers").update({ full_name: customerName }).eq("id", customerId);
+    await supabaseAdmin.from("customers").update({ full_name: customerName, first_name: firstName, last_name: lastName }).eq("id", customerId);
   } else {
     const referralCode = await ensureUniqueReferralCode(supabaseAdmin, businessId, customerName, cleanPhone);
     const { data: newCust } = await supabaseAdmin
       .from("customers")
-      .insert({ business_id: businessId, full_name: customerName, phone: cleanPhone, referral_code: referralCode })
+      .insert({ business_id: businessId, full_name: customerName, first_name: firstName, last_name: lastName, phone: cleanPhone, referral_code: referralCode })
       .select()
       .single();
     customerId = newCust!.id;

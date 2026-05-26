@@ -188,11 +188,20 @@ export default function ImportPage() {
   const handleImport = async () => {
     setStep("importing");
 
-    const customers = validRows.map(r => ({
-      phone: r[phoneCol] ?? "",
-      fullName: buildName(r, mapping),
-      email: mapping.email ? (r[mapping.email] ?? null) : null,
-    }));
+    const customers = validRows.map(r => {
+      const firstName = mapping.firstName ? (r[mapping.firstName] ?? "").trim() : "";
+      const lastName  = mapping.lastName  ? (r[mapping.lastName]  ?? "").trim() : "";
+      const fullName  = mapping.fullName && r[mapping.fullName]?.trim()
+        ? r[mapping.fullName].trim()
+        : [firstName, lastName].filter(Boolean).join(" ");
+      return {
+        phone: r[phoneCol] ?? "",
+        firstName,
+        lastName,
+        fullName,
+        email: mapping.email ? (r[mapping.email] ?? null) : null,
+      };
+    });
 
     const res = await fetch("/api/admin/import-customers", {
       method: "POST",

@@ -14,7 +14,9 @@ export async function POST(req: NextRequest) {
       serviceId,
       serviceName,
       priceCents,
-      customerName,
+      customerFirstName,
+      customerLastName,
+      customerName: customerNameRaw,
       customerPhone,
       customerEmail,
       bookingDate,
@@ -40,6 +42,11 @@ export async function POST(req: NextRequest) {
       smsTransactionalConsent,
       smsMarketingConsent,
     } = await req.json();
+
+    // Resolve name fields — prefer explicit first/last, fall back to splitting customerName
+    const firstName = customerFirstName?.trim() || (customerNameRaw ? customerNameRaw.split(" ")[0] : "");
+    const lastName = customerLastName?.trim() || (customerNameRaw && customerNameRaw.includes(" ") ? customerNameRaw.slice(customerNameRaw.indexOf(" ") + 1).trim() : "");
+    const customerName = [firstName, lastName].filter(Boolean).join(" ");
 
     // Resolve consent: new split fields take precedence over legacy smsConsent
     const hasTransactionalConsent = smsTransactionalConsent !== undefined
@@ -77,7 +84,7 @@ export async function POST(req: NextRequest) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
-      const updatePayload: Record<string, unknown> = { full_name: customerName, email: customerEmail || null, ...(customerTimezone ? { timezone: customerTimezone } : {}) };
+      const updatePayload: Record<string, unknown> = { full_name: customerName, first_name: firstName || null, last_name: lastName || null, email: customerEmail || null, ...(customerTimezone ? { timezone: customerTimezone } : {}) };
       // Only upgrade consent — never downgrade an existing opt-in
       if (hasTransactionalConsent && !existingCustomer.sms_transactional_consent) {
         updatePayload.sms_transactional_consent = true;
@@ -116,6 +123,8 @@ export async function POST(req: NextRequest) {
         .insert({
           business_id: businessId,
           full_name: customerName,
+          first_name: firstName || null,
+          last_name: lastName || null,
           phone: cleanPhone,
           email: customerEmail || null,
           referral_code: referralCode,

@@ -17,7 +17,9 @@ export async function POST(req: NextRequest) {
       priceCents,
       fullPriceCents,
       paymentType,
-      customerName,
+      customerFirstName,
+      customerLastName,
+      customerName: customerNameRaw,
       customerPhone,
       customerEmail,
       bookingDate,
@@ -42,6 +44,10 @@ export async function POST(req: NextRequest) {
       bizRefId,
       customerTimezone,
     } = await req.json();
+
+    const firstName = customerFirstName?.trim() || (customerNameRaw ? customerNameRaw.split(" ")[0] : "");
+    const lastName = customerLastName?.trim() || (customerNameRaw && customerNameRaw.includes(" ") ? customerNameRaw.slice(customerNameRaw.indexOf(" ") + 1).trim() : "");
+    const customerName = [firstName, lastName].filter(Boolean).join(" ");
 
     if (!businessId || !serviceId || !priceCents || !slug) {
       return NextResponse.json(
@@ -151,6 +157,8 @@ export async function POST(req: NextRequest) {
           priceCents: String(effectivePriceCents),
           fullPriceCents: String(effectiveFullPriceCents),
           paymentType: paymentType || "full",
+          customerFirstName: firstName || "",
+          customerLastName: lastName || "",
           customerName,
           customerPhone,
           customerEmail: customerEmail || "",
