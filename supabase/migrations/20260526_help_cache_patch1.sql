@@ -1,6 +1,9 @@
 -- Help cache patch 1 — verified answers for 5 questions not in initial seed
 -- Run in Supabase SQL Editor after 20260526_help_cache_seed.sql
 
+-- Ensure unique constraint exists (safe to run even if already exists)
+ALTER TABLE ai_help_cache ADD CONSTRAINT IF NOT EXISTS ai_help_cache_normalized_question_unique UNIQUE (normalized_question);
+
 INSERT INTO ai_help_cache (question, normalized_question, answer)
 VALUES
 
