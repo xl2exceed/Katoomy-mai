@@ -11,7 +11,7 @@ import { AI_CUSTOMER_HELP_SYSTEM_PROMPT } from "@/lib/ai-customer-help-knowledge
 function normalizeQuestion(q: string): string {
   return q
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/[^\w\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -24,17 +24,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Please ask a question." }, { status: 400 });
     }
 
-    const normalized = "customer:" + normalizeQuestion(question);
+    const normalized = "customer:" + normalizeQuestion(question.trim());
     const supabase = await createClient();
 
     // ── 1. Check cache first ───────────────────────────────────────────────────
     const { data: cached } = await supabase
       .from("ai_help_cache")
-      .select("answer")
-      .eq("question_normalized", normalized)
-      .single();
+      .select("id, answer, use_count")
+      .eq("normalized_question", normalized)
+      .maybeSingle();
 
     if (cached?.answer) {
+      supabase
+        .from("ai_help_cache")
+        .update({
+          last_used_at: new Date().toISOString(),
+          use_count: (cached.use_count ?? 0) + 1,
+        })
+        .eq("id", cached.id)
+        .then(() => {});
+
       return NextResponse.json({ answer: cached.answer, cached: true });
     }
 
@@ -72,8 +81,8 @@ export async function POST(req: NextRequest) {
 
     // ── 3. Save to cache ───────────────────────────────────────────────────────
     await supabase.from("ai_help_cache").insert({
-      question_normalized: normalized,
-      question_original: question.trim(),
+      normalized_question: normalized,
+      question: question.trim(),
       answer,
     });
 
