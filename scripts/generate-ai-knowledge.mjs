@@ -39,10 +39,11 @@ const ROUTE_METADATA = {
   "/admin/bookings": {
     title: "My Schedule",
     description:
-      "View and manage all appointments. Filter by date or staff member. Click any booking to see details, update its status (confirmed, completed, no-show, cancelled), or collect payment.",
+      "View and manage all appointments. Filter by status (All Appointments, Requested, Confirmed, Completed, Cancelled, No Show, Incomplete, Custom) or switch between Day and Week view. Each booking card shows the customer name, service, time, price, payment status, and the assigned staff member.",
     tips: [
-      "Use the date picker to jump to any day.",
-      "Booking statuses can be updated directly from this page.",
+      "Use the Previous and Next arrows to navigate between days or weeks.",
+      "Change a booking status using the dropdown on each booking card.",
+      "There is no filter by staff member — the assigned staff name is shown on each card but you cannot filter by it.",
     ],
   },
   "/admin/services": {
@@ -78,8 +79,12 @@ const ROUTE_METADATA = {
   "/admin/customers": {
     title: "Customers",
     description:
-      "Browse and search all customers. View each customer's contact info, booking history, total spend, loyalty points, and referral activity. You can also manually add or edit customer records.",
-    tips: ["Use the search bar to quickly find a customer by name or phone number."],
+      "Browse and search all customers. View each customer's contact info, booking history, total spend, loyalty points, and referral activity.",
+    tips: [
+      "Use the search bar to quickly find a customer by name or phone number.",
+      "Click Import Customers to upload a CSV file and add customers in bulk.",
+      "Click Export CSV to download your full customer list as a spreadsheet.",
+    ],
   },
   "/admin/stripe": {
     title: "Payment Setup",
@@ -190,8 +195,10 @@ const ROUTE_METADATA = {
   "/admin/notifications-log": {
     title: "Notifications Log",
     description:
-      "A full audit log of every push notification and SMS sent to customers, including delivery status.",
-    tips: [],
+      "Shows the history of push notifications sent to your customers — booking confirmations, appointment reminders, and cancellations. Unread entries are highlighted. This page does not show SMS campaign delivery status.",
+    tips: [
+      "For SMS campaign delivery status, go to Campaigns and check the SMS History tab.",
+    ],
   },
   "/admin/delivery-status": {
     title: "SMS Delivery Status",
@@ -235,6 +242,22 @@ const ROUTE_METADATA = {
       "Annual billing saves approximately 17% compared to monthly.",
       "Premium unlocks staff management and SMS campaigns.",
       "Pro unlocks all features.",
+    ],
+  },
+  "/admin/installs": {
+    title: "App Installs",
+    description:
+      "Track which customers have installed the Katoomy app (PWA) on their phone. See total install counts and identify customers who have not yet installed the app.",
+    tips: [
+      "Use the No App Install campaign audience to send a text encouraging customers to install the app.",
+    ],
+  },
+  "/admin/network": {
+    title: "My Network",
+    description:
+      "Connect with other Katoomy businesses to send and receive customer referrals. View your network connections, manage partnership requests, and track cross-business referral activity.",
+    tips: [
+      "Businesses in your network can refer their customers to you and you can do the same.",
     ],
   },
   "/admin/mobile/menu": {
@@ -570,17 +593,19 @@ MOBILE APP vs DESKTOP — WHAT IS AVAILABLE WHERE:
 The mobile admin app gives you quick access to the most important daily tasks. Some features are only available on the desktop version. Here is the breakdown:
 
 AVAILABLE ON MOBILE:
-- Today's Schedule — view your appointments for the day
-- Revenue — see your business revenue and staff breakdown
+- Today's Schedule — view your appointments for the day with Day or Week view
+- Revenue — see your business revenue and staff breakdown (periods: Today, Week, Month, All Time)
 - Analytics — view trends, top services, and customer insights
-- Appointments — accept or decline incoming booking requests
+- Appointments — accept or decline incoming booking requests (pending requests only)
 - Messages — send and view messages to customers
 - Customers — browse and view customer contacts
-- Staff — manage your team (Premium plan required)
+- Staff — manage your team (paid plan required)
 - Take Payment — charge a customer by cash or QR code
 - QR Code — display your booking link for customers to scan
+- Network — view and manage your business network connections
 - Notifications — view recent alerts and booking activity
 - Services — view your list of services and prices
+- Settings — basic settings (booking approval mode)
 
 DESKTOP ONLY (not available on mobile):
 - Campaigns — sending bulk text message campaigns to customer groups
@@ -592,10 +617,11 @@ DESKTOP ONLY (not available on mobile):
 - Payment Ledger — viewing the full transaction history
 - Availability & Hours — setting your business hours and schedule
 - Branding — customizing your logo, app name, colors, and welcome message
-- Settings — loyalty settings, notification preferences, and Automated Smart Campaigns
+- Settings (full) — notification preferences, Automated Smart Campaigns, business type
 - AI Growth Hub — AI Business Insights and Automation Settings
+- App Installs — tracking which customers have installed the app
 - Upgrade Plan — viewing or changing your subscription
-- Staff individual schedule management
+- Staff individual performance dashboards
 - Onboarding setup
 
 CUSTOMER APP — HOW YOUR CUSTOMERS USE KATOOMY:
