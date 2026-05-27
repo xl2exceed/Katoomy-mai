@@ -3,7 +3,7 @@
 -- Run in Supabase SQL Editor
 
 -- Ensure unique constraint exists (safe to run even if already exists)
-ALTER TABLE ai_help_cache ADD CONSTRAINT IF NOT EXISTS ai_help_cache_normalized_question_unique UNIQUE (normalized_question);
+CREATE UNIQUE INDEX IF NOT EXISTS ai_help_cache_normalized_question_unique ON ai_help_cache (normalized_question);
 
 INSERT INTO ai_help_cache (question, normalized_question, answer)
 VALUES
