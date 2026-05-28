@@ -301,8 +301,10 @@ export default function CustomerInfoPage() {
 
   const effectiveTotalCents = (): number => {
     const base = effectiveServicePriceCents();
+    // Apply discount to the displayed price (base + platform fee) so customer math is exact.
+    // Subtract the fee back out — it gets re-added by displayTotalWithFee and the checkout route.
     const afterMember = memberDiscountPct > 0
-      ? Math.round(base * (1 - memberDiscountPct / 100))
+      ? Math.round((base + platformFeeDisplay) * (1 - memberDiscountPct / 100)) - platformFeeDisplay
       : base;
     const afterNetwork = Math.max(0, afterMember - networkOfferDiscountCents());
     return afterNetwork + addonTotalCents + travelFeeCents;

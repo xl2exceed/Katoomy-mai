@@ -72,38 +72,12 @@ export async function POST(req: NextRequest) {
 
     const stripe = await getStripeForAccount(connectAccount.stripe_account_id);
 
-    // fullPriceCents is sent from the client already discounted for members.
-    // Server only needs to re-verify and apply discount to the CHARGE amount for full payments.
-    let effectivePriceCents = priceCents;
+    // priceCents is sent from the client already discounted for members and calculated
+    // against the displayed price (base + platform fee) so customer-facing math is exact.
+    // The server does not re-apply the discount — doing so caused a double-discount for
+    // returning members who already existed in the customers table.
+    const effectivePriceCents = priceCents;
     const effectiveFullPriceCents = Number(fullPriceCents || priceCents);
-    if (customerPhone && paymentType !== "deposit") {
-      const cleanPhone = String(customerPhone).replace(/\D/g, "");
-      const { data: customer } = await supabaseAdmin
-        .from("customers")
-        .select("id")
-        .eq("business_id", businessId)
-        .eq("phone", cleanPhone)
-        .maybeSingle();
-      if (customer) {
-        const { data: sub } = await supabaseAdmin
-          .from("member_subscriptions")
-          .select("plan_id")
-          .eq("customer_id", customer.id)
-          .eq("business_id", businessId)
-          .eq("status", "active")
-          .maybeSingle();
-        if (sub?.plan_id) {
-          const { data: plan } = await supabaseAdmin
-            .from("membership_plans")
-            .select("discount_percent")
-            .eq("id", sub.plan_id)
-            .single();
-          if (plan && plan.discount_percent > 0) {
-            effectivePriceCents = Math.round(priceCents * (1 - plan.discount_percent / 100));
-          }
-        }
-      }
-    }
 
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com";
