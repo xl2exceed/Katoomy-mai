@@ -349,7 +349,7 @@ export default function CustomerInfoPage() {
     if (!depositSettings || !service) return 0;
     if (depositSettings.type === "flat") return depositSettings.amount_cents || 0;
     if (depositSettings.type === "percent" && depositSettings.percent) {
-      return Math.round(effectiveTotalCents() * (depositSettings.percent / 100));
+      return Math.round(displayTotalWithFee() * (depositSettings.percent / 100));
     }
     return 0;
   };
