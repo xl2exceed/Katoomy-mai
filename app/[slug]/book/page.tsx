@@ -478,7 +478,7 @@ export default function BookPage() {
               const platformFeeDisplay = feeMode === "pass_to_customer" ? 100 : 0;
               const total = basePrice + addonTotalCents + platformFeeDisplay;
               if (memberDiscountPercent && service) {
-                const discounted = Math.round(basePrice * (1 - memberDiscountPercent / 100)) + addonTotalCents + platformFeeDisplay;
+                const discounted = Math.round((basePrice + platformFeeDisplay) * (1 - memberDiscountPercent / 100)) + addonTotalCents;
                 return (
                   <>
                     <p className="text-lg text-green-200 line-through">${(total / 100).toFixed(2)}</p>
