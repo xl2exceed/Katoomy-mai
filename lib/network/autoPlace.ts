@@ -16,7 +16,7 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function recalcCenter(networkId: string): Promise<void> {
+export async function recalcCenter(networkId: string): Promise<void> {
   const { data: members } = await supabaseAdmin
     .from("business_network_memberships")
     .select("businesses(lat, lng)")
@@ -160,6 +160,12 @@ export async function autoPlaceBusiness(
     },
     { onConflict: "business_id" },
   );
+
+  // Mark the business as successfully placed
+  await supabaseAdmin
+    .from("businesses")
+    .update({ network_placed: true })
+    .eq("id", businessId);
 
   return networkId;
 }

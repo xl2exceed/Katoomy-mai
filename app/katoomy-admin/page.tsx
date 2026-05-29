@@ -114,7 +114,7 @@ export default function KatoomyAdminPage() {
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
-  const [tab, setTab] = useState<"businesses" | "employees">("businesses");
+  const [tab, setTab] = useState<"businesses" | "networks" | "employees">("businesses");
   const [bizSearch, setBizSearch] = useState("");
   const [bizList, setBizList] = useState<BusinessSummary[]>([]);
   const [bizLoading, setBizLoading] = useState(false);
@@ -259,6 +259,10 @@ export default function KatoomyAdminPage() {
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === "businesses" ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
               Businesses
             </button>
+            <button onClick={() => setTab("networks")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === "networks" ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
+              Networks
+            </button>
             <button onClick={() => setTab("employees")}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === "employees" ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
               Employees
@@ -361,6 +365,13 @@ export default function KatoomyAdminPage() {
         </div>
       )}
 
+      {/* Networks tab */}
+      {tab === "networks" && (
+        <main className="flex-1 overflow-y-auto">
+          <NetworksView />
+        </main>
+      )}
+
       {/* Employees tab */}
       {tab === "employees" && (
         <main className="flex-1 p-6 max-w-2xl mx-auto w-full">
@@ -414,6 +425,202 @@ export default function KatoomyAdminPage() {
             </div>
           )}
         </main>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Networks View
+// ─────────────────────────────────────────────────────────────────────────────
+type NetworkMember = { id: string; name: string; slug: string; niche: string; joined_at: string };
+type NetworkGroup = { id: string; created_at: string; members: NetworkMember[] };
+type UnplacedBiz = { id: string; name: string; slug: string; created_at: string; niche: string };
+
+function NetworksView() {
+  const [networks, setNetworks] = useState<NetworkGroup[]>([]);
+  const [unplaced, setUnplaced] = useState<UnplacedBiz[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [placing, setPlacing] = useState<string | null>(null);
+  const [moveModal, setMoveModal] = useState<{ business: NetworkMember | UnplacedBiz; currentNetworkId?: string } | null>(null);
+  const [moving, setMoving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch("/api/katoomy-admin/networks", { headers: authH() });
+    const data = await res.json();
+    setNetworks(data.networks ?? []);
+    setUnplaced(data.unplaced ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handlePlace = async (businessId: string) => {
+    setPlacing(businessId);
+    const res = await fetch("/api/katoomy-admin/networks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authH() },
+      body: JSON.stringify({ action: "place", businessId }),
+    });
+    const data = await res.json();
+    setPlacing(null);
+    if (data.error) { alert(data.error); return; }
+    await load();
+  };
+
+  const handleMove = async (targetNetworkId: string) => {
+    if (!moveModal) return;
+    setMoving(true);
+    const res = await fetch("/api/katoomy-admin/networks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authH() },
+      body: JSON.stringify({ action: "move", businessId: moveModal.business.id, targetNetworkId }),
+    });
+    const data = await res.json();
+    setMoving(false);
+    if (data.error) { alert(data.error); return; }
+    setMoveModal(null);
+    await load();
+  };
+
+  const eligibleNetworks = moveModal
+    ? networks.filter((n) => {
+        if (n.id === moveModal.currentNetworkId) return false;
+        return !n.members.some((m) => m.niche === moveModal.business.niche);
+      })
+    : [];
+
+  if (loading) return (
+    <div className="flex justify-center py-16">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" />
+    </div>
+  );
+
+  return (
+    <div className="p-6 space-y-6 max-w-3xl">
+      {/* Unplaced */}
+      {unplaced.length > 0 && (
+        <div>
+          <h2 className="text-base font-bold text-yellow-400 mb-3">⚠️ Unplaced Businesses ({unplaced.length})</h2>
+          <div className="space-y-2">
+            {unplaced.map((b) => (
+              <div key={b.id} className="bg-gray-900 rounded-xl border border-yellow-800 px-5 py-4 flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium text-sm">{b.name}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{b.niche} · /{b.slug} · Signed up {fmtDate(b.created_at)}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setMoveModal({ business: b })}
+                    className="text-xs text-violet-400 hover:text-violet-300 border border-violet-800 hover:border-violet-600 px-3 py-1.5 rounded-lg transition">
+                    Assign to Network
+                  </button>
+                  <button
+                    onClick={() => handlePlace(b.id)}
+                    disabled={placing === b.id}
+                    className="bg-violet-600 hover:bg-violet-700 text-white text-xs px-4 py-1.5 rounded-lg font-medium transition disabled:opacity-50">
+                    {placing === b.id ? "Placing..." : "Auto-Place"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {unplaced.length === 0 && networks.length === 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+          <p className="text-gray-500 text-sm">No networks yet. They form automatically when businesses sign up.</p>
+        </div>
+      )}
+
+      {/* Networks */}
+      {networks.length > 0 && (
+        <div>
+          <h2 className="text-base font-bold text-white mb-3">Networks ({networks.length})</h2>
+          <div className="space-y-4">
+            {networks.map((net, i) => (
+              <div key={net.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+                  <p className="font-bold text-white text-sm">
+                    Network {String.fromCharCode(65 + i)}
+                    <span className="text-gray-500 font-normal ml-2">{net.members.length} / 9 businesses</span>
+                  </p>
+                  <p className="text-gray-600 text-xs">Created {fmtDate(net.created_at)}</p>
+                </div>
+                {net.members.length === 0 ? (
+                  <div className="px-5 py-4 text-gray-600 text-sm">Empty network</div>
+                ) : (
+                  <div className="divide-y divide-gray-800">
+                    {net.members.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between px-5 py-3">
+                        <div>
+                          <p className="text-white text-sm font-medium">{m.name}</p>
+                          <p className="text-gray-500 text-xs">{m.niche} · /{m.slug}</p>
+                        </div>
+                        <button
+                          onClick={() => setMoveModal({ business: m, currentNetworkId: net.id })}
+                          className="text-xs text-violet-400 hover:text-violet-300 border border-violet-800 hover:border-violet-600 px-3 py-1 rounded-lg transition">
+                          Move
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Move / Assign modal */}
+      {moveModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-md p-6 shadow-2xl">
+            <h3 className="font-bold text-white text-lg mb-1">
+              {moveModal.currentNetworkId ? "Move Business" : "Assign to Network"}
+            </h3>
+            <p className="text-gray-400 text-sm mb-5">
+              <span className="text-white font-medium">{moveModal.business.name}</span>
+              {" "}({moveModal.business.niche})
+              {moveModal.currentNetworkId && " · select the destination network"}
+            </p>
+
+            {eligibleNetworks.length === 0 ? (
+              <p className="text-yellow-400 text-sm bg-yellow-950 border border-yellow-800 rounded-lg px-4 py-3 mb-5">
+                No eligible networks — all others already have a <strong>{moveModal.business.niche}</strong> business.
+                A new network will be created automatically if you use Auto-Place.
+              </p>
+            ) : (
+              <div className="space-y-2 mb-5">
+                {eligibleNetworks.map((n, i) => {
+                  const globalIdx = networks.indexOf(n);
+                  const niches = n.members.map((m) => m.niche).join(", ") || "empty";
+                  return (
+                    <button
+                      key={n.id}
+                      onClick={() => handleMove(n.id)}
+                      disabled={moving}
+                      className="w-full text-left bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-violet-600 rounded-xl px-4 py-3 transition disabled:opacity-50">
+                      <p className="text-white font-medium text-sm">
+                        Network {String.fromCharCode(65 + globalIdx)}
+                        <span className="text-gray-500 font-normal ml-2 text-xs">{n.members.length} / 9</span>
+                      </p>
+                      <p className="text-gray-400 text-xs mt-0.5">{niches}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              onClick={() => setMoveModal(null)}
+              className="w-full py-2.5 border border-gray-700 text-gray-400 hover:text-white rounded-xl text-sm transition">
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

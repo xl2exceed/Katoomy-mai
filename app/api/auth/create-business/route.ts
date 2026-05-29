@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { autoPlaceBusiness } from "@/lib/network/autoPlace";
+import { getResend } from "@/lib/email/resend";
 
 export async function POST(req: NextRequest) {
   const { userId, businessName, ownerName, email, phone, niche } = await req.json();
@@ -98,11 +99,24 @@ export async function POST(req: NextRequest) {
     status: "in_progress",
   });
 
-  // Auto-place the new business in a local network based on niche + distance.
-  // Runs in the background — failure does not block signup.
-  autoPlaceBusiness(business.id, niche || "barber").catch((err) =>
-    console.error("[create-business] autoPlaceBusiness failed:", err),
-  );
+  // Auto-place the new business in a network. Awaited so failures can be surfaced.
+  // Signup still succeeds even if placement fails.
+  try {
+    await autoPlaceBusiness(business.id, niche || "barber");
+  } catch (err) {
+    console.error("[create-business] autoPlaceBusiness failed:", err);
+    try {
+      const resend = getResend();
+      await resend.emails.send({
+        from: "Katoomy <receipts@katoomy.com>",
+        to: "xl2exceed@gmail.com",
+        subject: `⚠️ Network placement failed — ${businessName}`,
+        html: `<p><strong>${businessName}</strong> (ID: <code>${business.id}</code>) signed up but could not be placed in a network.</p><p><strong>Niche:</strong> ${niche || "barber"}</p><p><strong>Error:</strong> ${String(err)}</p><p>Go to <a href="https://katoomy.com/katoomy-admin">katoomy.com/katoomy-admin</a> → Networks tab to place them manually.</p>`,
+      });
+    } catch (emailErr) {
+      console.error("[create-business] alert email failed:", emailErr);
+    }
+  }
 
   return NextResponse.json({ businessId: business.id, slug: business.slug });
 }
