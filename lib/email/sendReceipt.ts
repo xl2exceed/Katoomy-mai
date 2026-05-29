@@ -55,7 +55,7 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
     .from("bookings")
     .select(`
       id, total_price_cents, start_ts,
-      customers(id, full_name, email, phone),
+      customers(id, full_name, email, phone, timezone),
       businesses(id, name, slug, primary_color),
       services(name)
     `)
@@ -75,7 +75,7 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
   // Supabase may return embedded relations as array or single object depending on schema
   const rawCustomer = booking.customers;
   const customerRaw = Array.isArray(rawCustomer) ? rawCustomer[0] : rawCustomer;
-  const customer = customerRaw as { id: string; full_name: string | null; email: string | null; phone: string } | null;
+  const customer = customerRaw as { id: string; full_name: string | null; email: string | null; phone: string; timezone?: string | null } | null;
 
   const rawBusiness = booking.businesses;
   const businessRaw = Array.isArray(rawBusiness) ? rawBusiness[0] : rawBusiness;
@@ -121,6 +121,7 @@ export async function sendReceiptEmail(bookingId: string): Promise<void> {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: customer?.timezone || "America/New_York",
   });
 
   const html = receiptEmailHtml({
