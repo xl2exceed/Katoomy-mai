@@ -476,7 +476,14 @@ export default function CustomerInfoPage() {
 
       const data = await res.json();
       if (!res.ok || data.error) {
-        alert(data.error || "Something went wrong. Please try again.");
+        if (res.status === 409) {
+          setNetworkOffer(null);
+          setNetRefVia(null);
+          localStorage.removeItem("katoomy:netRef");
+          alert("Your partner discount has already been used on a previous booking. The offer has been removed — please tap Book again to continue.");
+        } else {
+          alert(data.error || "Something went wrong. Please try again.");
+        }
         setSubmitting(false);
         return;
       }
@@ -819,9 +826,21 @@ export default function CustomerInfoPage() {
         {networkOffer && (
           <div className="mt-4 px-4 py-3 bg-violet-50 border border-violet-300 rounded-xl flex items-start gap-2">
             <span className="text-lg leading-none mt-0.5">🎉</span>
-            <p className="text-violet-800 text-sm font-medium">
+            <p className="text-violet-800 text-sm font-medium flex-1">
               Your <span className="font-bold">Katoomy Network discount</span> is applied — see the discounted price above.
             </p>
+            <button
+              onClick={() => {
+                setNetworkOffer(null);
+                setNetRefVia(null);
+                localStorage.removeItem("katoomy:netRef");
+              }}
+              className="text-violet-400 hover:text-violet-700 flex-shrink-0 text-xl leading-none font-bold ml-1"
+              aria-label="Remove offer"
+              title="Remove offer"
+            >
+              ×
+            </button>
           </div>
         )}
 
