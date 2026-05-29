@@ -437,6 +437,19 @@ type NetworkMember = { id: string; name: string; slug: string; niche: string; jo
 type NetworkGroup = { id: string; created_at: string; members: NetworkMember[] };
 type UnplacedBiz = { id: string; name: string; slug: string; created_at: string; niche: string };
 
+const NICHE_COLORS: Record<string, string> = {
+  barber:    "bg-blue-900 text-blue-300",
+  carwash:   "bg-cyan-900 text-cyan-300",
+  lawn_care: "bg-green-900 text-green-300",
+  salon:     "bg-pink-900 text-pink-300",
+  gym:       "bg-orange-900 text-orange-300",
+  spa:       "bg-purple-900 text-purple-300",
+};
+function nicheBadge(niche: string) {
+  const cls = NICHE_COLORS[niche] ?? "bg-gray-800 text-gray-400";
+  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${cls}`}>{niche.replace(/_/g, " ")}</span>;
+}
+
 function NetworksView() {
   const [networks, setNetworks] = useState<NetworkGroup[]>([]);
   const [unplaced, setUnplaced] = useState<UnplacedBiz[]>([]);
@@ -491,6 +504,8 @@ function NetworksView() {
       })
     : [];
 
+  const totalPlaced = networks.reduce((s, n) => s + n.members.length, 0);
+
   if (loading) return (
     <div className="flex justify-center py-16">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" />
@@ -498,29 +513,44 @@ function NetworksView() {
   );
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
-      {/* Unplaced */}
+    <div className="p-6 space-y-6">
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: "Networks", value: networks.length, color: "text-violet-400" },
+          { label: "Placed", value: totalPlaced, color: "text-green-400" },
+          { label: "Unplaced", value: unplaced.length, color: unplaced.length > 0 ? "text-yellow-400" : "text-gray-600" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className={`bg-gray-900 rounded-xl border px-5 py-4 text-center ${label === "Unplaced" && unplaced.length > 0 ? "border-yellow-800" : "border-gray-800"}`}>
+            <p className={`text-3xl font-bold ${color}`}>{value}</p>
+            <p className="text-xs text-gray-500 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Unplaced businesses */}
       {unplaced.length > 0 && (
         <div>
-          <h2 className="text-base font-bold text-yellow-400 mb-3">⚠️ Unplaced Businesses ({unplaced.length})</h2>
-          <div className="space-y-2">
+          <h2 className="text-xs font-bold text-yellow-400 uppercase tracking-widest mb-3">⚠️ Unplaced ({unplaced.length})</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {unplaced.map((b) => (
-              <div key={b.id} className="bg-gray-900 rounded-xl border border-yellow-800 px-5 py-4 flex items-center justify-between">
+              <div key={b.id} className="bg-gray-900 rounded-xl border border-yellow-800 p-4 flex flex-col gap-3">
                 <div>
-                  <p className="text-white font-medium text-sm">{b.name}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">{b.niche} · /{b.slug} · Signed up {fmtDate(b.created_at)}</p>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="text-white font-semibold text-sm leading-tight">{b.name}</p>
+                    {nicheBadge(b.niche)}
+                  </div>
+                  <p className="text-gray-600 text-xs">/{b.slug} · {fmtDate(b.created_at)}</p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setMoveModal({ business: b })}
-                    className="text-xs text-violet-400 hover:text-violet-300 border border-violet-800 hover:border-violet-600 px-3 py-1.5 rounded-lg transition">
-                    Assign to Network
+                <div className="flex gap-2 mt-auto">
+                  <button onClick={() => handlePlace(b.id)} disabled={placing === b.id}
+                    className="flex-1 bg-violet-600 hover:bg-violet-700 text-white text-xs py-1.5 rounded-lg font-medium transition disabled:opacity-50">
+                    {placing === b.id ? "Placing…" : "Auto-Place"}
                   </button>
-                  <button
-                    onClick={() => handlePlace(b.id)}
-                    disabled={placing === b.id}
-                    className="bg-violet-600 hover:bg-violet-700 text-white text-xs px-4 py-1.5 rounded-lg font-medium transition disabled:opacity-50">
-                    {placing === b.id ? "Placing..." : "Auto-Place"}
+                  <button onClick={() => setMoveModal({ business: b })}
+                    className="flex-1 text-xs text-violet-400 hover:text-violet-300 border border-violet-800 hover:border-violet-600 py-1.5 rounded-lg transition">
+                    Assign
                   </button>
                 </div>
               </div>
@@ -529,47 +559,59 @@ function NetworksView() {
         </div>
       )}
 
-      {unplaced.length === 0 && networks.length === 0 && (
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+      {/* Empty state */}
+      {networks.length === 0 && unplaced.length === 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-10 text-center">
           <p className="text-gray-500 text-sm">No networks yet. They form automatically when businesses sign up.</p>
         </div>
       )}
 
-      {/* Networks */}
+      {/* Networks grid */}
       {networks.length > 0 && (
         <div>
-          <h2 className="text-base font-bold text-white mb-3">Networks ({networks.length})</h2>
-          <div className="space-y-4">
-            {networks.map((net, i) => (
-              <div key={net.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
-                  <p className="font-bold text-white text-sm">
-                    Network {String.fromCharCode(65 + i)}
-                    <span className="text-gray-500 font-normal ml-2">{net.members.length} / 9 businesses</span>
-                  </p>
-                  <p className="text-gray-600 text-xs">Created {fmtDate(net.created_at)}</p>
-                </div>
-                {net.members.length === 0 ? (
-                  <div className="px-5 py-4 text-gray-600 text-sm">Empty network</div>
-                ) : (
-                  <div className="divide-y divide-gray-800">
-                    {net.members.map((m) => (
-                      <div key={m.id} className="flex items-center justify-between px-5 py-3">
-                        <div>
-                          <p className="text-white text-sm font-medium">{m.name}</p>
-                          <p className="text-gray-500 text-xs">{m.niche} · /{m.slug}</p>
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Networks</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {networks.map((net, i) => {
+              const pct = (net.members.length / 9) * 100;
+              const isFull = net.members.length >= 9;
+              return (
+                <div key={net.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden flex flex-col">
+                  {/* Header */}
+                  <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+                    <p className="font-bold text-white text-sm">Network {String.fromCharCode(65 + i)}</p>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isFull ? "bg-red-900 text-red-300" : "bg-gray-800 text-gray-400"}`}>
+                      {net.members.length}/9
+                    </span>
+                  </div>
+                  {/* Capacity bar */}
+                  <div className="h-1 bg-gray-800">
+                    <div className={`h-1 transition-all ${isFull ? "bg-red-500" : "bg-violet-500"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  {/* Members */}
+                  <div className="flex-1 divide-y divide-gray-800/60">
+                    {net.members.length === 0 ? (
+                      <div className="px-4 py-5 text-gray-600 text-xs text-center">Empty</div>
+                    ) : net.members.map((m) => (
+                      <div key={m.id} className="flex items-center gap-2 px-4 py-2.5 group hover:bg-gray-800/50 transition">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-xs font-medium truncate">{m.name}</p>
+                          <div className="mt-1">{nicheBadge(m.niche)}</div>
                         </div>
                         <button
                           onClick={() => setMoveModal({ business: m, currentNetworkId: net.id })}
-                          className="text-xs text-violet-400 hover:text-violet-300 border border-violet-800 hover:border-violet-600 px-3 py-1 rounded-lg transition">
+                          className="text-xs text-gray-700 group-hover:text-violet-400 transition flex-shrink-0 opacity-0 group-hover:opacity-100">
                           Move
                         </button>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            ))}
+                  {/* Footer */}
+                  <div className="px-4 py-2 border-t border-gray-800">
+                    <p className="text-gray-700 text-xs">Created {fmtDate(net.created_at)}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -581,41 +623,36 @@ function NetworksView() {
             <h3 className="font-bold text-white text-lg mb-1">
               {moveModal.currentNetworkId ? "Move Business" : "Assign to Network"}
             </h3>
-            <p className="text-gray-400 text-sm mb-5">
-              <span className="text-white font-medium">{moveModal.business.name}</span>
-              {" "}({moveModal.business.niche})
-              {moveModal.currentNetworkId && " · select the destination network"}
-            </p>
-
+            <div className="flex items-center gap-2 mb-5">
+              <p className="text-white font-medium text-sm">{moveModal.business.name}</p>
+              {nicheBadge(moveModal.business.niche)}
+            </div>
             {eligibleNetworks.length === 0 ? (
               <p className="text-yellow-400 text-sm bg-yellow-950 border border-yellow-800 rounded-lg px-4 py-3 mb-5">
-                No eligible networks — all others already have a <strong>{moveModal.business.niche}</strong> business.
-                A new network will be created automatically if you use Auto-Place.
+                No eligible networks — all others already have a <strong>{moveModal.business.niche}</strong> business. Use Auto-Place to create a new network.
               </p>
             ) : (
               <div className="space-y-2 mb-5">
-                {eligibleNetworks.map((n, i) => {
+                {eligibleNetworks.map((n) => {
                   const globalIdx = networks.indexOf(n);
-                  const niches = n.members.map((m) => m.niche).join(", ") || "empty";
                   return (
-                    <button
-                      key={n.id}
-                      onClick={() => handleMove(n.id)}
-                      disabled={moving}
+                    <button key={n.id} onClick={() => handleMove(n.id)} disabled={moving}
                       className="w-full text-left bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-violet-600 rounded-xl px-4 py-3 transition disabled:opacity-50">
-                      <p className="text-white font-medium text-sm">
-                        Network {String.fromCharCode(65 + globalIdx)}
-                        <span className="text-gray-500 font-normal ml-2 text-xs">{n.members.length} / 9</span>
-                      </p>
-                      <p className="text-gray-400 text-xs mt-0.5">{niches}</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-white font-medium text-sm">Network {String.fromCharCode(65 + globalIdx)}</p>
+                        <span className="text-gray-500 text-xs">{n.members.length}/9</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {n.members.length === 0
+                          ? <span className="text-gray-600 text-xs">Empty</span>
+                          : n.members.map((m) => nicheBadge(m.niche))}
+                      </div>
                     </button>
                   );
                 })}
               </div>
             )}
-
-            <button
-              onClick={() => setMoveModal(null)}
+            <button onClick={() => setMoveModal(null)}
               className="w-full py-2.5 border border-gray-700 text-gray-400 hover:text-white rounded-xl text-sm transition">
               Cancel
             </button>
