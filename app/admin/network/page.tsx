@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -58,12 +58,6 @@ interface ActivityItem {
   created_at: string;
 }
 
-interface BizSearch {
-  id: string;
-  name: string;
-  slug: string;
-}
-
 type Tab = "overview" | "offers" | "partners" | "broadcast" | "settings";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -110,9 +104,11 @@ export default function NetworkPage() {
 
   // Partners
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [partnerSearch, setPartnerSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<BizSearch[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+
+  // 7-tap hidden super-admin mode — reveals Remove buttons
+  const [superMode, setSuperMode] = useState(false);
+  const superTapCount = useRef(0);
+  const superTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refer Customer modal
   const [referModalPartner, setReferModalPartner] = useState<{ id: string; name: string; slug: string } | null>(null);
@@ -188,19 +184,6 @@ export default function NetworkPage() {
     if (businessId) loadAll(businessId);
   }, [businessId, loadAll]);
 
-  // ── Partner search debounce ──────────────────────────────────────────────
-  useEffect(() => {
-    if (partnerSearch.length < 2) { setSearchResults([]); return; }
-    const t = setTimeout(async () => {
-      setSearchLoading(true);
-      const res = await fetch(`/api/network/search?q=${encodeURIComponent(partnerSearch)}&excludeBusinessId=${businessId}`);
-      const data = await res.json();
-      setSearchResults(data.businesses ?? []);
-      setSearchLoading(false);
-    }, 400);
-    return () => clearTimeout(t);
-  }, [partnerSearch, businessId]);
-
   // ── Actions ───────────────────────────────────────────────────────────────
   async function saveSettings(patch: Partial<NetworkSettings>) {
     setSaving(true);
@@ -258,19 +241,6 @@ export default function NetworkPage() {
     setOffers((prev) => prev.filter((o) => o.id !== id));
   }
 
-  async function sendInvite(targetBusinessId: string) {
-    const res = await fetch("/api/network/partners", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetBusinessId }),
-    });
-    const data = await res.json();
-    if (data.error) { alert(data.error); return; }
-    setPartnerSearch("");
-    setSearchResults([]);
-    if (businessId) loadAll(businessId);
-  }
-
   async function partnerAction(id: string, action: "accept" | "reject" | "remove") {
     const res = await fetch(`/api/network/partners/${id}`, {
       method: "PATCH",
@@ -282,6 +252,17 @@ export default function NetworkPage() {
       setPartners((prev) => prev.map((p) =>
         p.id === id ? { ...p, status: data.partner.status } : p
       ).filter((p) => p.status !== "removed"));
+    }
+  }
+
+  function handleSuperTap() {
+    superTapCount.current += 1;
+    if (superTapTimer.current) clearTimeout(superTapTimer.current);
+    if (superTapCount.current >= 7) {
+      setSuperMode((prev) => !prev);
+      superTapCount.current = 0;
+    } else {
+      superTapTimer.current = setTimeout(() => { superTapCount.current = 0; }, 3000);
     }
   }
 
@@ -646,8 +627,7 @@ export default function NetworkPage() {
                 <p className="text-gray-500 mb-6">Your offer is live. Now invite local businesses to partner with you, or wait for them to find you.</p>
                 <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-left mb-6 space-y-2">
                   <p className="text-sm font-semibold text-purple-800">What happens next</p>
-                  <p className="text-sm text-purple-700">✓ Partner businesses can find and invite you</p>
-                  <p className="text-sm text-purple-700">✓ You can invite partners from the Partners tab</p>
+                  <p className="text-sm text-purple-700">✓ Katoomy has placed you with complementary local businesses</p>
                   <p className="text-sm text-purple-700">✓ Customers who book via a partner link get your offer</p>
                   <p className="text-sm text-purple-700">✓ You earn credits for every customer you send</p>
                 </div>
@@ -771,8 +751,8 @@ export default function NetworkPage() {
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-5">
             <p className="font-semibold text-purple-900 mb-3">💡 Get more from the network</p>
             <ul className="space-y-2 text-sm text-purple-800">
-              <li>→ <button onClick={() => setActiveTab("partners")} className="underline">Invite a local business</button> to start exchanging customers</li>
               <li>→ <button onClick={() => setActiveTab("offers")} className="underline">Adjust your offer</button> to attract more partner customers</li>
+              <li>→ <button onClick={() => setActiveTab("partners")} className="underline">View your partners</button> and refer customers directly via SMS</li>
               <li>→ Share your offer link with partners so they can add it to their confirmation pages</li>
             </ul>
           </div>
@@ -919,62 +899,16 @@ export default function NetworkPage() {
       {/* ── PARTNERS TAB ───────────────────────────────────────────────────── */}
       {activeTab === "partners" && (
         <div className="space-y-4">
-          {/* Invite search */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-            <p className="text-sm font-semibold text-gray-700 mb-3">Invite a Business</p>
-            <div className="relative">
-              <input type="text" value={partnerSearch}
-                onChange={(e) => setPartnerSearch(e.target.value)}
-                placeholder="Search by business name..."
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm pr-8 focus:ring-2 focus:ring-purple-500 outline-none"
-              />
-              {searchLoading && <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />}
-            </div>
-            {searchResults.length > 0 && (
-              <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
-                {searchResults.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between p-3 hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{b.name}</p>
-                      <p className="text-xs text-gray-400">katoomy.com/{b.slug}</p>
-                    </div>
-                    <button onClick={() => sendInvite(b.id)}
-                      className="bg-purple-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-purple-700 transition">
-                      Invite
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Pending invites needing action */}
-          {pendingPartners.length > 0 && (
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">Pending Invites</p>
-              {pendingPartners.map((p) => (
-                <div key={p.id} className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center justify-between mb-2">
-                  <div>
-                    <p className="font-medium text-gray-900">{(p.partner as { name: string } | null)?.name ?? "Unknown"}</p>
-                    <p className="text-xs text-yellow-700">Wants to partner with you</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => partnerAction(p.id, "accept")}
-                      className="bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-green-700 transition">Accept</button>
-                    <button onClick={() => partnerAction(p.id, "reject")}
-                      className="border border-gray-200 text-gray-600 text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-gray-50 transition">Reject</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Partner list */}
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-2">
+            <p
+              className="text-sm font-semibold text-gray-700 mb-2 select-none cursor-default"
+              onClick={handleSuperTap}
+            >
               {partners.filter((p) => p.status === "active").length} Active Partner{partners.filter((p) => p.status === "active").length !== 1 ? "s" : ""}
+              {superMode && <span className="ml-2 text-xs text-red-400 font-normal">(admin)</span>}
             </p>
-            {partners.filter((p) => p.status !== "pending" || p.initiated_by === businessId).map((p) => {
+            {partners.filter((p) => p.status === "active").map((p) => {
               const biz = p.partner as { name: string; slug: string } | null;
               return (
                 <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between mb-2 shadow-sm">
@@ -983,15 +917,10 @@ export default function NetworkPage() {
                     {biz?.slug && <p className="text-xs text-gray-400">katoomy.com/{biz.slug}</p>}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      p.status === "active" ? "bg-green-100 text-green-700" :
-                      p.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                      "bg-gray-100 text-gray-500"
-                    }`}>
-                      {p.status === "active" ? "✔ Active" :
-                       p.status === "pending" ? "⏳ Pending" : p.status}
+                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-700">
+                      ✔ Active
                     </span>
-                    {p.status === "active" && p.partner && (
+                    {p.partner && (
                       <button
                         onClick={() => {
                           setReferModalPartner({ id: p.partner!.id, name: p.partner!.name, slug: p.partner!.slug });
@@ -1004,18 +933,20 @@ export default function NetworkPage() {
                         Refer Customer
                       </button>
                     )}
-                    {p.status === "active" && (
+                    {superMode && (
                       <button onClick={() => partnerAction(p.id, "remove")}
-                        className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                        className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded px-2 py-0.5">
+                        Remove
+                      </button>
                     )}
                   </div>
                 </div>
               );
             })}
-            {partners.length === 0 && (
+            {partners.filter((p) => p.status === "active").length === 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
                 <p className="text-4xl mb-3">🤝</p>
-                <p className="text-gray-500">No partners yet. Search for local businesses above to get started.</p>
+                <p className="text-gray-500">Your network partners are assigned automatically by Katoomy based on your location and service niche.</p>
               </div>
             )}
           </div>

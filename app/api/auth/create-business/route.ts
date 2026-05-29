@@ -3,6 +3,7 @@
 // Uses supabaseAdmin to bypass RLS (new users have unconfirmed sessions).
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { autoPlaceBusiness } from "@/lib/network/autoPlace";
 
 export async function POST(req: NextRequest) {
   const { userId, businessName, ownerName, email, phone, niche } = await req.json();
@@ -96,6 +97,12 @@ export async function POST(req: NextRequest) {
     answers: {},
     status: "in_progress",
   });
+
+  // Auto-place the new business in a local network based on niche + distance.
+  // Runs in the background — failure does not block signup.
+  autoPlaceBusiness(business.id, niche || "barber").catch((err) =>
+    console.error("[create-business] autoPlaceBusiness failed:", err),
+  );
 
   return NextResponse.json({ businessId: business.id, slug: business.slug });
 }
