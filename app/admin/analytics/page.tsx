@@ -97,6 +97,18 @@ export default function AnalyticsPage() {
   const [installEnd, setInstallEnd] = useState("");
   const [installCustomActive, setInstallCustomActive] = useState(false);
 
+  interface BroadcastStatSummary {
+    totalBroadcasts: number; totalSent: number; totalFeesCents: number;
+    discountCommittedCents: number; discountRedeemedCents: number;
+    freeUsed: number; paidUsed: number; freeRemaining: number;
+  }
+  interface BroadcastStatItem {
+    id: string; offer_text: string | null; template_key: string;
+    total_sent: number; total_failed: number; total_skipped: number;
+    additional_fee_cents: number; created_at: string;
+  }
+  const [broadcastStats, setBroadcastStats] = useState<{ summary: BroadcastStatSummary; broadcasts: BroadcastStatItem[] } | null>(null);
+
   function fetchInstalls(p: "all" | "week" | "month" | "custom", start?: string, end?: string) {
     setAppInstalls(null);
     let url = "/api/admin/app-installs";
@@ -111,6 +123,10 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchInstalls("all");
+    fetch("/api/admin/broadcast-stats")
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setBroadcastStats(d); })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -234,6 +250,7 @@ export default function AnalyticsPage() {
           onInstallStart={setInstallStart}
           onInstallEnd={setInstallEnd}
           onApplyInstallCustom={() => fetchInstalls("custom", installStart, installEnd)}
+          broadcastStats={broadcastStats}
         />
       )}
     </div>
@@ -244,6 +261,7 @@ function AnalyticsContent({
   data, appInstalls,
   installPeriod, installStart, installEnd, installCustomActive, today,
   onInstallPeriod, onInstallStart, onInstallEnd, onApplyInstallCustom,
+  broadcastStats,
 }: {
   data: AnalyticsData;
   appInstalls: number | null;
@@ -256,6 +274,7 @@ function AnalyticsContent({
   onInstallStart: (v: string) => void;
   onInstallEnd: (v: string) => void;
   onApplyInstallCustom: () => void;
+  broadcastStats: { summary: { totalBroadcasts: number; totalSent: number; totalFeesCents: number; discountCommittedCents: number; discountRedeemedCents: number; freeUsed: number; paidUsed: number; freeRemaining: number }; broadcasts: Array<{ id: string; offer_text: string | null; template_key: string; total_sent: number; total_failed: number; total_skipped: number; additional_fee_cents: number; created_at: string }> } | null;
 }) {
   const {
     currentPeriodLabel, previousPeriodLabel,
@@ -585,6 +604,60 @@ function AnalyticsContent({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Network Broadcasts */}
+      {broadcastStats && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Network Broadcasts — This Month</h2>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${broadcastStats.summary.freeRemaining > 0 ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+              {broadcastStats.summary.freeRemaining > 0 ? "1 free broadcast remaining" : "Free broadcast used · +$5 next"}
+            </span>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-gray-100">
+            {[
+              { label: "Broadcasts Sent",      value: String(broadcastStats.summary.totalBroadcasts),                             color: "text-purple-600" },
+              { label: "Customers Reached",    value: String(broadcastStats.summary.totalSent),                                   color: "text-green-600" },
+              { label: "Fees Charged",         value: broadcastStats.summary.totalFeesCents > 0 ? `$${(broadcastStats.summary.totalFeesCents / 100).toFixed(0)}` : "None", color: "text-orange-600" },
+              { label: "Discounts Committed",  value: broadcastStats.summary.discountCommittedCents > 0 ? `$${(broadcastStats.summary.discountCommittedCents / 100).toFixed(0)}` : "None", color: "text-yellow-600" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="bg-white px-5 py-4 text-center">
+                <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                <p className="text-xs text-gray-500 mt-1">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Recent broadcasts */}
+          {broadcastStats.broadcasts.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">No broadcasts sent this month.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {broadcastStats.broadcasts.slice(0, 5).map((b) => (
+                <div key={b.id} className="px-6 py-3 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{b.offer_text ?? b.template_key}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(b.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
+                      {new Date(b.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm flex-shrink-0">
+                    <span className="text-green-600 font-semibold">{b.total_sent} sent</span>
+                    {b.total_skipped > 0 && <span className="text-gray-400">{b.total_skipped} skipped</span>}
+                    {b.total_failed > 0 && <span className="text-red-500">{b.total_failed} failed</span>}
+                    {b.additional_fee_cents > 0
+                      ? <span className="text-orange-500 text-xs font-semibold">$5 fee</span>
+                      : <span className="text-gray-400 text-xs">Free</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
