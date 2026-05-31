@@ -141,6 +141,7 @@ export default function NetworkPage() {
   const [broadcastTemplate, setBroadcastTemplate] = useState<"limited_offer" | "open_slot" | "seasonal" | "milestone">("limited_offer");
   const [broadcastOfferText, setBroadcastOfferText] = useState("");
   const [broadcastSelectedGroups, setBroadcastSelectedGroups] = useState<Set<number>>(new Set([0, 1, 2, 3]));
+  const [broadcastOfferDiscountCents, setBroadcastOfferDiscountCents] = useState(0);
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; skipped: number; total: number; additionalFeeCents: number; isPaid: boolean } | null>(null);
   const [broadcastHistory, setBroadcastHistory] = useState<BroadcastHistoryItem[]>([]);
@@ -357,6 +358,7 @@ export default function NetworkPage() {
       body: JSON.stringify({
         templateKey: broadcastTemplate,
         offerText: broadcastOfferText.trim(),
+        offerDiscountCents: broadcastOfferDiscountCents,
         selectedGroups: Array.from(broadcastSelectedGroups),
       }),
     });
@@ -365,6 +367,7 @@ export default function NetworkPage() {
     if (data.error) { alert(data.error); return; }
     setBroadcastResult(data);
     setBroadcastOfferText("");
+    setBroadcastOfferDiscountCents(0);
     // Refresh segments + history after send
     setBroadcastSegmentsLoaded(false);
     setBroadcastHistoryLoaded(false);
@@ -1146,8 +1149,8 @@ export default function NetworkPage() {
                 <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
                   <div>
                     <p className="font-semibold text-gray-900 mb-1">Message Template</p>
-                    <p className="text-xs text-gray-400 mb-3">Your business name and booking link are added automatically.</p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <p className="text-xs text-gray-400 mb-3">Pick a template — your offer text drops into the highlighted spot. Your business name and booking link are added automatically.</p>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
                       {(Object.keys(TEMPLATE_LABELS) as Array<keyof typeof TEMPLATE_LABELS>).map((key) => (
                         <button
                           key={key}
@@ -1164,33 +1167,79 @@ export default function NetworkPage() {
                         </button>
                       ))}
                     </div>
+
+                    {/* Template preview — always visible once a template is selected */}
+                    {(() => {
+                      const tpl = TEMPLATE_LABELS[broadcastTemplate];
+                      const bizName = businessSlug ? businessSlug.replace(/-/g, " ") : "Your Business";
+                      // Split on {offer} to show the placeholder inline
+                      const parts = tpl.preview.split("{offer}");
+                      const before = parts[0].replace("{bizName}", bizName);
+                      const after  = (parts[1] || "").replace("{bizName}", bizName);
+                      const offerSlot = broadcastOfferText.trim() || null;
+                      return (
+                        <div className="bg-gray-800 rounded-xl p-4">
+                          <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide font-semibold">SMS Preview</p>
+                          <p className="text-sm text-gray-100 leading-relaxed font-mono">
+                            <span className="text-gray-300">[Katoomy Network] </span>
+                            <span>{before}</span>
+                            {offerSlot ? (
+                              <span className="bg-yellow-400 text-gray-900 rounded px-1 font-bold">{offerSlot}</span>
+                            ) : (
+                              <span className="border border-dashed border-yellow-400 text-yellow-400 rounded px-2 italic text-xs">your offer here</span>
+                            )}
+                            <span>{after}</span>
+                            <span className="text-gray-400">{"\n"}Book: katoomy.com/{businessSlug}{"\n"}Reply STOP to opt out</span>
+                          </p>
+                          {broadcastSelectedGroups.size > 0 && maxLiabilityCents > 0 && (
+                            <p className="text-xs text-orange-400 mt-2">
+                              Over-limit customers also see: &quot;+ $X bonus discount applied at booking.&quot;
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Your offer</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Your offer <span className="text-gray-400 font-normal">(goes where highlighted above)</span></label>
                     <input
                       type="text"
                       value={broadcastOfferText}
                       onChange={(e) => setBroadcastOfferText(e.target.value)}
-                      placeholder='e.g. "$10 off any service" or "20% off this week"'
+                      placeholder='e.g. "$25 off any service" or "20% off this week"'
                       maxLength={80}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
                     />
                     <p className="text-xs text-gray-400 mt-1">{broadcastOfferText.length}/80</p>
                   </div>
 
-                  {/* Message preview */}
-                  {broadcastOfferText.trim() && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                      <p className="text-xs text-gray-400 mb-1">Message preview (no-penalty customer)</p>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {`[Katoomy Network] ${previewText}\nBook: katoomy.com/${businessSlug}\nReply STOP to opt out`}
-                      </p>
-                      <p className="text-xs text-orange-500 mt-2">
-                        Customers with auto-discount also receive: "+ $X network bonus discount applied at booking this month."
-                      </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Discount amount <span className="text-gray-400 font-normal">($ off — used to reduce the booking price automatically)</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 text-sm font-medium">$</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={broadcastOfferDiscountCents > 0 ? broadcastOfferDiscountCents / 100 : ""}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setBroadcastOfferDiscountCents(isNaN(val) || val <= 0 ? 0 : Math.round(val * 100));
+                        }}
+                        placeholder="0"
+                        className="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                      />
+                      <span className="text-xs text-gray-400">off the booking total. Enter 0 if no specific discount.</span>
                     </div>
-                  )}
+                    {broadcastOfferDiscountCents > 0 && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ ${(broadcastOfferDiscountCents / 100).toFixed(0)} will be deducted at checkout when customers redeem this offer.
+                      </p>
+                    )}
+                  </div>
 
                   <button
                     onClick={sendBroadcast}

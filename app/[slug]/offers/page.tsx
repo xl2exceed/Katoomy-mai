@@ -136,12 +136,21 @@ export default function CustomerOffersPage() {
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge}`}>
             {text}
           </span>
-          <a
-            href={`/${offer.sending_business_slug}`}
+          <button
+            onClick={() => {
+              localStorage.setItem("katoomy:broadcastOffer", JSON.stringify({
+                logEntryId:          offer.id,
+                offerDiscountCents:  offer.offer_discount_cents,
+                autoDiscountCents:   offer.auto_discount_cents,
+                sendingBusinessSlug: offer.sending_business_slug,
+                ts:                  Date.now(),
+              }));
+              window.location.href = `/${offer.sending_business_slug}`;
+            }}
             className="text-sm font-semibold text-purple-600 hover:text-purple-700 transition"
           >
             Book now →
-          </a>
+          </button>
         </div>
       </div>
     );

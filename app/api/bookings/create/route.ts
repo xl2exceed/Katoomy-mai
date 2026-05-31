@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       netRefOfferId,
       netRefVia,
       bizRefId,
+      broadcastLogEntryId,
       customerTimezone,
       // Car wash fields
       vehicleType,
@@ -273,6 +274,20 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         console.error("Failed to record offer redemption (non-fatal):", err);
+      }
+    }
+
+    // Mark broadcast offer as redeemed
+    if (broadcastLogEntryId && booking) {
+      try {
+        await supabaseAdmin
+          .from("network_broadcast_log")
+          .update({ redeemed_at: new Date().toISOString(), booking_id: booking.id })
+          .eq("id", broadcastLogEntryId)
+          .eq("status", "sent")
+          .is("redeemed_at", null);
+      } catch (err) {
+        console.error("Failed to mark broadcast offer redeemed (non-fatal):", err);
       }
     }
 

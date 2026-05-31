@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       netRefOfferId,
       netRefVia,
       bizRefId,
+      broadcastLogEntryId,
       customerTimezone,
     } = await req.json();
 
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest) {
           netRefOfferId: netRefOfferId || "",
           netRefVia: netRefVia || "",
           bizRefId: bizRefId || "",
+          broadcastLogEntryId: broadcastLogEntryId || "",
           customerTimezone: customerTimezone || "",
         },
       },

@@ -58,6 +58,14 @@ export default function CustomerInfoPage() {
   const [networkOffer, setNetworkOffer] = useState<{ id: string; title: string; offer_type: "dollar_off" | "percent_off"; amount: number; referring_business_name: string } | null>(null);
   const [netRefVia, setNetRefVia] = useState<string | null>(null);
   const [bizRefId, setBizRefId] = useState<string | null>(null);
+  const [broadcastOffer, setBroadcastOffer] = useState<{
+    logEntryId: string;
+    offerDiscountCents: number;
+    autoDiscountCents: number;
+    totalDiscountCents: number;
+    offerText: string;
+    sendingBusinessName: string;
+  } | null>(null);
   const [customerTimezone, setCustomerTimezone] = useState("");
 
   // Car wash fields
@@ -218,6 +226,33 @@ export default function CustomerInfoPage() {
         }
       } catch { /* non-critical */ }
 
+      // ── Broadcast offer ───────────────────────────────────────────────────
+      try {
+        const bcRaw = localStorage.getItem("katoomy:broadcastOffer");
+        if (bcRaw) {
+          const bcData = JSON.parse(bcRaw) as { logEntryId: string; sendingBusinessSlug: string; ts: number };
+          const ageMs = Date.now() - (bcData.ts || 0);
+          if (ageMs < 15 * 24 * 3600000 && bcData.sendingBusinessSlug === slug) {
+            const bcRes = await fetch(`/api/customer/broadcast-offer-detail?logEntryId=${bcData.logEntryId}`);
+            const bcJson = await bcRes.json();
+            if (bcJson.valid && bcJson.totalDiscountCents > 0) {
+              setBroadcastOffer({
+                logEntryId:          bcJson.logEntryId,
+                offerDiscountCents:  bcJson.offerDiscountCents,
+                autoDiscountCents:   bcJson.autoDiscountCents,
+                totalDiscountCents:  bcJson.totalDiscountCents,
+                offerText:           bcJson.offerText,
+                sendingBusinessName: bcJson.sendingBusinessName,
+              });
+            } else {
+              localStorage.removeItem("katoomy:broadcastOffer");
+            }
+          } else if (ageMs >= 15 * 24 * 3600000) {
+            localStorage.removeItem("katoomy:broadcastOffer");
+          }
+        }
+      } catch { /* non-critical */ }
+
       // ── B2B direct referral ────────────────────────────────────────────────
       try {
         const bizRefRaw = localStorage.getItem("katoomy:bizRef");
@@ -299,6 +334,11 @@ export default function CustomerInfoPage() {
     return Math.round(memberBase * (networkOffer.amount / 100));
   };
 
+  const broadcastDiscountCents = (): number => {
+    if (!broadcastOffer) return 0;
+    return Math.min(broadcastOffer.totalDiscountCents, effectiveServicePriceCents());
+  };
+
   const effectiveTotalCents = (): number => {
     const base = effectiveServicePriceCents();
     // Apply discount to the displayed price (base + platform fee) so customer math is exact.
@@ -307,7 +347,8 @@ export default function CustomerInfoPage() {
       ? Math.round((base + platformFeeDisplay) * (1 - memberDiscountPct / 100)) - platformFeeDisplay
       : base;
     const afterNetwork = Math.max(0, afterMember - networkOfferDiscountCents());
-    return afterNetwork + addonTotalCents + travelFeeCents;
+    const afterBroadcast = Math.max(0, afterNetwork - broadcastDiscountCents());
+    return afterBroadcast + addonTotalCents + travelFeeCents;
   };
 
   // Display-only: adds the baked-in platform fee when customer pays it
@@ -386,6 +427,7 @@ export default function CustomerInfoPage() {
       }));
       localStorage.removeItem("katoomy:netRef");
     }
+    if (broadcastOffer) localStorage.removeItem("katoomy:broadcastOffer");
 
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
@@ -413,6 +455,7 @@ export default function CustomerInfoPage() {
         netRefOfferId: networkOffer?.id || undefined,
         netRefVia: netRefVia || undefined,
         bizRefId: bizRefId || undefined,
+        broadcastLogEntryId: broadcastOffer?.logEntryId || undefined,
         customerTimezone: customerTimezone || undefined,
         smsTransactionalConsent: agreedToTransactional,
         smsMarketingConsent: agreedToMarketing,
@@ -467,6 +510,7 @@ export default function CustomerInfoPage() {
           netRefOfferId: networkOffer?.id || undefined,
           netRefVia: netRefVia || undefined,
           bizRefId: bizRefId || undefined,
+          broadcastLogEntryId: broadcastOffer?.logEntryId || undefined,
           customerTimezone: customerTimezone || undefined,
           smsTransactionalConsent: agreedToTransactional,
           smsMarketingConsent: agreedToMarketing,
@@ -498,6 +542,7 @@ export default function CustomerInfoPage() {
         localStorage.removeItem("katoomy:netRef");
       }
       if (bizRefId) localStorage.removeItem("katoomy:bizRef");
+      if (broadcastOffer) localStorage.removeItem("katoomy:broadcastOffer");
       sessionStorage.setItem("bookingId", data.bookingId);
 
       // If customer opted into a recurring schedule, create it now
@@ -585,7 +630,7 @@ export default function CustomerInfoPage() {
   }
 
   const displayTotal = displayTotalWithFee();
-  const hasDiscount = memberDiscountPct > 0 || !!networkOffer;
+  const hasDiscount = memberDiscountPct > 0 || !!networkOffer || !!broadcastOffer;
   const displayDiscounted = hasDiscount
     ? effectiveTotalCents() + platformFeeDisplay
     : null;
@@ -637,6 +682,17 @@ export default function CustomerInfoPage() {
                 </p>
                 {memberDiscountPct > 0 && <p className="text-xs text-green-200">⭐ Elite Member price ({memberDiscountPct}% off)</p>}
                 {networkOffer && <p className="text-xs text-green-200">🤝 Partner offer: {networkOffer.title}</p>}
+                {broadcastOffer && (
+                  <div className="mt-1 bg-white bg-opacity-20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-green-100 font-semibold">🎁 Broadcast deal applied</p>
+                    <p className="text-xs text-green-200">{broadcastOffer.offerText}</p>
+                    {broadcastOffer.autoDiscountCents > 0 && (
+                      <p className="text-xs text-yellow-200 mt-0.5">
+                        Includes ${(broadcastOffer.offerDiscountCents / 100).toFixed(0)} off + ${(broadcastOffer.autoDiscountCents / 100).toFixed(0)} network bonus
+                      </p>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -836,6 +892,35 @@ export default function CustomerInfoPage() {
                 localStorage.removeItem("katoomy:netRef");
               }}
               className="text-violet-400 hover:text-violet-700 flex-shrink-0 text-xl leading-none font-bold ml-1"
+              aria-label="Remove offer"
+              title="Remove offer"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Broadcast offer notification */}
+        {broadcastOffer && (
+          <div className="mt-4 px-4 py-3 bg-orange-50 border border-orange-300 rounded-xl flex items-start gap-2">
+            <span className="text-lg leading-none mt-0.5">🎁</span>
+            <div className="flex-1">
+              <p className="text-orange-800 text-sm font-semibold">
+                Broadcast deal: ${(broadcastOffer.totalDiscountCents / 100).toFixed(0)} off applied
+              </p>
+              <p className="text-orange-700 text-xs mt-0.5">{broadcastOffer.offerText}</p>
+              {broadcastOffer.autoDiscountCents > 0 && (
+                <p className="text-xs text-orange-600 mt-0.5">
+                  Includes ${(broadcastOffer.offerDiscountCents / 100).toFixed(0)} advertised + ${(broadcastOffer.autoDiscountCents / 100).toFixed(0)} network bonus for receiving extra messages.
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setBroadcastOffer(null);
+                localStorage.removeItem("katoomy:broadcastOffer");
+              }}
+              className="text-orange-400 hover:text-orange-700 flex-shrink-0 text-xl leading-none font-bold ml-1"
               aria-label="Remove offer"
               title="Remove offer"
             >

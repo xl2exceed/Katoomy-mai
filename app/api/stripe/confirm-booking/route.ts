@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
       netRefOfferId: netRefOfferIdRaw,
       netRefVia: netRefViaRaw,
       bizRefId: bizRefIdRaw,
+      broadcastLogEntryId: broadcastLogEntryIdRaw,
       customerTimezone: customerTimezoneRaw,
     } = meta;
     const firstName = customerFirstNameRaw?.trim() || (customerNameRaw ? customerNameRaw.split(" ")[0] : "");
@@ -115,6 +116,7 @@ export async function POST(req: NextRequest) {
     const netRefOfferId = netRefOfferIdRaw || null;
     const netRefVia = netRefViaRaw || null;
     const bizRefId = bizRefIdRaw || null;
+    const broadcastLogEntryId = broadcastLogEntryIdRaw || null;
     const customerTimezone = customerTimezoneRaw || null;
     const addonIds = addonIdsRaw ? JSON.parse(addonIdsRaw) : null;
     // Resolve consent: new split fields take precedence over legacy smsConsent
@@ -330,6 +332,20 @@ export async function POST(req: NextRequest) {
           }
         } catch (err) {
           console.error("Failed to record offer redemption (non-fatal):", err);
+        }
+      }
+
+      // Mark broadcast offer as redeemed
+      if (broadcastLogEntryId) {
+        try {
+          await supabaseAdmin
+            .from("network_broadcast_log")
+            .update({ redeemed_at: new Date().toISOString(), booking_id: bookingId })
+            .eq("id", broadcastLogEntryId)
+            .eq("status", "sent")
+            .is("redeemed_at", null);
+        } catch (err) {
+          console.error("Failed to mark broadcast offer redeemed (non-fatal):", err);
         }
       }
 
