@@ -556,6 +556,12 @@ export default function DashboardPage() {
                 🔔
               </Link>
               <Link
+                href={`/${slug}/offers`}
+                className="px-3 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition text-sm font-semibold text-white"
+              >
+                🎁
+              </Link>
+              <Link
                 href={`/${slug}`}
                 className="px-4 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition text-sm font-semibold text-gray-900"
               >
@@ -659,6 +665,17 @@ export default function DashboardPage() {
                 🔔
               </Link>
               <Link
+                href={`/${slug}/offers`}
+                className="relative px-3 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition text-sm font-semibold text-white"
+              >
+                🎁
+                {networkOffers.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {networkOffers.length}
+                  </span>
+                )}
+              </Link>
+              <Link
                 href={`/${slug}`}
                 className="px-4 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition text-sm font-semibold text-gray-900"
               >
@@ -718,65 +735,6 @@ export default function DashboardPage() {
             <div className="text-6xl">🎁</div>
           </div>
         </div>
-
-        {/* Network Offers */}
-        {networkOffers.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">🎁 Network Offers</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Exclusive deals from businesses in your local network</p>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {networkOffers.map((offer) => {
-                const urgency = offer.days_remaining <= 2
-                  ? { bg: "bg-red-50", badge: "bg-red-100 text-red-700", text: offer.days_remaining === 0 ? "Expires today!" : `${offer.days_remaining} day${offer.days_remaining !== 1 ? "s" : ""} left!` }
-                  : offer.days_remaining <= 5
-                  ? { bg: "bg-yellow-50", badge: "bg-yellow-100 text-yellow-700", text: `${offer.days_remaining} days left` }
-                  : { bg: "", badge: "bg-green-100 text-green-700", text: `${offer.days_remaining} days left` };
-
-                return (
-                  <div key={offer.id} className={`px-6 py-4 ${urgency.bg}`}>
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900">{offer.sending_business_name}</p>
-                        <p className="text-sm text-gray-600 mt-0.5">{offer.offer_text}</p>
-                      </div>
-                      {offer.total_discount_cents > 0 && (
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-xl font-bold text-green-600">
-                            ${(offer.total_discount_cents / 100).toFixed(0)} off
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Breakdown if auto-discount was added */}
-                    {offer.auto_discount_cents > 0 && (
-                      <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3 text-xs text-orange-700">
-                        <span className="font-semibold">Includes ${(offer.offer_discount_cents / 100).toFixed(0)} advertised deal</span>
-                        {" + "}
-                        <span className="font-semibold">${(offer.auto_discount_cents / 100).toFixed(0)} network bonus</span>
-                        {" because you received extra messages this month. Use it — it expires with this offer."}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${urgency.badge}`}>
-                        {urgency.text}
-                      </span>
-                      <a
-                        href={`/${offer.sending_business_slug}`}
-                        className="text-sm font-semibold text-purple-600 hover:text-purple-700 transition"
-                      >
-                        Book now →
-                      </a>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Payment Due */}
         {awaitingPaymentBookings.length > 0 && (

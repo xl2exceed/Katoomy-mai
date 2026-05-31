@@ -16,9 +16,32 @@ const TEMPLATE_LABELS: Record<string, string> = {
 };
 
 export async function GET(req: NextRequest) {
-  const customerId = req.nextUrl.searchParams.get("customerId");
+  let customerId = req.nextUrl.searchParams.get("customerId");
+
+  // Alternative: look up by slug + phone (used by the /[slug]/offers page)
   if (!customerId) {
-    return NextResponse.json({ error: "customerId required" }, { status: 400 });
+    const slug  = req.nextUrl.searchParams.get("slug");
+    const phone = req.nextUrl.searchParams.get("phone");
+    if (!slug || !phone) {
+      return NextResponse.json({ error: "customerId or slug+phone required" }, { status: 400 });
+    }
+
+    const { data: biz } = await supabaseAdmin
+      .from("businesses")
+      .select("id")
+      .eq("slug", slug)
+      .single();
+    if (!biz) return NextResponse.json({ offers: [] });
+
+    const { data: cust } = await supabaseAdmin
+      .from("customers")
+      .select("id")
+      .eq("business_id", biz.id)
+      .eq("phone", phone)
+      .single();
+    if (!cust) return NextResponse.json({ offers: [] });
+
+    customerId = cust.id;
   }
 
   const cutoff = new Date(Date.now() - OFFER_VALIDITY_DAYS * 24 * 60 * 60 * 1000).toISOString();
