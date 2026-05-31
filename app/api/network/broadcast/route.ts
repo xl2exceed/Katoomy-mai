@@ -299,8 +299,14 @@ export async function POST(req: NextRequest) {
     }
     smsBody += `\nReply STOP to opt out`;
 
+    // Normalize to E.164 (+1XXXXXXXXXX) so Twilio LIVE accepts it
+    const digits = customer.phone.replace(/\D/g, "");
+    const e164 = digits.startsWith("1") && digits.length === 11
+      ? `+${digits}`
+      : `+1${digits}`;
+
     try {
-      await twilioClient.messages.create({ body: smsBody, ...routing, to: customer.phone });
+      await twilioClient.messages.create({ body: smsBody, ...routing, to: e164 });
       logRows.push({
         broadcast_id: broadcast.id,
         sending_business_id: biz.id,
