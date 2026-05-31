@@ -129,12 +129,21 @@ export default function NetworkPage() {
   const [saving, setSaving] = useState(false);
   const [onboardError, setOnboardError] = useState<string | null>(null);
 
-  // Broadcast
-  const [broadcastPreview, setBroadcastPreview] = useState<{ partnerCount: number; customerCount: number; partners: { id: string; name: string }[] } | null>(null);
-  const [broadcastMessage, setBroadcastMessage] = useState("");
+  // Broadcast v2
+  type BroadcastSegment = { texts: number; count: number; penaltyPerRedemptionCents: number };
+  type BroadcastCredits = { free_used: number; paid_used: number };
+  type BroadcastHistoryItem = { id: string; offer_text: string | null; template_key: string; total_sent: number; total_failed: number; total_skipped: number; additional_fee_cents: number; created_at: string };
+
+  const [broadcastSegments, setBroadcastSegments] = useState<BroadcastSegment[]>([]);
+  const [broadcastCredits, setBroadcastCredits] = useState<BroadcastCredits>({ free_used: 0, paid_used: 0 });
+  const [broadcastTotalOptedIn, setBroadcastTotalOptedIn] = useState(0);
+  const [broadcastSegmentsLoaded, setBroadcastSegmentsLoaded] = useState(false);
+  const [broadcastTemplate, setBroadcastTemplate] = useState<"limited_offer" | "open_slot" | "seasonal" | "milestone">("limited_offer");
+  const [broadcastOfferText, setBroadcastOfferText] = useState("");
+  const [broadcastSelectedGroups, setBroadcastSelectedGroups] = useState<Set<number>>(new Set([0, 1, 2, 3]));
   const [broadcastSending, setBroadcastSending] = useState(false);
-  const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; skipped: number; total: number } | null>(null);
-  const [broadcastHistory, setBroadcastHistory] = useState<{ id: string; message: string; total_sent: number; total_failed: number; total_skipped: number; created_at: string }[]>([]);
+  const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; skipped: number; total: number; additionalFeeCents: number; isPaid: boolean } | null>(null);
+  const [broadcastHistory, setBroadcastHistory] = useState<BroadcastHistoryItem[]>([]);
   const [broadcastHistoryLoaded, setBroadcastHistoryLoaded] = useState(false);
 
   // ── Load businessId ──────────────────────────────────────────────────────
@@ -266,12 +275,22 @@ export default function NetworkPage() {
     }
   }
 
-  // ── Load broadcast preview + history when tab is active ─────────────────
+  // ── Load broadcast segments + history when tab is active ─────────────────
   useEffect(() => {
     if (activeTab !== "broadcast" || !businessId) return;
-    if (!broadcastPreview) {
+    if (!broadcastSegmentsLoaded) {
       fetch("/api/network/broadcast").then((r) => r.json()).then((d) => {
-        if (!d.error) setBroadcastPreview(d);
+        if (!d.error) {
+          setBroadcastSegments(d.segments ?? []);
+          setBroadcastCredits(d.credits ?? { free_used: 0, paid_used: 0 });
+          setBroadcastTotalOptedIn(d.totalOptedIn ?? 0);
+          setBroadcastSegmentsLoaded(true);
+          // Default-select all penalty-free groups
+          const freeGroups = (d.segments ?? [])
+            .filter((s: { penaltyPerRedemptionCents: number }) => s.penaltyPerRedemptionCents === 0)
+            .map((s: { texts: number }) => s.texts);
+          setBroadcastSelectedGroups(new Set(freeGroups));
+        }
       });
     }
     if (!broadcastHistoryLoaded) {
@@ -279,7 +298,7 @@ export default function NetworkPage() {
         if (d.broadcasts) { setBroadcastHistory(d.broadcasts); setBroadcastHistoryLoaded(true); }
       });
     }
-  }, [activeTab, businessId, broadcastPreview, broadcastHistoryLoaded]);
+  }, [activeTab, businessId, broadcastSegmentsLoaded, broadcastHistoryLoaded]);
 
   // ── Refer Customer modal customer search ─────────────────────────────────
   useEffect(() => {
@@ -328,21 +347,27 @@ export default function NetworkPage() {
   }
 
   async function sendBroadcast() {
-    if (!broadcastMessage.trim()) return;
+    if (!broadcastOfferText.trim()) return;
+    const isPaid = broadcastCredits.free_used >= 1;
+    if (isPaid && !confirm("You've used your free broadcast this month. This additional broadcast will incur a $5 fee. Continue?")) return;
     setBroadcastSending(true);
     const res = await fetch("/api/network/broadcast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: broadcastMessage.trim() }),
+      body: JSON.stringify({
+        templateKey: broadcastTemplate,
+        offerText: broadcastOfferText.trim(),
+        selectedGroups: Array.from(broadcastSelectedGroups),
+      }),
     });
     const data = await res.json();
     setBroadcastSending(false);
     if (data.error) { alert(data.error); return; }
     setBroadcastResult(data);
-    setBroadcastMessage("");
-    // Refresh history and preview after send
+    setBroadcastOfferText("");
+    // Refresh segments + history after send
+    setBroadcastSegmentsLoaded(false);
     setBroadcastHistoryLoaded(false);
-    setBroadcastPreview(null);
   }
 
   // ── Onboarding steps ──────────────────────────────────────────────────────
@@ -967,119 +992,258 @@ export default function NetworkPage() {
       )}
 
       {/* ── BROADCAST TAB ─────────────────────────────────────────────────── */}
-      {activeTab === "broadcast" && (
-        <div className="space-y-4">
-          {/* Reach preview */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <p className="font-semibold text-gray-900 mb-1">Network Reach</p>
-            <p className="text-xs text-gray-400 mb-3">Customers who opted in to marketing SMS across your active partners.</p>
-            {!broadcastPreview ? (
-              <div className="flex justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
+      {activeTab === "broadcast" && (() => {
+        const TEMPLATE_LABELS: Record<string, { label: string; preview: string }> = {
+          limited_offer: { label: "Limited Offer",  preview: "{bizName} is offering {offer} to Katoomy network members. This week only." },
+          open_slot:     { label: "Open Slots",     preview: "{bizName} has openings this week. Network members get {offer}." },
+          seasonal:      { label: "Seasonal Deal",  preview: "{bizName} special — {offer}. Katoomy network members only." },
+          milestone:     { label: "Celebration",    preview: "{bizName} is celebrating! {offer} for our network partners' customers." },
+        };
+
+        const freeRemaining = Math.max(0, 1 - broadcastCredits.free_used);
+        const isPaidNext = broadcastCredits.free_used >= 1;
+
+        // Compute selected audience size + max discount liability
+        const selectedCount = broadcastSegments
+          .filter((s) => broadcastSelectedGroups.has(s.texts))
+          .reduce((sum, s) => sum + s.count, 0);
+        const maxLiabilityCents = broadcastSegments
+          .filter((s) => broadcastSelectedGroups.has(s.texts) && s.penaltyPerRedemptionCents > 0)
+          .reduce((sum, s) => sum + s.count * s.penaltyPerRedemptionCents, 0);
+
+        // Message preview
+        const previewText = TEMPLATE_LABELS[broadcastTemplate]?.preview
+          .replace("{bizName}", businessSlug ? businessSlug.replace(/-/g, " ") : "Your Business")
+          .replace("{offer}", broadcastOfferText.trim() || "[your offer here]");
+
+        return (
+          <div className="space-y-4">
+
+            {/* Credits card */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Monthly Broadcasts</p>
+                <p className="text-xs text-gray-500 mt-0.5">1 free per month · Additional broadcasts $5 each</p>
               </div>
-            ) : broadcastPreview.partnerCount === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-500">You have no active partners yet.</p>
-                <button onClick={() => setActiveTab("partners")} className="text-sm text-purple-600 underline mt-1">Add partners</button>
+              <div className="text-right">
+                {freeRemaining > 0 ? (
+                  <span className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">1 free remaining</span>
+                ) : (
+                  <span className="inline-block bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">+$5 next broadcast</span>
+                )}
               </div>
-            ) : (
-              <div className="flex gap-3">
-                <div className="bg-purple-50 rounded-xl px-4 py-3 text-center flex-1">
-                  <p className="text-2xl font-bold text-purple-700">{broadcastPreview.customerCount}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Eligible customers</p>
+            </div>
+
+            {/* Result banner */}
+            {broadcastResult && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                <p className="font-semibold text-green-800 mb-1">Broadcast sent!</p>
+                <div className="flex flex-wrap gap-3 text-sm mb-2">
+                  <span className="text-green-700">{broadcastResult.sent} delivered</span>
+                  {broadcastResult.failed > 0 && <span className="text-red-600">{broadcastResult.failed} failed</span>}
+                  {broadcastResult.skipped > 0 && <span className="text-gray-500">{broadcastResult.skipped} skipped (quiet hours)</span>}
+                  {broadcastResult.isPaid && <span className="text-orange-600">$5 broadcast fee charged</span>}
                 </div>
-                <div className="bg-blue-50 rounded-xl px-4 py-3 text-center flex-1">
-                  <p className="text-2xl font-bold text-blue-700">{broadcastPreview.partnerCount}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Partner businesses</p>
+                <button onClick={() => setBroadcastResult(null)} className="text-xs text-green-600 underline">
+                  Compose another
+                </button>
+              </div>
+            )}
+
+            {!broadcastResult && (
+              <>
+                {/* Audience segments */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-semibold text-gray-900">Audience</p>
+                    <p className="text-xs text-gray-400">{broadcastTotalOptedIn} opted-in customers</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-4">
+                    Select which groups receive this broadcast. Customers who've already hit 4 texts this month earn an automatic discount if they redeem your offer.
+                  </p>
+
+                  {!broadcastSegmentsLoaded ? (
+                    <div className="flex justify-center py-6">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
+                    </div>
+                  ) : broadcastSegments.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">No opted-in customers found across your partner businesses.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {broadcastSegments.map((seg) => {
+                        const isSelected = broadcastSelectedGroups.has(seg.texts);
+                        const hasPenalty = seg.penaltyPerRedemptionCents > 0;
+                        const penaltyDollars = seg.penaltyPerRedemptionCents / 100;
+                        return (
+                          <button
+                            key={seg.texts}
+                            onClick={() => {
+                              setBroadcastSelectedGroups((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(seg.texts)) next.delete(seg.texts);
+                                else next.add(seg.texts);
+                                return next;
+                              });
+                            }}
+                            className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
+                              isSelected
+                                ? hasPenalty
+                                  ? "border-orange-300 bg-orange-50"
+                                  : "border-purple-300 bg-purple-50"
+                                : "border-gray-200 bg-white hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                isSelected ? hasPenalty ? "border-orange-500 bg-orange-500" : "border-purple-600 bg-purple-600" : "border-gray-300"
+                              }`}>
+                                {isSelected && <span className="text-white text-xs leading-none">✓</span>}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">
+                                  {seg.count} customer{seg.count !== 1 ? "s" : ""} · {seg.texts} text{seg.texts !== 1 ? "s" : ""} received this month
+                                </p>
+                                {hasPenalty ? (
+                                  <p className="text-xs text-orange-600 mt-0.5">
+                                    ${penaltyDollars} auto-discount if they redeem · max liability ${((seg.count * seg.penaltyPerRedemptionCents) / 100).toFixed(0)}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-gray-400 mt-0.5">No penalty — within the 4-text monthly limit</p>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                              hasPenalty ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"
+                            }`}>
+                              {hasPenalty ? `+$${penaltyDollars} off` : "Free"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Liability summary */}
+                  {selectedCount > 0 && (
+                    <div className={`mt-4 rounded-lg px-4 py-3 flex items-center justify-between text-sm ${
+                      maxLiabilityCents > 0 ? "bg-orange-50 border border-orange-200" : "bg-purple-50 border border-purple-100"
+                    }`}>
+                      <span className="text-gray-700">
+                        Sending to <strong>{selectedCount}</strong> customer{selectedCount !== 1 ? "s" : ""}
+                      </span>
+                      {maxLiabilityCents > 0 ? (
+                        <span className="text-orange-700 font-medium">
+                          Max discount liability: ${(maxLiabilityCents / 100).toFixed(0)} if all redeem
+                        </span>
+                      ) : (
+                        <span className="text-purple-700 font-medium">No discount liability</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Template + offer composer */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
+                  <div>
+                    <p className="font-semibold text-gray-900 mb-1">Message Template</p>
+                    <p className="text-xs text-gray-400 mb-3">Your business name and booking link are added automatically.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(Object.keys(TEMPLATE_LABELS) as Array<keyof typeof TEMPLATE_LABELS>).map((key) => (
+                        <button
+                          key={key}
+                          onClick={() => setBroadcastTemplate(key as typeof broadcastTemplate)}
+                          className={`rounded-lg border px-3 py-2.5 text-left transition ${
+                            broadcastTemplate === key
+                              ? "border-purple-400 bg-purple-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <p className={`text-xs font-semibold ${broadcastTemplate === key ? "text-purple-700" : "text-gray-700"}`}>
+                            {TEMPLATE_LABELS[key].label}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Your offer</label>
+                    <input
+                      type="text"
+                      value={broadcastOfferText}
+                      onChange={(e) => setBroadcastOfferText(e.target.value)}
+                      placeholder='e.g. "$10 off any service" or "20% off this week"'
+                      maxLength={80}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">{broadcastOfferText.length}/80</p>
+                  </div>
+
+                  {/* Message preview */}
+                  {broadcastOfferText.trim() && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <p className="text-xs text-gray-400 mb-1">Message preview (no-penalty customer)</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {`[Katoomy Network] ${previewText}\nBook: katoomy.com/${businessSlug}\nReply STOP to opt out`}
+                      </p>
+                      <p className="text-xs text-orange-500 mt-2">
+                        Customers with auto-discount also receive: "+ $X network bonus discount applied at booking this month."
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={sendBroadcast}
+                    disabled={!broadcastOfferText.trim() || broadcastSending || selectedCount === 0}
+                    className={`w-full py-3 font-semibold rounded-xl transition disabled:opacity-40 ${
+                      isPaidNext
+                        ? "bg-orange-500 hover:bg-orange-600 text-white"
+                        : "bg-purple-600 hover:bg-purple-700 text-white"
+                    }`}
+                  >
+                    {broadcastSending
+                      ? "Sending..."
+                      : isPaidNext
+                        ? `Send to ${selectedCount} customers ($5 broadcast fee)`
+                        : `Send to ${selectedCount} customer${selectedCount !== 1 ? "s" : ""} (free)`}
+                  </button>
+                  <p className="text-xs text-gray-400 text-center">
+                    Customers in quiet hours (8 pm–8 am local time) will be skipped automatically.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Broadcast history */}
+            {broadcastHistory.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100">
+                  <p className="font-semibold text-gray-900">Broadcast History</p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {broadcastHistory.map((b) => (
+                    <div key={b.id} className="px-5 py-4">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="text-sm text-gray-700 line-clamp-2 flex-1 mr-4">{b.offer_text || b.template_key}</p>
+                        <p className="text-xs text-gray-400 flex-shrink-0">
+                          {new Date(b.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs">
+                        <span className="text-green-600">{b.total_sent} sent</span>
+                        {b.total_failed > 0 && <span className="text-red-500">{b.total_failed} failed</span>}
+                        {b.total_skipped > 0 && <span className="text-gray-400">{b.total_skipped} skipped</span>}
+                        {b.additional_fee_cents > 0 && <span className="text-orange-500">${b.additional_fee_cents / 100} fee</span>}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
+
           </div>
-
-          {/* Result */}
-          {broadcastResult && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <p className="font-semibold text-green-800 mb-2">Broadcast sent!</p>
-              <div className="flex gap-4 text-sm">
-                <span className="text-green-700">{broadcastResult.sent} sent</span>
-                {broadcastResult.failed > 0 && <span className="text-red-600">{broadcastResult.failed} failed</span>}
-                {broadcastResult.skipped > 0 && <span className="text-gray-500">{broadcastResult.skipped} skipped (quiet hours)</span>}
-              </div>
-              <button
-                onClick={() => setBroadcastResult(null)}
-                className="text-xs text-green-600 underline mt-2">
-                Compose another
-              </button>
-            </div>
-          )}
-
-          {/* Composer */}
-          {!broadcastResult && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <p className="font-semibold text-gray-900 mb-1">Compose Message</p>
-              <p className="text-xs text-gray-400 mb-4">Your business name and booking link are added automatically. Customer phone numbers are never shared with you.</p>
-              <textarea
-                value={broadcastMessage}
-                onChange={(e) => setBroadcastMessage(e.target.value)}
-                rows={4}
-                maxLength={140}
-                placeholder={`e.g. "We're running a spring special — 20% off all services this week only!"`}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-purple-500 outline-none"
-              />
-              <div className="flex justify-between items-center mt-1 mb-4">
-                <span className={`text-xs ${broadcastMessage.length >= 120 ? "text-orange-500" : "text-gray-400"}`}>
-                  {broadcastMessage.length}/140 characters
-                </span>
-              </div>
-              {broadcastMessage.trim() && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
-                  <p className="text-xs text-gray-400 mb-1">Message preview</p>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {broadcastMessage.trim()}{"\n\n"}{"— "}{businessSlug || "Your Business"} | Book: katoomy.com/{businessSlug}{"\n"}Reply STOP to opt out
-                  </p>
-                </div>
-              )}
-              <button
-                onClick={sendBroadcast}
-                disabled={!broadcastMessage.trim() || broadcastSending || (broadcastPreview?.customerCount ?? 0) === 0}
-                className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition disabled:opacity-40">
-                {broadcastSending
-                  ? "Sending..."
-                  : `Send to ${broadcastPreview?.customerCount ?? 0} Customer${(broadcastPreview?.customerCount ?? 0) !== 1 ? "s" : ""}`}
-              </button>
-              <p className="text-xs text-gray-400 mt-2 text-center">
-                Customers in quiet hours (8pm–8am local time) will be skipped.
-              </p>
-            </div>
-          )}
-
-          {/* History */}
-          {broadcastHistory.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <p className="font-semibold text-gray-900">Broadcast History</p>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {broadcastHistory.map((b) => (
-                  <div key={b.id} className="px-5 py-4">
-                    <div className="flex justify-between items-start mb-1.5">
-                      <p className="text-sm text-gray-700 line-clamp-2 flex-1 mr-4">{b.message.split("\n")[0]}</p>
-                      <p className="text-xs text-gray-400 flex-shrink-0">
-                        {new Date(b.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </p>
-                    </div>
-                    <div className="flex gap-3 text-xs">
-                      <span className="text-green-600">{b.total_sent} sent</span>
-                      {b.total_failed > 0 && <span className="text-red-500">{b.total_failed} failed</span>}
-                      {b.total_skipped > 0 && <span className="text-gray-400">{b.total_skipped} skipped</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── SETTINGS TAB ───────────────────────────────────────────────────── */}
       {activeTab === "settings" && (
