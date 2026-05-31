@@ -114,7 +114,7 @@ export default function KatoomyAdminPage() {
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
-  const [tab, setTab] = useState<"businesses" | "networks" | "employees">("businesses");
+  const [tab, setTab] = useState<"businesses" | "networks" | "broadcasts" | "employees">("businesses");
   const [bizSearch, setBizSearch] = useState("");
   const [bizList, setBizList] = useState<BusinessSummary[]>([]);
   const [bizLoading, setBizLoading] = useState(false);
@@ -263,6 +263,10 @@ export default function KatoomyAdminPage() {
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === "networks" ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
               Networks
             </button>
+            <button onClick={() => setTab("broadcasts")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === "broadcasts" ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
+              Broadcasts
+            </button>
             <button onClick={() => setTab("employees")}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === "employees" ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"}`}>
               Employees
@@ -369,6 +373,13 @@ export default function KatoomyAdminPage() {
       {tab === "networks" && (
         <main className="flex-1 overflow-y-auto">
           <NetworksView />
+        </main>
+      )}
+
+      {/* Broadcasts tab */}
+      {tab === "broadcasts" && (
+        <main className="flex-1 overflow-y-auto">
+          <BroadcastsAdminView />
         </main>
       )}
 
@@ -659,6 +670,204 @@ function NetworksView() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Broadcasts Admin View
+// ─────────────────────────────────────────────────────────────────────────────
+function BroadcastsAdminView() {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [month, setMonth] = useState(currentMonth);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<{
+    summary: { totalBroadcasts: number; totalSent: number; totalFeesCents: number; totalDiscountCommittedCents: number; totalDiscountRedeemedCents: number };
+    broadcasts: Array<{ id: string; business_name: string; business_slug: string; template_key: string; offer_text: string | null; offer_discount_cents: number; total_sent: number; total_failed: number; total_skipped: number; additional_fee_cents: number; discount_committed_cents: number; discount_redeemed_cents: number; created_at: string }>;
+    feesByBusiness: Array<{ business_id: string; business_name: string; free_used: number; paid_used: number; fees_owed_cents: number }>;
+  } | null>(null);
+
+  const authH = () => ({ "x-katoomy-token": "katoomy-internal-2026" });
+
+  const load = useCallback(async (m: string) => {
+    setLoading(true);
+    const res = await fetch(`/api/katoomy-admin/broadcasts?month=${m}`, { headers: authH() });
+    const json = await res.json();
+    setData(json);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(month); }, [month, load]);
+
+  const TEMPLATE_NAMES: Record<string, string> = {
+    limited_offer: "Limited Offer",
+    open_slot:     "Open Slots",
+    seasonal:      "Seasonal",
+    milestone:     "Celebration",
+    custom:        "Custom",
+  };
+
+  // Build month options (current + previous 5)
+  const monthOptions = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    return { val, label };
+  });
+
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" />
+    </div>
+  );
+
+  const s = data?.summary;
+
+  return (
+    <div className="p-6 space-y-6">
+
+      {/* Header + month picker */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-white">Network Broadcasts</h2>
+        <select
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+        >
+          {monthOptions.map((o) => (
+            <option key={o.val} value={o.val}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: "Broadcasts",       value: s?.totalBroadcasts ?? 0,          color: "text-violet-400",  fmt: (v: number) => String(v) },
+          { label: "Customers Reached",value: s?.totalSent ?? 0,                color: "text-green-400",   fmt: (v: number) => String(v) },
+          { label: "Fees Owed",        value: (s?.totalFeesCents ?? 0) / 100,   color: "text-orange-400",  fmt: (v: number) => `$${v.toFixed(0)}` },
+          { label: "Discount Committed",value: (s?.totalDiscountCommittedCents ?? 0) / 100, color: "text-yellow-400", fmt: (v: number) => `$${v.toFixed(0)}` },
+          { label: "Discount Redeemed", value: (s?.totalDiscountRedeemedCents ?? 0) / 100,  color: "text-blue-400",   fmt: (v: number) => `$${v.toFixed(0)}` },
+        ].map(({ label, value, color, fmt }) => (
+          <div key={label} className="bg-gray-900 rounded-xl border border-gray-800 px-4 py-4 text-center">
+            <p className={`text-2xl font-bold ${color}`}>{fmt(value)}</p>
+            <p className="text-xs text-gray-500 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Fees owed by business */}
+      {(data?.feesByBusiness?.length ?? 0) > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+            <p className="font-bold text-white">Fees Owed This Month</p>
+            <p className="text-sm text-orange-400 font-semibold">
+              Total: ${((data?.feesByBusiness ?? []).reduce((s, b) => s + b.fees_owed_cents, 0) / 100).toFixed(0)}
+            </p>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 text-left border-b border-gray-800">
+                <th className="px-5 py-3 font-medium">Business</th>
+                <th className="px-5 py-3 font-medium text-center">Free Used</th>
+                <th className="px-5 py-3 font-medium text-center">Paid Extra</th>
+                <th className="px-5 py-3 font-medium text-right">Amount Owed</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {(data?.feesByBusiness ?? []).map((b) => (
+                <tr key={b.business_id} className="hover:bg-gray-800/40 transition">
+                  <td className="px-5 py-3 text-white font-medium">{b.business_name}</td>
+                  <td className="px-5 py-3 text-gray-400 text-center">{b.free_used}</td>
+                  <td className="px-5 py-3 text-center">
+                    <span className={`font-semibold ${b.paid_used > 0 ? "text-orange-400" : "text-gray-600"}`}>
+                      {b.paid_used}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <span className={`font-bold ${b.fees_owed_cents > 0 ? "text-orange-400" : "text-gray-600"}`}>
+                      {b.fees_owed_cents > 0 ? `$${(b.fees_owed_cents / 100).toFixed(0)}` : "—"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Broadcast log */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-800">
+          <p className="font-bold text-white">Broadcast Log</p>
+          <p className="text-xs text-gray-500 mt-0.5">Every broadcast sent across all networks this month</p>
+        </div>
+
+        {(data?.broadcasts?.length ?? 0) === 0 ? (
+          <div className="px-5 py-10 text-center text-gray-600 text-sm">No broadcasts this month.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
+              <thead>
+                <tr className="text-gray-500 text-left border-b border-gray-800 text-xs uppercase tracking-wide">
+                  <th className="px-5 py-3 font-medium">Business</th>
+                  <th className="px-5 py-3 font-medium">Offer</th>
+                  <th className="px-5 py-3 font-medium">Template</th>
+                  <th className="px-5 py-3 font-medium text-center">Sent</th>
+                  <th className="px-5 py-3 font-medium text-center">Failed</th>
+                  <th className="px-5 py-3 font-medium text-center">Skipped</th>
+                  <th className="px-5 py-3 font-medium text-right">Fee</th>
+                  <th className="px-5 py-3 font-medium text-right">Discount<br/>Committed</th>
+                  <th className="px-5 py-3 font-medium text-right">Discount<br/>Redeemed</th>
+                  <th className="px-5 py-3 font-medium text-right">Date & Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {(data?.broadcasts ?? []).map((b) => (
+                  <tr key={b.id} className="hover:bg-gray-800/40 transition">
+                    <td className="px-5 py-3 text-white font-medium whitespace-nowrap">{b.business_name}</td>
+                    <td className="px-5 py-3 text-gray-300 max-w-[180px]">
+                      <p className="truncate" title={b.offer_text ?? ""}>{b.offer_text ?? "—"}</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        {TEMPLATE_NAMES[b.template_key] ?? b.template_key}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-center text-green-400 font-semibold">{b.total_sent}</td>
+                    <td className="px-5 py-3 text-center">
+                      <span className={b.total_failed > 0 ? "text-red-400 font-semibold" : "text-gray-600"}>{b.total_failed}</span>
+                    </td>
+                    <td className="px-5 py-3 text-center text-gray-500">{b.total_skipped}</td>
+                    <td className="px-5 py-3 text-right">
+                      {b.additional_fee_cents > 0
+                        ? <span className="text-orange-400 font-bold">${(b.additional_fee_cents / 100).toFixed(0)}</span>
+                        : <span className="text-gray-600 text-xs">Free</span>}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {b.discount_committed_cents > 0
+                        ? <span className="text-yellow-400">${(b.discount_committed_cents / 100).toFixed(0)}</span>
+                        : <span className="text-gray-600">—</span>}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {b.discount_redeemed_cents > 0
+                        ? <span className="text-blue-400 font-semibold">${(b.discount_redeemed_cents / 100).toFixed(0)}</span>
+                        : <span className="text-gray-600">—</span>}
+                    </td>
+                    <td className="px-5 py-3 text-right text-gray-400 whitespace-nowrap text-xs">
+                      {new Date(b.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {" "}
+                      {new Date(b.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
