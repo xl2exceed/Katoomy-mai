@@ -60,8 +60,23 @@ export default function CustomerOffersPage() {
       return;
     }
 
+    // Look up the customer the same way the dashboard does — direct supabase query
+    // avoids server-side phone format issues with the slug+phone API branch
+    const { data: customerData } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("business_id", businessData.id)
+      .eq("phone", savedPhone)
+      .maybeSingle();
+
+    if (!customerData) {
+      setNoPhone(true);
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch(
-      `/api/customer/broadcast-offers?slug=${encodeURIComponent(slug)}&phone=${encodeURIComponent(savedPhone)}`
+      `/api/customer/broadcast-offers?customerId=${customerData.id}`
     );
     if (res.ok) {
       const json = await res.json();
