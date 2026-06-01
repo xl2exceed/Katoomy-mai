@@ -349,8 +349,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Mark broadcast offer as redeemed — mark ALL entries for this customer+broadcast
-      // so the same person can't redeem the same broadcast multiple times across partner businesses
+      // Mark broadcast offer as redeemed across ALL businesses the customer belongs to.
+      // The same person has a different customer_id at each business, so we look up
+      // by phone to find every customer record, then mark all their log entries for
+      // this broadcast as redeemed so they can't claim it at another partner business.
       if (broadcastLogEntryId) {
         try {
           const { data: logEntry } = await supabaseAdmin
@@ -360,13 +362,28 @@ export async function POST(req: NextRequest) {
             .maybeSingle();
 
           if (logEntry) {
-            await supabaseAdmin
-              .from("network_broadcast_log")
-              .update({ redeemed_at: new Date().toISOString(), booking_id: bookingId })
-              .eq("broadcast_id", logEntry.broadcast_id)
-              .eq("customer_id", logEntry.customer_id)
-              .eq("status", "sent")
-              .is("redeemed_at", null);
+            const { data: customerRow } = await supabaseAdmin
+              .from("customers")
+              .select("phone")
+              .eq("id", logEntry.customer_id)
+              .maybeSingle();
+
+            if (customerRow?.phone) {
+              const { data: allCustomers } = await supabaseAdmin
+                .from("customers")
+                .select("id")
+                .eq("phone", customerRow.phone);
+
+              const allIds = (allCustomers ?? []).map((c) => c.id);
+
+              await supabaseAdmin
+                .from("network_broadcast_log")
+                .update({ redeemed_at: new Date().toISOString(), booking_id: bookingId })
+                .eq("broadcast_id", logEntry.broadcast_id)
+                .in("customer_id", allIds)
+                .eq("status", "sent")
+                .is("redeemed_at", null);
+            }
           }
         } catch (err) {
           console.error("Failed to mark broadcast offer redeemed (non-fatal):", err);

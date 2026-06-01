@@ -291,15 +291,41 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Mark broadcast offer as redeemed
+    // Mark broadcast offer as redeemed across ALL businesses the customer belongs to.
+    // Same person = different customer_id at each business, so look up by phone
+    // and mark every log entry for this broadcast+this person as redeemed.
     if (broadcastLogEntryId && booking) {
       try {
-        await supabaseAdmin
+        const { data: logEntry } = await supabaseAdmin
           .from("network_broadcast_log")
-          .update({ redeemed_at: new Date().toISOString(), booking_id: booking.id })
+          .select("broadcast_id, customer_id")
           .eq("id", broadcastLogEntryId)
-          .eq("status", "sent")
-          .is("redeemed_at", null);
+          .maybeSingle();
+
+        if (logEntry) {
+          const { data: customerRow } = await supabaseAdmin
+            .from("customers")
+            .select("phone")
+            .eq("id", logEntry.customer_id)
+            .maybeSingle();
+
+          if (customerRow?.phone) {
+            const { data: allCustomers } = await supabaseAdmin
+              .from("customers")
+              .select("id")
+              .eq("phone", customerRow.phone);
+
+            const allIds = (allCustomers ?? []).map((c) => c.id);
+
+            await supabaseAdmin
+              .from("network_broadcast_log")
+              .update({ redeemed_at: new Date().toISOString(), booking_id: booking.id })
+              .eq("broadcast_id", logEntry.broadcast_id)
+              .in("customer_id", allIds)
+              .eq("status", "sent")
+              .is("redeemed_at", null);
+          }
+        }
       } catch (err) {
         console.error("Failed to mark broadcast offer redeemed (non-fatal):", err);
       }
