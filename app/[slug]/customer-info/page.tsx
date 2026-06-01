@@ -205,28 +205,8 @@ export default function CustomerInfoPage() {
         setService(serviceData as Service);
       }
 
-      // ── Network offer ──────────────────────────────────────────────────────
-      try {
-        const netRefRaw = localStorage.getItem("katoomy:netRef");
-        if (netRefRaw) {
-          const netRefData = JSON.parse(netRefRaw) as { offerId: string; via?: string | null; businessSlug: string; ts: number };
-          const ageMs = Date.now() - (netRefData.ts || 0);
-          if (ageMs < 86400000) {
-            const offerRes = await fetch(
-              `/api/network/public-offer?offerId=${netRefData.offerId}&receivingBusinessId=${businessData.id}`
-            );
-            const offerData = await offerRes.json();
-            if (offerData.offer) {
-            setNetworkOffer(offerData.offer);
-            setNetRefVia(netRefData.via ?? null);
-          }
-          } else {
-            localStorage.removeItem("katoomy:netRef");
-          }
-        }
-      } catch { /* non-critical */ }
-
-      // ── Broadcast offer ───────────────────────────────────────────────────
+      // ── Broadcast offer (loads first — takes priority; only one deal per booking) ──
+      let hasBroadcastOffer = false;
       try {
         const bcRaw = localStorage.getItem("katoomy:broadcastOffer");
         if (bcRaw) {
@@ -244,6 +224,8 @@ export default function CustomerInfoPage() {
                 offerText:           bcJson.offerText,
                 sendingBusinessName: bcJson.sendingBusinessName,
               });
+              hasBroadcastOffer = true;
+              localStorage.removeItem("katoomy:netRef");
             } else {
               localStorage.removeItem("katoomy:broadcastOffer");
             }
@@ -252,6 +234,29 @@ export default function CustomerInfoPage() {
           }
         }
       } catch { /* non-critical */ }
+
+      // ── Network (hub) offer — only if no broadcast offer is active ─────────
+      if (!hasBroadcastOffer) {
+        try {
+          const netRefRaw = localStorage.getItem("katoomy:netRef");
+          if (netRefRaw) {
+            const netRefData = JSON.parse(netRefRaw) as { offerId: string; via?: string | null; businessSlug: string; ts: number };
+            const ageMs = Date.now() - (netRefData.ts || 0);
+            if (ageMs < 86400000) {
+              const offerRes = await fetch(
+                `/api/network/public-offer?offerId=${netRefData.offerId}&receivingBusinessId=${businessData.id}`
+              );
+              const offerData = await offerRes.json();
+              if (offerData.offer) {
+                setNetworkOffer(offerData.offer);
+                setNetRefVia(netRefData.via ?? null);
+              }
+            } else {
+              localStorage.removeItem("katoomy:netRef");
+            }
+          }
+        } catch { /* non-critical */ }
+      }
 
       // ── B2B direct referral ────────────────────────────────────────────────
       try {
@@ -683,11 +688,11 @@ export default function CustomerInfoPage() {
                 {memberDiscountPct > 0 && <p className="text-xs text-green-200">⭐ Elite Member price ({memberDiscountPct}% off)</p>}
                 {networkOffer && <p className="text-xs text-green-200">🤝 Partner offer: {networkOffer.title}</p>}
                 {broadcastOffer && (
-                  <div className="mt-1 bg-white bg-opacity-20 rounded-lg px-3 py-2">
-                    <p className="text-xs text-green-100 font-semibold">🎁 Broadcast deal applied</p>
-                    <p className="text-xs text-green-200">{broadcastOffer.offerText}</p>
+                  <div className="mt-1 bg-white/90 rounded-lg px-3 py-2">
+                    <p className="text-xs text-gray-800 font-semibold">🎁 Broadcast deal applied</p>
+                    <p className="text-xs text-gray-700">{broadcastOffer.offerText}</p>
                     {broadcastOffer.autoDiscountCents > 0 && (
-                      <p className="text-xs text-yellow-200 mt-0.5">
+                      <p className="text-xs text-orange-600 mt-0.5">
                         Includes ${(broadcastOffer.offerDiscountCents / 100).toFixed(0)} off + ${(broadcastOffer.autoDiscountCents / 100).toFixed(0)} network bonus
                       </p>
                     )}
