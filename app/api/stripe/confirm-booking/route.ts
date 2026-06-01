@@ -376,13 +376,22 @@ export async function POST(req: NextRequest) {
 
               const allIds = (allCustomers ?? []).map((c) => c.id);
 
-              await supabaseAdmin
-                .from("network_broadcast_log")
-                .update({ redeemed_at: new Date().toISOString(), booking_id: bookingId })
-                .eq("broadcast_id", logEntry.broadcast_id)
-                .in("customer_id", allIds)
-                .eq("status", "sent")
-                .is("redeemed_at", null);
+              if (allIds.length > 0) {
+                await supabaseAdmin
+                  .from("network_broadcast_log")
+                  .update({ redeemed_at: new Date().toISOString(), booking_id: bookingId })
+                  .eq("broadcast_id", logEntry.broadcast_id)
+                  .in("customer_id", allIds)
+                  .eq("status", "sent")
+                  .is("redeemed_at", null);
+              } else {
+                await supabaseAdmin
+                  .from("network_broadcast_log")
+                  .update({ redeemed_at: new Date().toISOString(), booking_id: bookingId })
+                  .eq("id", broadcastLogEntryId)
+                  .eq("status", "sent")
+                  .is("redeemed_at", null);
+              }
             }
           }
         } catch (err) {

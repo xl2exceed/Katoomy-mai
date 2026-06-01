@@ -71,6 +71,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Block checkout if the broadcast offer was already redeemed by this person
+    // at any partner business — checked before payment so no refund is needed.
+    if (broadcastLogEntryId) {
+      const { data: logEntry } = await supabaseAdmin
+        .from("network_broadcast_log")
+        .select("broadcast_id, customer_id, redeemed_at")
+        .eq("id", broadcastLogEntryId)
+        .maybeSingle();
+
+      if (logEntry?.redeemed_at) {
+        return NextResponse.json({ error: "broadcast_already_redeemed" }, { status: 409 });
+      }
+
+      if (logEntry) {
+        const { data: customerRow } = await supabaseAdmin
+          .from("customers").select("phone").eq("id", logEntry.customer_id).maybeSingle();
+
+        if (customerRow?.phone) {
+          const { data: siblings } = await supabaseAdmin
+            .from("customers").select("id").eq("phone", customerRow.phone);
+
+          const siblingIds = (siblings ?? []).map((c) => c.id);
+          if (siblingIds.length > 0) {
+            const { data: priorRedemption } = await supabaseAdmin
+              .from("network_broadcast_log")
+              .select("id")
+              .eq("broadcast_id", logEntry.broadcast_id)
+              .in("customer_id", siblingIds)
+              .not("redeemed_at", "is", null)
+              .limit(1)
+              .maybeSingle();
+
+            if (priorRedemption) {
+              return NextResponse.json({ error: "broadcast_already_redeemed" }, { status: 409 });
+            }
+          }
+        }
+      }
+    }
+
     const stripe = await getStripeForAccount(connectAccount.stripe_account_id);
 
     // priceCents is sent from the client already discounted for members and calculated

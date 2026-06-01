@@ -161,6 +161,45 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Block broadcast offer if already redeemed by this person at any business
+    if (broadcastLogEntryId) {
+      const { data: bcLogEntry } = await supabaseAdmin
+        .from("network_broadcast_log")
+        .select("broadcast_id, customer_id, redeemed_at")
+        .eq("id", broadcastLogEntryId)
+        .maybeSingle();
+
+      if (bcLogEntry?.redeemed_at) {
+        return NextResponse.json({ error: "broadcast_already_redeemed" }, { status: 409 });
+      }
+
+      if (bcLogEntry) {
+        const { data: bcCustomer } = await supabaseAdmin
+          .from("customers").select("phone").eq("id", bcLogEntry.customer_id).maybeSingle();
+
+        if (bcCustomer?.phone) {
+          const { data: bcSiblings } = await supabaseAdmin
+            .from("customers").select("id").eq("phone", bcCustomer.phone);
+
+          const bcSiblingIds = (bcSiblings ?? []).map((c) => c.id);
+          if (bcSiblingIds.length > 0) {
+            const { data: priorBcRedemption } = await supabaseAdmin
+              .from("network_broadcast_log")
+              .select("id")
+              .eq("broadcast_id", bcLogEntry.broadcast_id)
+              .in("customer_id", bcSiblingIds)
+              .not("redeemed_at", "is", null)
+              .limit(1)
+              .maybeSingle();
+
+            if (priorBcRedemption) {
+              return NextResponse.json({ error: "broadcast_already_redeemed" }, { status: 409 });
+            }
+          }
+        }
+      }
+    }
+
     // Block duplicate network offer redemptions server-side
     if (netRefOfferId) {
       const { data: existingRedemption } = await supabaseAdmin
@@ -317,13 +356,22 @@ export async function POST(req: NextRequest) {
 
             const allIds = (allCustomers ?? []).map((c) => c.id);
 
-            await supabaseAdmin
-              .from("network_broadcast_log")
-              .update({ redeemed_at: new Date().toISOString(), booking_id: booking.id })
-              .eq("broadcast_id", logEntry.broadcast_id)
-              .in("customer_id", allIds)
-              .eq("status", "sent")
-              .is("redeemed_at", null);
+            if (allIds.length > 0) {
+              await supabaseAdmin
+                .from("network_broadcast_log")
+                .update({ redeemed_at: new Date().toISOString(), booking_id: booking.id })
+                .eq("broadcast_id", logEntry.broadcast_id)
+                .in("customer_id", allIds)
+                .eq("status", "sent")
+                .is("redeemed_at", null);
+            } else {
+              await supabaseAdmin
+                .from("network_broadcast_log")
+                .update({ redeemed_at: new Date().toISOString(), booking_id: booking.id })
+                .eq("id", broadcastLogEntryId)
+                .eq("status", "sent")
+                .is("redeemed_at", null);
+            }
           }
         }
       } catch (err) {

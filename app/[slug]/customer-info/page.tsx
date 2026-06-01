@@ -485,7 +485,13 @@ export default function CustomerInfoPage() {
 
     const data = await res.json();
     if (!res.ok || data.error) {
-      alert(data.error || "Failed to start payment. Please try again.");
+      if (res.status === 409 && data.error === "broadcast_already_redeemed") {
+        setBroadcastOffer(null);
+        localStorage.removeItem("katoomy:broadcastOffer");
+        alert("This broadcast offer has already been redeemed on a previous booking. The discount has been removed — please book again at the regular price.");
+      } else {
+        alert(data.error || "Failed to start payment. Please try again.");
+      }
       setSubmitting(false);
       return;
     }
@@ -540,7 +546,11 @@ export default function CustomerInfoPage() {
 
       const data = await res.json();
       if (!res.ok || data.error) {
-        if (res.status === 409) {
+        if (res.status === 409 && data.error === "broadcast_already_redeemed") {
+          setBroadcastOffer(null);
+          localStorage.removeItem("katoomy:broadcastOffer");
+          alert("This broadcast offer has already been redeemed on a previous booking. The discount has been removed — please book again at the regular price.");
+        } else if (res.status === 409) {
           setNetworkOffer(null);
           setNetRefVia(null);
           localStorage.removeItem("katoomy:netRef");
