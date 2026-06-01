@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
     const hubBizIds   = [...new Set(hubClaims.map((c) => c.business_id))];
 
     const [{ data: hubOfferData }, { data: hubBizData }] = await Promise.all([
-      supabaseAdmin.from("network_offers").select("id, title, offer_type, amount").in("id", hubOfferIds),
+      supabaseAdmin.from("network_offers").select("id, title, offer_type, amount").in("id", hubOfferIds).eq("active", true),
       supabaseAdmin.from("businesses").select("id, name, slug").in("id", hubBizIds),
     ]);
 
