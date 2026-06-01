@@ -87,5 +87,50 @@ export async function GET(req: NextRequest) {
     })
     .filter(Boolean);
 
-  return NextResponse.json({ offers });
+  // Hub (network) offer claims for this customer
+  const { data: hubClaims } = await supabaseAdmin
+    .from("network_offer_claims")
+    .select("id, offer_id, business_id, via_business_id, claimed_at, expires_at")
+    .eq("customer_id", customerId)
+    .eq("status", "active")
+    .gte("expires_at", new Date().toISOString());
+
+  let hubOffers: object[] = [];
+  if (hubClaims?.length) {
+    const hubOfferIds = [...new Set(hubClaims.map((c) => c.offer_id))];
+    const hubBizIds   = [...new Set(hubClaims.map((c) => c.business_id))];
+
+    const [{ data: hubOfferData }, { data: hubBizData }] = await Promise.all([
+      supabaseAdmin.from("network_offers").select("id, title, offer_type, amount").in("id", hubOfferIds),
+      supabaseAdmin.from("businesses").select("id, name, slug").in("id", hubBizIds),
+    ]);
+
+    const hubOfferMap = new Map((hubOfferData ?? []).map((o) => [o.id, o]));
+    const hubBizMap   = new Map((hubBizData ?? []).map((b) => [b.id, b]));
+
+    hubOffers = hubClaims.map((claim) => {
+      const offer = hubOfferMap.get(claim.offer_id);
+      const biz   = hubBizMap.get(claim.business_id);
+      if (!offer || !biz) return null;
+
+      const expiresMs = new Date(claim.expires_at).getTime();
+      const daysLeft  = Math.max(0, Math.ceil((expiresMs - now) / (24 * 60 * 60 * 1000)));
+
+      return {
+        id:              claim.id,
+        offer_id:        claim.offer_id,
+        via_business_id: claim.via_business_id,
+        business_name:   biz.name,
+        business_slug:   biz.slug,
+        offer_title:     offer.title,
+        offer_type:      offer.offer_type,
+        offer_amount:    offer.amount,
+        claimed_at:      claim.claimed_at,
+        expires_at:      claim.expires_at,
+        days_remaining:  daysLeft,
+      };
+    }).filter(Boolean);
+  }
+
+  return NextResponse.json({ offers, hubOffers });
 }

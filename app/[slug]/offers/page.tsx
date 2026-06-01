@@ -20,6 +20,20 @@ interface NetworkOffer {
   days_remaining: number;
 }
 
+interface HubOffer {
+  id: string;
+  offer_id: string;
+  via_business_id: string | null;
+  business_name: string;
+  business_slug: string;
+  offer_title: string;
+  offer_type: "dollar_off" | "percent_off";
+  offer_amount: number;
+  claimed_at: string;
+  expires_at: string;
+  days_remaining: number;
+}
+
 interface Business {
   id: string;
   name: string;
@@ -33,6 +47,7 @@ export default function CustomerOffersPage() {
   const slug = params.slug as string;
 
   const [offers, setOffers]       = useState<NetworkOffer[]>([]);
+  const [hubOffers, setHubOffers] = useState<HubOffer[]>([]);
   const [business, setBusiness]   = useState<Business | null>(null);
   const [loading, setLoading]     = useState(true);
   const [noPhone, setNoPhone]     = useState(false);
@@ -81,6 +96,7 @@ export default function CustomerOffersPage() {
     if (res.ok) {
       const json = await res.json();
       setOffers(json.offers ?? []);
+      setHubOffers(json.hubOffers ?? []);
     }
     setLoading(false);
   };
@@ -89,6 +105,47 @@ export default function CustomerOffersPage() {
 
   const bonusOffers    = offers.filter((o) => o.auto_discount_cents > 0);
   const standardOffers = offers.filter((o) => o.auto_discount_cents === 0);
+
+  const HubOfferCard = ({ offer }: { offer: HubOffer }) => {
+    const { badge, text } = urgencyBadge(offer.days_remaining);
+    const discountLabel = offer.offer_type === "dollar_off"
+      ? `$${offer.offer_amount} off`
+      : `${offer.offer_amount}% off`;
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-violet-200 p-5">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900">{offer.business_name}</p>
+            <p className="text-xs text-violet-500 font-semibold mb-1">Partner Deal</p>
+            <p className="text-sm text-gray-600">{offer.offer_title}</p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-2xl font-extrabold text-violet-600">{discountLabel}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-3">
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge}`}>
+            {text}
+          </span>
+          <button
+            onClick={() => {
+              localStorage.setItem("katoomy:netRef", JSON.stringify({
+                offerId:      offer.offer_id,
+                via:          offer.via_business_id ?? null,
+                businessSlug: offer.business_slug,
+                ts:           Date.now(),
+              }));
+              window.location.href = `/${offer.business_slug}`;
+            }}
+            className="text-sm font-semibold text-violet-600 hover:text-violet-700 transition"
+          >
+            Book now →
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const urgencyBadge = (daysLeft: number) => {
     if (daysLeft <= 2) return { badge: "bg-red-100 text-red-700", text: daysLeft === 0 ? "Expires today!" : `${daysLeft} day${daysLeft !== 1 ? "s" : ""} left!` };
@@ -216,7 +273,7 @@ export default function CustomerOffersPage() {
               Go to Dashboard
             </Link>
           </div>
-        ) : offers.length === 0 ? (
+        ) : offers.length === 0 && hubOffers.length === 0 ? (
           <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-200">
             <div className="text-5xl mb-4">🎁</div>
             <p className="font-bold text-gray-900">No active offers right now</p>
@@ -252,6 +309,21 @@ export default function CustomerOffersPage() {
                 </div>
                 <div className="space-y-3">
                   {standardOffers.map((offer) => <OfferCard key={offer.id} offer={offer} />)}
+                </div>
+              </section>
+            )}
+
+            {/* Hub / partner offers section */}
+            {hubOffers.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base font-extrabold text-violet-700">🤝 Partner Deals</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3 -mt-1">
+                  Exclusive offers from businesses in your local network.
+                </p>
+                <div className="space-y-3">
+                  {hubOffers.map((offer) => <HubOfferCard key={offer.id} offer={offer} />)}
                 </div>
               </section>
             )}

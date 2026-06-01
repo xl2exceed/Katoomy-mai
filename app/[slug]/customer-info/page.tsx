@@ -206,6 +206,7 @@ export default function CustomerInfoPage() {
       }
 
       // ── Broadcast offer (loads first — takes priority; only one deal per booking) ──
+      let pendingHubClaim: { offerId: string; via: string | null } | null = null;
       let hasBroadcastOffer = false;
       try {
         const bcRaw = localStorage.getItem("katoomy:broadcastOffer");
@@ -241,7 +242,7 @@ export default function CustomerInfoPage() {
           if (netRefRaw) {
             const netRefData = JSON.parse(netRefRaw) as { offerId: string; via?: string | null; businessSlug: string; ts: number };
             const ageMs = Date.now() - (netRefData.ts || 0);
-            if (ageMs < 86400000) {
+            if (ageMs < 7 * 24 * 3600000) {
               const offerRes = await fetch(
                 `/api/network/public-offer?offerId=${netRefData.offerId}&receivingBusinessId=${businessData.id}`
               );
@@ -249,6 +250,7 @@ export default function CustomerInfoPage() {
               if (offerData.offer) {
                 setNetworkOffer(offerData.offer);
                 setNetRefVia(netRefData.via ?? null);
+                pendingHubClaim = { offerId: netRefData.offerId, via: netRefData.via ?? null };
               }
             } else {
               localStorage.removeItem("katoomy:netRef");
@@ -287,6 +289,20 @@ export default function CustomerInfoPage() {
           setPhone(formatPhone(existingCustomer.phone || ""));
           setEmail(existingCustomer.email || "");
           setPrefilled(true);
+
+          // Persist hub offer claim to DB so it survives localStorage clearing
+          if (pendingHubClaim) {
+            fetch("/api/network/claim-offer", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                offerId:    pendingHubClaim.offerId,
+                customerId: existingCustomer.id,
+                businessId: businessData.id,
+                via:        pendingHubClaim.via,
+              }),
+            }).catch(() => {});
+          }
           // Hide consent section if customer has already opted in via either
           // the new split fields or the legacy sms_consent field.
           const hasConsented =

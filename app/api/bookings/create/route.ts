@@ -213,6 +213,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Mark hub offer claim as redeemed
+    if (netRefOfferId && booking) {
+      try {
+        await supabaseAdmin
+          .from("network_offer_claims")
+          .update({ redeemed_at: new Date().toISOString(), booking_id: booking.id, status: "redeemed" })
+          .eq("offer_id", netRefOfferId)
+          .eq("customer_id", customerId)
+          .eq("status", "active");
+      } catch (err) {
+        console.error("Failed to mark hub offer claim redeemed (non-fatal):", err);
+      }
+    }
+
     // Record network offer redemption + referral stats
     if (netRefOfferId && booking) {
       try {
