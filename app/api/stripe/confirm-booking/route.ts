@@ -335,15 +335,25 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Mark broadcast offer as redeemed
+      // Mark broadcast offer as redeemed — mark ALL entries for this customer+broadcast
+      // so the same person can't redeem the same broadcast multiple times across partner businesses
       if (broadcastLogEntryId) {
         try {
-          await supabaseAdmin
+          const { data: logEntry } = await supabaseAdmin
             .from("network_broadcast_log")
-            .update({ redeemed_at: new Date().toISOString(), booking_id: bookingId })
+            .select("broadcast_id, customer_id")
             .eq("id", broadcastLogEntryId)
-            .eq("status", "sent")
-            .is("redeemed_at", null);
+            .maybeSingle();
+
+          if (logEntry) {
+            await supabaseAdmin
+              .from("network_broadcast_log")
+              .update({ redeemed_at: new Date().toISOString(), booking_id: bookingId })
+              .eq("broadcast_id", logEntry.broadcast_id)
+              .eq("customer_id", logEntry.customer_id)
+              .eq("status", "sent")
+              .is("redeemed_at", null);
+          }
         } catch (err) {
           console.error("Failed to mark broadcast offer redeemed (non-fatal):", err);
         }
