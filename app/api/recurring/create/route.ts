@@ -76,6 +76,34 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    // Immediately create the next booking so it appears on the business calendar right away.
+    // The daily cron will see the booking already exists, skip creation, and advance next_booking_date.
+    try {
+      const { data: svc } = await supabaseAdmin
+        .from("services").select("duration_minutes").eq("id", serviceId).maybeSingle();
+      const { data: biz } = await supabaseAdmin
+        .from("businesses").select("default_booking_status").eq("id", businessId).maybeSingle();
+
+      const durationMinutes = svc?.duration_minutes ?? 60;
+      const startISO = new Date(`${nextBookingDate}T${preferredTime}:00`).toISOString();
+      const endISO   = new Date(new Date(startISO).getTime() + durationMinutes * 60000).toISOString();
+
+      await supabaseAdmin.from("bookings").insert({
+        business_id:          businessId,
+        customer_id:          customerId,
+        service_id:           serviceId,
+        start_ts:             startISO,
+        end_ts:               endISO,
+        price_cents:          priceCents,
+        status:               biz?.default_booking_status || "confirmed",
+        notes:                notes ?? "Recurring booking",
+        recurring_schedule_id: data.id,
+        source:               "recurring",
+      });
+    } catch (bookingErr) {
+      console.error("recurring/create — failed to pre-create next booking (non-fatal):", bookingErr);
+    }
+
     return NextResponse.json({ scheduleId: data.id, nextBookingDate });
   } catch (err) {
     console.error("recurring/create error:", err);
