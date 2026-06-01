@@ -33,11 +33,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Find all active schedules due within the next 3 days
+  // Find all active schedules due within the next 14 days
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const horizonDate = new Date(today);
-  horizonDate.setDate(horizonDate.getDate() + 3);
+  horizonDate.setDate(horizonDate.getDate() + 14);
   const horizonStr = `${horizonDate.getFullYear()}-${String(horizonDate.getMonth() + 1).padStart(2, "0")}-${String(horizonDate.getDate()).padStart(2, "0")}`;
 
   const { data: schedules, error: fetchError } = await supabaseAdmin
