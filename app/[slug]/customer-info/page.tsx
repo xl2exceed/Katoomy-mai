@@ -225,7 +225,6 @@ export default function CustomerInfoPage() {
                 sendingBusinessName: bcJson.sendingBusinessName,
               });
               hasBroadcastOffer = true;
-              localStorage.removeItem("katoomy:netRef");
             } else {
               localStorage.removeItem("katoomy:broadcastOffer");
             }
