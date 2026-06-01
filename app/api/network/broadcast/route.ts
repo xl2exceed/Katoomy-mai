@@ -20,14 +20,40 @@ const TEMPLATES: Record<string, string> = {
   milestone:     "{bizName} is celebrating! {offer} for our network partners' customers.",
 };
 
-function monthYear() {
+// Month boundaries use Eastern time so the month doesn't flip at 8pm for US businesses.
+function getEasternMonthParts() {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(d);
+  return {
+    year:  parts.find(p => p.type === "year")!.value,
+    month: parts.find(p => p.type === "month")!.value,
+  };
+}
+
+function monthYear() {
+  const { year, month } = getEasternMonthParts();
+  return `${year}-${month}`;
 }
 
 function monthStart() {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+  const { year, month } = getEasternMonthParts();
+  // Determine the Eastern UTC offset on the 1st (use noon UTC to stay clear of DST boundaries).
+  const noon1st = new Date(`${year}-${month}-01T12:00:00Z`);
+  const easternHour = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      hour12: false,
+    }).format(noon1st),
+    10,
+  );
+  // At noon UTC, Eastern is 8am (EDT/UTC-4) or 7am (EST/UTC-5) → offset = 4 or 5.
+  const utcOffsetHours = 12 - easternHour;
+  return `${year}-${month}-01T${String(utcOffsetHours).padStart(2, "0")}:00:00.000Z`;
 }
 
 async function getPartnerIds(businessId: string): Promise<string[]> {
