@@ -108,15 +108,15 @@ export async function GET(req: NextRequest) {
     const hubOfferMap = new Map((hubOfferData ?? []).map((o) => [o.id, o]));
     const hubBizMap   = new Map((hubBizData ?? []).map((b) => [b.id, b]));
 
-    hubOffers = hubClaims.map((claim) => {
+    for (const claim of hubClaims) {
       const offer = hubOfferMap.get(claim.offer_id);
       const biz   = hubBizMap.get(claim.business_id);
-      if (!offer || !biz) return null;
+      if (!offer || !biz) continue;
 
       const expiresMs = new Date(claim.expires_at).getTime();
       const daysLeft  = Math.max(0, Math.ceil((expiresMs - now) / (24 * 60 * 60 * 1000)));
 
-      return {
+      hubOffers.push({
         id:              claim.id,
         offer_id:        claim.offer_id,
         via_business_id: claim.via_business_id,
@@ -128,8 +128,8 @@ export async function GET(req: NextRequest) {
         claimed_at:      claim.claimed_at,
         expires_at:      claim.expires_at,
         days_remaining:  daysLeft,
-      };
-    }).filter(Boolean);
+      });
+    }
   }
 
   return NextResponse.json({ offers, hubOffers });
