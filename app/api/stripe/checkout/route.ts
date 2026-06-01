@@ -111,6 +111,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Block hub (network) offer if already redeemed by this customer phone
+    if (netRefOfferId && customerPhone) {
+      const cleanPhone = customerPhone.replace(/\D/g, "");
+      const { data: existingHubRedemption } = await supabaseAdmin
+        .from("network_offer_redemptions")
+        .select("id")
+        .eq("offer_id", netRefOfferId)
+        .eq("customer_phone", cleanPhone)
+        .maybeSingle();
+
+      if (existingHubRedemption) {
+        return NextResponse.json({ error: "hub_offer_already_redeemed" }, { status: 409 });
+      }
+    }
+
     const stripe = await getStripeForAccount(connectAccount.stripe_account_id);
 
     // priceCents is sent from the client already discounted for members and calculated

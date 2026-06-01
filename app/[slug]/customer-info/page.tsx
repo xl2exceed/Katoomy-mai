@@ -489,6 +489,11 @@ export default function CustomerInfoPage() {
         setBroadcastOffer(null);
         localStorage.removeItem("katoomy:broadcastOffer");
         alert("This broadcast offer has already been redeemed on a previous booking. The discount has been removed — please book again at the regular price.");
+      } else if (res.status === 409 && data.error === "hub_offer_already_redeemed") {
+        setNetworkOffer(null);
+        setNetRefVia(null);
+        localStorage.removeItem("katoomy:netRef");
+        alert("This partner offer has already been redeemed on a previous booking. The discount has been removed — please book again at the regular price.");
       } else {
         alert(data.error || "Failed to start payment. Please try again.");
       }

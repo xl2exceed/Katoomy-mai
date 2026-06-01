@@ -217,7 +217,7 @@ export default function CustomerOffersPage() {
                 sendingBusinessSlug: offer.sending_business_slug,
                 ts:                  Date.now(),
               }));
-              window.location.href = `/${offer.sending_business_slug}`;
+              window.location.href = `/${offer.sending_business_slug}/services`;
             }}
             className="text-sm font-semibold text-purple-600 hover:text-purple-700 transition"
           >
