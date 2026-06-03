@@ -142,6 +142,7 @@ export default function NetworkPage() {
   const [broadcastOfferText, setBroadcastOfferText] = useState("");
   const [broadcastSelectedGroups, setBroadcastSelectedGroups] = useState<Set<number>>(new Set([0, 1, 2, 3]));
   const [broadcastOfferDiscountCents, setBroadcastOfferDiscountCents] = useState(0);
+  const [broadcastExcludeExisting, setBroadcastExcludeExisting] = useState(true);
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; skipped: number; total: number; additionalFeeCents: number; isPaid: boolean } | null>(null);
   const [broadcastHistory, setBroadcastHistory] = useState<BroadcastHistoryItem[]>([]);
@@ -280,7 +281,8 @@ export default function NetworkPage() {
   useEffect(() => {
     if (activeTab !== "broadcast" || !businessId) return;
     if (!broadcastSegmentsLoaded) {
-      fetch("/api/network/broadcast").then((r) => r.json()).then((d) => {
+      const excludeParam = broadcastExcludeExisting ? "1" : "0";
+      fetch(`/api/network/broadcast?excludeExisting=${excludeParam}`).then((r) => r.json()).then((d) => {
         if (!d.error) {
           setBroadcastSegments(d.segments ?? []);
           setBroadcastCredits(d.credits ?? { free_used: 0, paid_used: 0 });
@@ -299,7 +301,7 @@ export default function NetworkPage() {
         if (d.broadcasts) { setBroadcastHistory(d.broadcasts); setBroadcastHistoryLoaded(true); }
       });
     }
-  }, [activeTab, businessId, broadcastSegmentsLoaded, broadcastHistoryLoaded]);
+  }, [activeTab, businessId, broadcastSegmentsLoaded, broadcastHistoryLoaded, broadcastExcludeExisting]);
 
   // ── Refer Customer modal customer search ─────────────────────────────────
   useEffect(() => {
@@ -360,6 +362,7 @@ export default function NetworkPage() {
         offerText: broadcastOfferText.trim(),
         offerDiscountCents: broadcastOfferDiscountCents,
         selectedGroups: Array.from(broadcastSelectedGroups),
+        excludeExistingCustomers: broadcastExcludeExisting,
       }),
     });
     const data = await res.json();
@@ -1061,9 +1064,27 @@ export default function NetworkPage() {
                     <p className="font-semibold text-gray-900">Audience</p>
                     <p className="text-xs text-gray-400">{broadcastTotalOptedIn} opted-in customers</p>
                   </div>
-                  <p className="text-xs text-gray-400 mb-4">
+                  <p className="text-xs text-gray-400 mb-3">
                     Select which groups receive this broadcast. Customers who've already hit 4 texts this month earn an automatic discount if they redeem your offer.
                   </p>
+
+                  {/* Exclude existing customers toggle */}
+                  <div className="flex items-center justify-between py-2.5 px-3 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Exclude my existing customers</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Skip anyone already in your own customer list</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBroadcastExcludeExisting((prev) => !prev);
+                        setBroadcastSegmentsLoaded(false); // reload counts with new filter
+                      }}
+                      className={`w-10 h-5 rounded-full transition flex items-center px-0.5 flex-shrink-0 ml-3 ${broadcastExcludeExisting ? "bg-purple-600 justify-end" : "bg-gray-300 justify-start"}`}
+                    >
+                      <div className="w-4 h-4 bg-white rounded-full shadow" />
+                    </button>
+                  </div>
 
                   {!broadcastSegmentsLoaded ? (
                     <div className="flex justify-center py-6">

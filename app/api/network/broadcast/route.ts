@@ -126,6 +126,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ broadcasts: broadcasts ?? [] });
   }
 
+  const excludeExisting = req.nextUrl.searchParams.get("excludeExisting") !== "0";
+
   const partnerIds = await getPartnerIds(biz.id);
   const credits = await getCredits(biz.id);
 
@@ -134,14 +136,24 @@ export async function GET(req: NextRequest) {
   }
 
   // All opted-in customers across partner businesses
-  const { data: customers } = await supabaseAdmin
+  const { data: allPartnerCustomers } = await supabaseAdmin
     .from("customers")
-    .select("id")
+    .select("id, phone")
     .in("business_id", partnerIds)
     .not("phone", "is", null)
     .eq("sms_marketing_consent", true);
 
-  if (!customers?.length) {
+  let customers = allPartnerCustomers ?? [];
+
+  // Optionally exclude customers who are already in the sending business's own list
+  if (excludeExisting && customers.length > 0) {
+    const { data: ownCustomers } = await supabaseAdmin
+      .from("customers").select("phone").eq("business_id", biz.id).not("phone", "is", null);
+    const ownPhones = new Set((ownCustomers ?? []).map((c) => String(c.phone).replace(/\D/g, "")));
+    customers = customers.filter((c) => !ownPhones.has(String(c.phone).replace(/\D/g, "")));
+  }
+
+  if (!customers.length) {
     return NextResponse.json({ credits, segments: [], totalOptedIn: 0 });
   }
 
@@ -202,11 +214,13 @@ export async function POST(req: NextRequest) {
     offerText,
     offerDiscountCents = 0,
     selectedGroups = [] as number[], // array of texts_this_month values to include
+    excludeExistingCustomers = true,
   } = body as {
     templateKey?: string;
     offerText?: string;
     offerDiscountCents?: number;
     selectedGroups?: number[];
+    excludeExistingCustomers?: boolean;
   };
 
   if (!offerText?.trim()) {
@@ -225,14 +239,24 @@ export async function POST(req: NextRequest) {
   const additionalFeeCents = isPaid ? ADDITIONAL_BROADCAST_FEE_CENTS : 0;
 
   // All opted-in customers from partner businesses with phone + text count
-  const { data: customers } = await supabaseAdmin
+  const { data: allPostCustomers } = await supabaseAdmin
     .from("customers")
     .select("id, full_name, phone, timezone, business_id")
     .in("business_id", partnerIds)
     .not("phone", "is", null)
     .eq("sms_marketing_consent", true);
 
-  if (!customers?.length) {
+  let customers = allPostCustomers ?? [];
+
+  // Exclude the sending business's own customers (by phone) when toggle is on
+  if (excludeExistingCustomers && customers.length > 0) {
+    const { data: ownCustomers } = await supabaseAdmin
+      .from("customers").select("phone").eq("business_id", biz.id).not("phone", "is", null);
+    const ownPhones = new Set((ownCustomers ?? []).map((c) => String(c.phone).replace(/\D/g, "")));
+    customers = customers.filter((c) => !ownPhones.has(String(c.phone).replace(/\D/g, "")));
+  }
+
+  if (!customers.length) {
     return NextResponse.json({ sent: 0, failed: 0, skipped: 0, total: 0 });
   }
 
