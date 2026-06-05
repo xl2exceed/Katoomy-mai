@@ -3,29 +3,91 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+
+type SidebarDots = {
+  services: boolean;
+  availability: boolean;
+  branding: boolean;
+  paymentSetup: boolean;
+  staff: boolean;
+  campaigns: boolean;
+  rewards: boolean;
+  membership: boolean;
+  network: boolean;
+};
 
 type SidebarProps = {
   businessId: string | null;
-  plan: string; // "free" | "pro" | "premium" etc
-  status: string | null; // "active", "trialing", etc
-  niche?: string; // "barber" | "carwash" etc
+  plan: string;
+  status: string | null;
+  niche?: string;
+  onboardingCompleted: boolean;
+  dots: SidebarDots;
 };
 
-export default function Sidebar({ businessId, plan, status, niche = "barber" }: SidebarProps) {
+const GROWTH_HUB_PATHS = [
+  "/admin/revenue", "/admin/analytics", "/admin/membership", "/admin/growth",
+  "/admin/notifications", "/admin/notifications-log", "/admin/settings",
+  "/admin/payment-settings", "/admin/take-payment", "/admin/installs",
+];
+
+// Routes where exact match is required (to avoid /admin prefix matching everything)
+const EXACT_ROUTES = ["/admin", "/admin/notifications", "/admin/notifications-log"];
+
+export default function Sidebar({
+  businessId,
+  plan,
+  status,
+  niche = "barber",
+  onboardingCompleted,
+  dots,
+}: SidebarProps) {
   const isCarwash = niche === "carwash";
   const isLawnCare = niche === "lawn_care";
   const supabase = createClient();
   const router = useRouter();
   const pathname = usePathname();
   const [showMobileQR, setShowMobileQR] = useState(false);
+  const [growthHubOpen, setGrowthHubOpen] = useState(false);
 
-  // Routes that need exact match to avoid prefix collisions
-  const exactMatchRoutes = ["/admin", "/admin/notifications", "/admin/notifications-log"];
+  // Auto-open Growth Hub if current page is inside it; persist toggle state
+  useEffect(() => {
+    const insideHub = GROWTH_HUB_PATHS.some((p) => pathname.startsWith(p));
+    if (insideHub) {
+      setGrowthHubOpen(true);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem("growthHubOpen");
+      if (stored === "true") setGrowthHubOpen(true);
+    } catch {}
+  }, [pathname]);
 
-  const navLink = (href: string, icon: string, label: string) => {
-    const isActive = exactMatchRoutes.includes(href) ? pathname === href : pathname.startsWith(href);
+  const toggleGrowthHub = () => {
+    setGrowthHubOpen((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("growthHubOpen", String(next)); } catch {}
+      return next;
+    });
+  };
+
+  const dot = (active: boolean) => (
+    <span
+      className={`ml-auto w-2 h-2 rounded-full flex-shrink-0 ${active ? "bg-green-500" : "bg-gray-300"}`}
+    />
+  );
+
+  const navLink = (
+    href: string,
+    icon: string,
+    label: string,
+    showDot?: boolean,
+  ) => {
+    const isActive = EXACT_ROUTES.includes(href)
+      ? pathname === href
+      : pathname.startsWith(href);
     return (
       <Link
         href={href}
@@ -37,16 +99,22 @@ export default function Sidebar({ businessId, plan, status, niche = "barber" }: 
       >
         <span className="mr-3">{icon}</span>
         {label}
+        {showDot !== undefined && dot(showDot)}
       </Link>
     );
   };
+
+  const section = (label: string) => (
+    <p className="px-3 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+      {label}
+    </p>
+  );
 
   const mobileUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/admin/mobile/menu`
       : `${process.env.NEXT_PUBLIC_APP_URL || "https://katoomy.com"}/admin/mobile/menu`;
 
-  // Staff access rule (adjust as needed)
   const hasStaffAccess = plan !== "free";
 
   const openBillingPortal = async () => {
@@ -55,16 +123,13 @@ export default function Sidebar({ businessId, plan, status, niche = "barber" }: 
         alert("Missing business ID. Please refresh and try again.");
         return;
       }
-
       const res = await fetch("/api/stripe/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ businessId }),
       });
-
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to open portal");
-
       window.location.href = json.url;
     } catch (e) {
       console.error(e);
@@ -74,156 +139,225 @@ export default function Sidebar({ businessId, plan, status, niche = "barber" }: 
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/admin/login"); // or "/" if that's your landing/login
+    router.push("/admin/login");
     router.refresh();
   };
 
+  // ── Onboarding mode: restricted to setup steps only ───────────────────────
+  if (!onboardingCompleted) {
+    return (
+      <>
+        <aside className="w-64 bg-white border-r border-gray-200 h-full overflow-y-auto flex-shrink-0">
+          <div className="p-6">
+            <Image
+              src="/brand/katoomy-logo.png"
+              alt="Katoomy Logo"
+              width={32}
+              height={32}
+              className="w-8 h-8"
+            />
+            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-purple-900 bg-clip-text text-transparent">
+              Katoomy
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">Business Setup</p>
+          </div>
+
+          <nav className="px-3 space-y-1">
+            <Link
+              href="/admin/getting-started"
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition ${
+                pathname === "/admin/getting-started"
+                  ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <span className="mr-3">🏁</span>
+              Getting Started
+            </Link>
+
+            {section("Setup Steps")}
+            {navLink("/admin/branding", "🎨", "Branding", dots.branding)}
+            {navLink("/admin/availability", "🕒", "Availability", dots.availability)}
+            {isCarwash
+              ? navLink("/admin/services", "🚗", "Services", dots.services)
+              : isLawnCare
+              ? navLink("/admin/services", "🌿", "Services", dots.services)
+              : navLink("/admin/services", "✂️", "Services", dots.services)}
+            {isCarwash && navLink("/admin/carwash", "⚙️", "Car Wash Settings")}
+            {isLawnCare && navLink("/admin/lawncare", "🌿", "Lawn Care Settings")}
+            {navLink("/admin/stripe", "💰", "Payment Setup", dots.paymentSetup)}
+            {navLink("/admin/payment-settings", "💵", "Payment Settings")}
+          </nav>
+
+          <div className="px-3 pt-4 pb-6">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center px-3 py-2.5 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+            >
+              Log out
+            </button>
+          </div>
+        </aside>
+      </>
+    );
+  }
+
+  // ── Full sidebar ──────────────────────────────────────────────────────────
   return (
     <>
       <aside className="w-64 bg-white border-r border-gray-200 h-full overflow-y-auto flex-shrink-0">
-      {/* Brand / Header */}
-      <div className="p-6">
-        <Image
-          src="/brand/katoomy-logo.png"
-          alt="Katoomy Logo"
-          width={32}
-          height={32}
-          className="w-8 h-8"
-        />
-        <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-purple-900 bg-clip-text text-transparent">
-          Katoomy
-        </h2>
-        <p className="text-sm text-gray-500 mt-1">Business Dashboard</p>
+        {/* Header */}
+        <div className="p-6">
+          <Image
+            src="/brand/katoomy-logo.png"
+            alt="Katoomy Logo"
+            width={32}
+            height={32}
+            className="w-8 h-8"
+          />
+          <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-purple-900 bg-clip-text text-transparent">
+            Katoomy
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">Business Dashboard</p>
 
-        {/* Plan Badge */}
-        <div className="mt-4 rounded-lg border bg-gray-50 px-3 py-2">
-          <div className="text-xs text-gray-500">Current Plan</div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold capitalize">{plan}</span>
-            {status && (
-              <span className="text-xs text-gray-400">({status})</span>
-            )}
+          <div className="mt-4 rounded-lg border bg-gray-50 px-3 py-2">
+            <div className="text-xs text-gray-500">Current Plan</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold capitalize">{plan}</span>
+              {status && (
+                <span className="text-xs text-gray-400">({status})</span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Navigation */}
-      <nav className="px-3 space-y-1">
-        {/* ── Schedule & Services ── */}
-        {navLink("/admin", "🏠", "Overview")}
-        {navLink("/admin/bookings", "📅", "My Schedule")}
-        {isCarwash
-          ? navLink("/admin/services", "🚗", "Services")
-          : isLawnCare
-          ? navLink("/admin/services", "🌿", "Services")
-          : navLink("/admin/services", "✂️", "Services")}
-        {isCarwash && navLink("/admin/carwash", "⚙️", "Car Wash Settings")}
-        {isLawnCare && navLink("/admin/lawncare", "🌿", "Lawn Care Settings")}
-        {isLawnCare && navLink("/admin/recurring", "🔄", "Recurring Schedules")}
-        {navLink("/admin/availability", "🕒", "Availability")}
-        {hasStaffAccess && navLink("/admin/staff", "👔", "Staff")}
-        {navLink("/admin/customers", "👥", "Customers")}
+        <nav className="px-3 space-y-1">
+          {/* ── GROWTH ── */}
+          {section("Growth")}
+          {navLink("/admin/network", "⭐", "My Network", dots.network)}
+          {navLink("/admin", "🏠", "Overview")}
+          {navLink("/admin/bookings", "📅", "My Schedule")}
+          {navLink("/admin/customers", "👥", "Customers")}
 
-        {/* ── Payments ── */}
-        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Payments</p>
-        {navLink("/admin/stripe", "💰", "Payment Setup")}
-        {navLink("/admin/payment-settings", "💵", "Payment Settings")}
-        {navLink("/admin/take-payment", "💳", "Take Payment")}
-        {navLink("/admin/payments", "📋", "Payment Ledger")}
-        {navLink("/admin/revenue", "📊", "Revenue")}
+          {/* ── MARKETING ── */}
+          {section("Marketing")}
+          {navLink("/admin/campaigns", "📣", "Campaigns", dots.campaigns)}
+          {navLink("/admin/loyalty", "⭐", "Rewards", dots.rewards)}
+          {navLink("/admin/referrals", "🎁", "Referrals", true)}
 
-        {/* ── Marketing & Growth ── */}
-        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Marketing</p>
-        {navLink("/admin/analytics", "📈", "Analytics")}
-        {navLink("/admin/campaigns", "📣", "Campaigns")}
-        {navLink("/admin/loyalty", "⭐", "Rewards")}
-        {navLink("/admin/referrals", "🎁", "Referrals")}
-        {navLink("/admin/membership", "💎", "Membership")}
-        {navLink("/admin/growth", "🚀", "AI Growth Hub")}
-        {navLink("/admin/network", "🤝", "My Network")}
-        {navLink("/admin/installs", "📲", "App Installs")}
+          {/* ── OPERATIONS ── */}
+          {section("Operations")}
+          {isCarwash
+            ? navLink("/admin/services", "🚗", "Services", dots.services)
+            : isLawnCare
+            ? navLink("/admin/services", "🌿", "Services", dots.services)
+            : navLink("/admin/services", "✂️", "Services", dots.services)}
+          {navLink("/admin/availability", "🕒", "Availability", dots.availability)}
+          {hasStaffAccess && navLink("/admin/staff", "👔", "Staff", dots.staff)}
+          {navLink("/admin/branding", "🎨", "Branding", dots.branding)}
 
-        {/* ── Settings ── */}
-        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Business Hub</p>
-        {navLink("/admin/notifications", "💬", "Messages")}
-        {navLink("/admin/notifications-log", "🔔", "Notifications")}
-        {navLink("/admin/branding", "🎨", "Branding")}
-        {navLink("/admin/settings", "⚙️", "Settings")}
-
-        {/* Mobile View */}
-        <div className="flex items-center gap-1">
-          <Link
-            href="/admin/mobile/menu"
-            className={`flex-1 flex items-center px-3 py-2 text-sm font-medium rounded-lg transition ${
-              pathname.startsWith("/admin/mobile")
-                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm"
-                : "text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            <span className="mr-3">📱</span>
-            Mobile View
-          </Link>
-          <button
-            type="button"
-            onClick={() => setShowMobileQR(true)}
-            title="Open on phone"
-            className="px-2 py-2 text-base rounded-lg text-gray-500 hover:bg-gray-100"
-          >
-            📱
-          </button>
-        </div>
-
-        {/* Upgrade CTA (hide only on Pro) */}
-        {plan !== "pro" && (
-          <div className="pt-3">
+          {/* Mobile View with QR shortcut */}
+          <div className="flex items-center gap-1">
             <Link
-              href="/admin/upgrade"
-              className="flex items-center justify-center px-3 py-2.5 text-sm font-semibold rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 transition shadow-md"
+              href="/admin/mobile/menu"
+              className={`flex-1 flex items-center px-3 py-2 text-sm font-medium rounded-lg transition ${
+                pathname.startsWith("/admin/mobile")
+                  ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
             >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-              Upgrade
+              <span className="mr-3">📱</span>
+              Mobile View
             </Link>
-          </div>
-        )}
-
-        {/* Manage Subscription (beneath Upgrade) */}
-        {plan !== "free" && (
-          <div className="pt-2">
             <button
               type="button"
-              onClick={openBillingPortal}
-              className="w-full flex items-center justify-center px-3 py-2.5 text-sm font-semibold rounded-lg bg-gray-900 text-white hover:bg-black transition shadow-sm cursor-pointer"
+              onClick={() => setShowMobileQR(true)}
+              title="Open on phone"
+              className="px-2 py-2 text-base rounded-lg text-gray-500 hover:bg-gray-100"
             >
-              Manage Subscription
+              📲
             </button>
           </div>
-        )}
 
-        {/* Logout (VERY LAST BUTTON in sidebar) */}
-        <div className="pt-2 pb-6">
+          {navLink("/admin/stripe", "💰", "Payment Setup", dots.paymentSetup)}
+          {navLink("/admin/payments", "📋", "Payment Ledger")}
+          {isCarwash && navLink("/admin/carwash", "⚙️", "Car Wash Settings")}
+          {isLawnCare && navLink("/admin/lawncare", "🌿", "Lawn Care Settings")}
+          {isLawnCare && navLink("/admin/recurring", "🔄", "Recurring Schedules")}
+
+          {/* ── GROWTH HUB (collapsible) ── */}
           <button
             type="button"
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center px-3 py-2.5 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+            onClick={toggleGrowthHub}
+            className="w-full flex items-center px-3 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition"
           >
-            Log out
+            <span className="flex-1 text-left">Growth Hub</span>
+            <span className="text-[10px]">{growthHubOpen ? "▲" : "▼"}</span>
           </button>
-        </div>
-      </nav>
-    </aside>
 
+          {growthHubOpen && (
+            <div className="space-y-1">
+              {navLink("/admin/revenue", "📊", "Revenue")}
+              {navLink("/admin/analytics", "📈", "Analytics")}
+              {navLink("/admin/membership", "💎", "Membership", dots.membership)}
+              {navLink("/admin/growth", "🚀", "AI Growth Hub")}
+              {navLink("/admin/notifications", "💬", "Messages")}
+              {navLink("/admin/notifications-log", "🔔", "Notifications")}
+              {navLink("/admin/settings", "⚙️", "Settings")}
+              {navLink("/admin/payment-settings", "💵", "Payment Settings")}
+              {navLink("/admin/take-payment", "💳", "Take Payment")}
+              {navLink("/admin/installs", "📲", "App Installs")}
+              {plan !== "free" && (
+                <div className="pt-1 pb-1">
+                  <button
+                    type="button"
+                    onClick={openBillingPortal}
+                    className="w-full flex items-center justify-center px-3 py-2.5 text-sm font-semibold rounded-lg bg-gray-900 text-white hover:bg-black transition shadow-sm cursor-pointer"
+                  >
+                    Manage Subscription
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Upgrade CTA */}
+          {plan !== "pro" && (
+            <div className="pt-3">
+              <Link
+                href="/admin/upgrade"
+                className="flex items-center justify-center px-3 py-2.5 text-sm font-semibold rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 transition shadow-md"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                Upgrade
+              </Link>
+            </div>
+          )}
+
+          <div className="pt-2 pb-6">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center px-3 py-2.5 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+            >
+              Log out
+            </button>
+          </div>
+        </nav>
+      </aside>
 
       {/* Mobile QR Modal */}
       {showMobileQR && (
@@ -252,12 +386,17 @@ export default function Sidebar({ businessId, plan, status, niche = "barber" }: 
               />
             </div>
             <div className="text-left mb-4">
-              <p className="text-xs font-semibold text-gray-600 mb-1">Mobile Link</p>
+              <p className="text-xs font-semibold text-gray-600 mb-1">
+                Mobile Link
+              </p>
               <div className="p-2 bg-gray-50 rounded-lg break-all text-xs text-gray-700 mb-2 border border-gray-200">
                 {mobileUrl}
               </div>
               <button
-                onClick={() => { navigator.clipboard.writeText(mobileUrl); alert("Link copied!"); }}
+                onClick={() => {
+                  navigator.clipboard.writeText(mobileUrl);
+                  alert("Link copied!");
+                }}
                 className="w-full py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition text-sm"
               >
                 📋 Copy Link
