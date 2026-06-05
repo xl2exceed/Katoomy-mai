@@ -141,6 +141,7 @@ export default function BrandingPage() {
         owner_email: ownerEmail,
         address: address || null,
         phone: businessPhone || null,
+        branding_completed: true,
       })
       .eq("id", business.id);
 

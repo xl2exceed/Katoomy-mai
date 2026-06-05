@@ -1,81 +1,114 @@
-// app/admin/getting-started/page.tsx
-// Setup checklist for new businesses. Auto-detects completion of each step.
-// Redirects to /admin once onboarding_completed is true.
+"use client";
 
-export const runtime = "nodejs";
-
-import { redirect } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { useRouter } from "next/navigation";
 
-export default async function GettingStartedPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/admin/login");
+type StatusData = {
+  completed: boolean;
+  niche: string;
+  branding: boolean;
+  availability: boolean;
+  services: boolean;
+  nicheSettings: boolean | null;
+  paymentSetup: boolean;
+  paymentSettings: boolean;
+};
 
-  const { data: biz } = await supabaseAdmin
-    .from("businesses")
-    .select("id, features, logo_url, onboarding_completed")
-    .eq("owner_user_id", user.id)
-    .maybeSingle();
+type SkipState = {
+  paymentSetup: boolean;
+  paymentSettings: boolean;
+};
 
-  if (!biz) redirect("/admin/login");
-  if (biz.onboarding_completed) redirect("/admin");
+type StepConfig = {
+  id: string;
+  icon: string;
+  title: string;
+  desc: string;
+  href: string;
+  tooltip: string;
+  done: boolean;
+  canSkip: boolean;
+  skipKey?: keyof SkipState;
+};
 
-  const features = biz.features as Record<string, unknown> | null;
-  const niche = (features?.niche as string) ?? "barber";
-  const isCarwash = niche === "carwash";
-  const isLawnCare = niche === "lawn_care";
-  const hasNicheSettings = isCarwash || isLawnCare;
+export default function GettingStartedPage() {
+  const router = useRouter();
+  const [status, setStatus] = useState<StatusData | null>(null);
+  const [skipped, setSkipped] = useState<SkipState>({ paymentSetup: false, paymentSettings: false });
+  const [fetching, setFetching] = useState(false);
 
-  const [
-    { data: availData },
-    { count: serviceCount },
-    { data: stripeData },
-    { data: cashAppData },
-    { data: depositData },
-    { data: nicheData },
-  ] = await Promise.all([
-    supabaseAdmin.from("availability_rules").select("id").eq("business_id", biz.id).maybeSingle(),
-    supabaseAdmin.from("services").select("*", { count: "exact", head: true }).eq("business_id", biz.id),
-    supabaseAdmin.from("stripe_connect_accounts").select("business_id").eq("business_id", biz.id).maybeSingle(),
-    supabaseAdmin.from("cashapp_settings").select("business_id").eq("business_id", biz.id).maybeSingle(),
-    supabaseAdmin.from("deposit_settings").select("business_id").eq("business_id", biz.id).maybeSingle(),
-    isCarwash
-      ? supabaseAdmin.from("carwash_settings").select("business_id").eq("business_id", biz.id).maybeSingle()
-      : isLawnCare
-      ? supabaseAdmin.from("lawn_care_settings").select("business_id").eq("business_id", biz.id).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-  ]);
+  const fetchStatus = useCallback(async () => {
+    setFetching(true);
+    try {
+      const res = await fetch("/api/admin/onboarding-status");
+      const data: StatusData = await res.json();
+      if (data.completed) {
+        router.push("/admin");
+        router.refresh();
+        return;
+      }
+      setStatus(data);
+    } catch {}
+    setFetching(false);
+  }, [router]);
 
-  type Step = {
-    id: string;
-    icon: string;
-    title: string;
-    desc: string;
-    href: string;
-    done: boolean;
+  useEffect(() => {
+    // Load skipped state from localStorage
+    try {
+      const stored = localStorage.getItem("onboarding-skipped");
+      if (stored) setSkipped(JSON.parse(stored));
+    } catch {}
+
+    fetchStatus();
+  }, [fetchStatus]);
+
+  // Re-fetch when the user returns to this tab after visiting a setup page
+  useEffect(() => {
+    const onFocus = () => fetchStatus();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchStatus]);
+
+  const toggleSkip = (key: keyof SkipState) => {
+    setSkipped((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem("onboarding-skipped", JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
-  const steps: Step[] = [
+  if (!status) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const isCarwash = status.niche === "carwash";
+  const isLawnCare = status.niche === "lawn_care";
+
+  const steps: StepConfig[] = [
     {
       id: "branding",
       icon: "🎨",
       title: "Branding",
-      desc: "Upload your logo and set your business name, address, and shareable booking link. Your customers see this when they book.",
+      desc: "Upload your logo, set your business name, address, and customize your booking link and app appearance.",
       href: "/admin/branding",
-      done: !!biz.logo_url,
+      tooltip: "Opens the Branding page — upload your logo, set your business name and address, choose your app colors, and get your shareable booking link and QR code.",
+      done: status.branding,
+      canSkip: false,
     },
     {
       id: "availability",
       icon: "🕒",
       title: "Availability",
-      desc: "Set your working hours so customers only see time slots when you're actually open.",
+      desc: "Set your working hours so customers only see time slots when you're open.",
       href: "/admin/availability",
-      done: !!availData,
+      tooltip: "Opens Availability — set the days and hours you're available so customers can only book during your actual working schedule.",
+      done: status.availability,
+      canSkip: false,
     },
     {
       id: "services",
@@ -83,9 +116,11 @@ export default async function GettingStartedPage() {
       title: "Services",
       desc: "Add the services you offer with pricing and duration. Customers choose from these when they book.",
       href: "/admin/services",
-      done: (serviceCount ?? 0) > 0,
+      tooltip: "Opens Services — add the services you offer, set the price and duration for each, and manage which services are available for booking.",
+      done: status.services,
+      canSkip: false,
     },
-    ...(hasNicheSettings
+    ...(status.nicheSettings !== null
       ? [
           {
             id: "biz-settings",
@@ -95,8 +130,12 @@ export default async function GettingStartedPage() {
               ? "Configure your vehicle types, service packages, and available add-ons."
               : "Set your service radius, travel fees, and property size surcharges.",
             href: isCarwash ? "/admin/carwash" : "/admin/lawncare",
-            done: !!nicheData,
-          } as Step,
+            tooltip: isCarwash
+              ? "Opens Car Wash Settings — configure the vehicle types you service, your package tiers, and any add-on options customers can select at booking."
+              : "Opens Lawn Care Settings — set your maximum service radius, whether you charge travel fees, and pricing adjustments based on property size.",
+            done: status.nicheSettings === true,
+            canSkip: false,
+          } as StepConfig,
         ]
       : []),
     {
@@ -105,7 +144,10 @@ export default async function GettingStartedPage() {
       title: "Payment Setup",
       desc: "Connect Stripe to accept online card payments, or configure Cash App and Zelle for manual payments.",
       href: "/admin/stripe",
-      done: !!stripeData || !!cashAppData,
+      tooltip: "Opens Payment Setup — connect a Stripe account to accept credit/debit card payments online, or configure Cash App and Zelle so customers know how to pay you directly.",
+      done: status.paymentSetup,
+      canSkip: true,
+      skipKey: "paymentSetup",
     },
     {
       id: "payment-settings",
@@ -113,12 +155,25 @@ export default async function GettingStartedPage() {
       title: "Payment Settings",
       desc: "Choose whether to require a deposit at booking and set your deposit amount.",
       href: "/admin/payment-settings",
-      done: !!depositData,
+      tooltip: "Opens Payment Settings — decide if you want to require a deposit when customers book, and set the deposit amount or percentage.",
+      done: status.paymentSettings,
+      canSkip: true,
+      skipKey: "paymentSettings",
     },
   ];
 
-  const allDone = steps.every((s) => s.done);
-  const doneCount = steps.filter((s) => s.done).length;
+  const getState = (step: StepConfig): "done" | "skipped" | "pending" => {
+    if (step.done) return "done";
+    if (step.canSkip && step.skipKey && skipped[step.skipKey]) return "skipped";
+    return "pending";
+  };
+
+  const allReady = steps.every((s) => {
+    const st = getState(s);
+    return s.canSkip ? st !== "pending" : st === "done";
+  });
+
+  const progressCount = steps.filter((s) => getState(s) !== "pending").length;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-10">
@@ -129,82 +184,129 @@ export default async function GettingStartedPage() {
           <p className="text-gray-500 mt-1">
             Complete these steps to get your business ready to accept bookings.
           </p>
-
-          {/* Progress bar */}
           <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-500"
-              style={{ width: `${(doneCount / steps.length) * 100}%` }}
+              style={{ width: `${(progressCount / steps.length) * 100}%` }}
             />
           </div>
           <p className="text-sm text-gray-500 mt-1.5">
-            {doneCount} of {steps.length} steps complete
+            {progressCount} of {steps.length} steps complete
+            {fetching && (
+              <span className="ml-2 inline-block w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin align-middle" />
+            )}
           </p>
         </div>
 
         {/* Step cards */}
         <div className="space-y-3">
-          {steps.map((step) => (
-            <div
-              key={step.id}
-              className={`bg-white rounded-xl border p-4 flex items-start gap-4 transition ${
-                step.done ? "border-green-200" : "border-gray-200"
-              }`}
-            >
-              {/* Icon / checkmark */}
+          {steps.map((step) => {
+            const state = getState(step);
+            return (
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-base mt-0.5 ${
-                  step.done
-                    ? "bg-green-100 text-green-600"
-                    : "bg-gray-100 text-gray-500"
+                key={step.id}
+                className={`bg-white rounded-xl border p-4 flex items-start gap-4 transition-colors ${
+                  state === "done"
+                    ? "border-green-200 bg-green-50/30"
+                    : state === "skipped"
+                    ? "border-yellow-200 bg-yellow-50/30"
+                    : "border-gray-200"
                 }`}
               >
-                {step.done ? "✓" : step.icon}
-              </div>
+                {/* Status icon */}
+                <div
+                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-base mt-0.5 ${
+                    state === "done"
+                      ? "bg-green-100 text-green-600"
+                      : state === "skipped"
+                      ? "bg-yellow-100 text-yellow-600"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {state === "done" ? "✓" : state === "skipped" ? "—" : step.icon}
+                </div>
 
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-gray-900">{step.title}</p>
-                  {step.done && (
-                    <span className="text-xs text-green-600 font-medium flex-shrink-0">
-                      Complete
-                    </span>
+                {/* Text + skip control */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-gray-900">{step.title}</p>
+                    {state === "done" && (
+                      <span className="text-xs text-green-600 font-medium">Complete</span>
+                    )}
+                    {state === "skipped" && (
+                      <span className="text-xs text-yellow-600 font-medium">Skipped — Cash Only</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-0.5 leading-snug">{step.desc}</p>
+
+                  {step.canSkip && state === "pending" && (
+                    <button
+                      type="button"
+                      onClick={() => step.skipKey && toggleSkip(step.skipKey)}
+                      className="mt-2 text-xs text-gray-400 hover:text-yellow-600 underline transition"
+                    >
+                      Not Now — I&apos;ll collect payment in person
+                    </button>
+                  )}
+                  {step.canSkip && state === "skipped" && (
+                    <button
+                      type="button"
+                      onClick={() => step.skipKey && toggleSkip(step.skipKey)}
+                      className="mt-2 text-xs text-yellow-600 hover:text-gray-500 underline transition"
+                    >
+                      Undo — I want to set this up
+                    </button>
                   )}
                 </div>
-                <p className="text-sm text-gray-500 mt-0.5 leading-snug">
-                  {step.desc}
-                </p>
-              </div>
 
-              {/* CTA */}
-              <Link
-                href={step.href}
-                className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition ${
-                  step.done
-                    ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-sm"
-                }`}
-              >
-                {step.done ? "Edit" : "Set Up"}
-              </Link>
-            </div>
-          ))}
+                {/* Action button */}
+                <Link
+                  href={step.href}
+                  title={step.tooltip}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition ${
+                    state === "done"
+                      ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      : state === "skipped"
+                      ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                      : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-sm"
+                  }`}
+                >
+                  {state === "done" ? "Edit" : state === "skipped" ? "Set Up" : "Set Up →"}
+                </Link>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Finish Setup / completion prompt */}
+        {/* CTA — always visible, enabled only when ready */}
         <div className="mt-8 text-center">
-          {allDone ? (
-            <Link
-              href="/admin/onboarding-complete"
-              className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-md hover:from-purple-700 hover:to-indigo-700 transition text-base"
-            >
-              Finish Setup →
-            </Link>
+          {allReady ? (
+            <>
+              <p className="text-sm text-green-600 font-medium mb-3">
+                ✓ All steps complete — you&apos;re ready to go!
+              </p>
+              <Link
+                href="/admin/onboarding-complete"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-md hover:from-purple-700 hover:to-indigo-700 transition text-base"
+              >
+                Continue to Dashboard →
+              </Link>
+            </>
           ) : (
-            <p className="text-sm text-gray-400">
-              Complete all steps above to finish setup.
-            </p>
+            <>
+              <div
+                title="Complete all required steps above to continue"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gray-200 text-gray-400 font-semibold rounded-xl text-base cursor-not-allowed select-none"
+              >
+                Continue to Dashboard →
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Complete all required steps above to continue.
+                {steps.some((s) => s.canSkip && getState(s) === "pending") && (
+                  <> Payment steps can be skipped if you take cash.</>
+                )}
+              </p>
+            </>
           )}
         </div>
       </div>
