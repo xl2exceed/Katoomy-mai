@@ -63,11 +63,18 @@ export default function GettingStartedPage() {
     fetchStatus();
   }, [fetchStatus]);
 
-  // Re-fetch when the user returns to this tab after visiting a setup page
+  // Re-fetch when the user returns to this tab after visiting a setup page.
+  // visibilitychange catches same-tab SPA navigation back; focus catches tab/window switches.
   useEffect(() => {
-    const onFocus = () => fetchStatus();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    const onVisible = () => {
+      if (!document.hidden) fetchStatus();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [fetchStatus]);
 
   const toggleSkip = (key: keyof SkipState) => {
