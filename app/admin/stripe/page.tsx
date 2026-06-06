@@ -47,7 +47,13 @@ export default function StripePage() {
 
     // Your /connect/return route now redirects back with ?sync=ok
     if (urlParams.get("sync") === "ok" || urlParams.get("stripe_connected")) {
-      // Stripe just connected, reload after a short delay
+      // Stripe just connected — if we started from the setup flow, go back there
+      if (localStorage.getItem("stripe-from-setup") === "1") {
+        localStorage.removeItem("stripe-from-setup");
+        setTimeout(() => { window.location.href = "/admin/getting-started"; }, 1500);
+        return;
+      }
+      // Otherwise reload after a short delay
       setTimeout(() => {
         loadPaymentSettings();
       }, 2000);
@@ -114,6 +120,11 @@ export default function StripePage() {
   const handleConnectStripe = async () => {
     if (!businessId) return;
 
+    // Remember we came from onboarding so we can redirect back after OAuth
+    if (new URLSearchParams(window.location.search).get("from") === "setup") {
+      localStorage.setItem("stripe-from-setup", "1");
+    }
+
     setConnecting(true);
 
     try {
@@ -169,6 +180,10 @@ export default function StripePage() {
         return;
       }
 
+      if (new URLSearchParams(window.location.search).get("from") === "setup") {
+        window.location.href = "/admin/getting-started";
+        return;
+      }
       alert("Deposit settings saved!");
       await loadPaymentSettings();
     } catch (e) {

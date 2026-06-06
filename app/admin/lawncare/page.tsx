@@ -131,6 +131,10 @@ export default function LawnCareSettingsPage() {
         body: JSON.stringify(settings),
       });
       if (!res.ok) throw new Error(await res.text());
+      if (new URLSearchParams(window.location.search).get("from") === "setup") {
+        window.location.href = "/admin/getting-started";
+        return;
+      }
       setSaveMsg("Saved!");
       setTimeout(() => setSaveMsg(""), 3000);
     } catch {

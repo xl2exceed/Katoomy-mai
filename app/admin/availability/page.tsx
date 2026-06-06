@@ -110,6 +110,10 @@ export default function AvailabilityPage() {
 
       if (error) throw error;
 
+      if (new URLSearchParams(window.location.search).get("from") === "setup") {
+        window.location.href = "/admin/getting-started";
+        return;
+      }
       await loadAvailability();
     } catch (error) {
       console.error("Error saving availability:", error);

@@ -20,6 +20,11 @@ export default function ServicesPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [niche, setNiche] = useState("barber");
+  const [fromSetup, setFromSetup] = useState(false);
+
+  useEffect(() => {
+    setFromSetup(new URLSearchParams(window.location.search).get("from") === "setup");
+  }, []);
 
   const supabase = createClient();
 
@@ -91,12 +96,23 @@ export default function ServicesPage() {
                 Manage your services, pricing, and duration
               </p>
             </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-            >
-              + Add Service
-            </button>
+            <div className="flex items-center gap-3">
+              {fromSetup && services.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { window.location.href = "/admin/getting-started"; }}
+                  className="px-5 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition"
+                >
+                  ✓ Done Adding Services
+                </button>
+              )}
+              <button
+                onClick={() => handleOpenModal()}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                + Add Service
+              </button>
+            </div>
           </div>
 
           {/* Services List */}

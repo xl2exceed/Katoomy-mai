@@ -154,6 +154,10 @@ export default function BrandingPage() {
         .update({ status: "completed" })
         .eq("business_id", business.id);
 
+      if (new URLSearchParams(window.location.search).get("from") === "setup") {
+        window.location.href = "/admin/getting-started";
+        return;
+      }
       alert("Branding updated successfully!");
       loadBranding();
     }

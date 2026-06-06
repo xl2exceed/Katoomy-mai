@@ -102,7 +102,7 @@ export default function GettingStartedPage() {
       icon: "🎨",
       title: "Branding",
       desc: "Upload your logo, set your business name, address, and customize your booking link and app appearance.",
-      href: "/admin/branding",
+      href: "/admin/branding?from=setup",
       tooltip: "Opens the Branding page — upload your logo, set your business name and address, choose your app colors, and get your shareable booking link and QR code.",
       done: status.branding,
       canSkip: false,
@@ -112,7 +112,7 @@ export default function GettingStartedPage() {
       icon: "🕒",
       title: "Availability",
       desc: "Set your working hours so customers only see time slots when you're open.",
-      href: "/admin/availability",
+      href: "/admin/availability?from=setup",
       tooltip: "Opens Availability — set the days and hours you're available so customers can only book during your actual working schedule.",
       done: status.availability,
       canSkip: false,
@@ -122,7 +122,7 @@ export default function GettingStartedPage() {
       icon: isCarwash ? "🚗" : isLawnCare ? "🌿" : "✂️",
       title: "Services",
       desc: "Add the services you offer with pricing and duration. Customers choose from these when they book.",
-      href: "/admin/services",
+      href: "/admin/services?from=setup",
       tooltip: "Opens Services — add the services you offer, set the price and duration for each, and manage which services are available for booking.",
       done: status.services,
       canSkip: false,
@@ -136,7 +136,7 @@ export default function GettingStartedPage() {
             desc: isCarwash
               ? "Configure your vehicle types, service packages, and available add-ons."
               : "Set your service radius, travel fees, and property size surcharges.",
-            href: isCarwash ? "/admin/carwash" : "/admin/lawncare",
+            href: isCarwash ? "/admin/carwash?from=setup" : "/admin/lawncare?from=setup",
             tooltip: isCarwash
               ? "Opens Car Wash Settings — configure the vehicle types you service, your package tiers, and any add-on options customers can select at booking."
               : "Opens Lawn Care Settings — set your maximum service radius, whether you charge travel fees, and pricing adjustments based on property size.",
@@ -150,7 +150,7 @@ export default function GettingStartedPage() {
       icon: "💰",
       title: "Payment Setup",
       desc: "Connect Stripe to accept online card payments, or configure Cash App and Zelle for manual payments.",
-      href: "/admin/stripe",
+      href: "/admin/stripe?from=setup",
       tooltip: "Opens Payment Setup — connect a Stripe account to accept credit/debit card payments online, or configure Cash App and Zelle so customers know how to pay you directly.",
       done: status.paymentSetup,
       canSkip: true,
@@ -161,7 +161,7 @@ export default function GettingStartedPage() {
       icon: "💵",
       title: "Payment Settings",
       desc: "Choose whether to require a deposit at booking and set your deposit amount.",
-      href: "/admin/payment-settings",
+      href: "/admin/payment-settings?from=setup",
       tooltip: "Opens Payment Settings — decide if you want to require a deposit when customers book, and set the deposit amount or percentage.",
       done: status.paymentSettings,
       canSkip: true,

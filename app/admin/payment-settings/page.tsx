@@ -74,6 +74,10 @@ export default function PaymentSettingsPage() {
     });
     const data = await res.json();
     if (res.ok) {
+      if (new URLSearchParams(window.location.search).get("from") === "setup") {
+        window.location.href = "/admin/getting-started";
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } else {

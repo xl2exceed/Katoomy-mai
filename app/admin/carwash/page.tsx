@@ -110,6 +110,10 @@ export default function CarwashSettingsPage() {
     });
     setSaving(false);
     if (res.ok) {
+      if (new URLSearchParams(window.location.search).get("from") === "setup") {
+        window.location.href = "/admin/getting-started";
+        return;
+      }
       setSaveMsg("Settings saved!");
       setTimeout(() => setSaveMsg(""), 3000);
     } else {
