@@ -38,12 +38,14 @@ export default function StripePage() {
   const [connecting, setConnecting] = useState(false);
   const [savingDeposit, setSavingDeposit] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [fromSetup, setFromSetup] = useState(false);
 
   const supabase = createClient();
 
   useEffect(() => {
     // Check if returning from Stripe
     const urlParams = new URLSearchParams(window.location.search);
+    setFromSetup(urlParams.get("from") === "setup");
 
     // Your /connect/return route now redirects back with ?sync=ok
     if (urlParams.get("sync") === "ok" || urlParams.get("stripe_connected")) {
@@ -207,6 +209,14 @@ export default function StripePage() {
             <p className="text-gray-600 mt-1">
               Manage your payment settings and deposits
             </p>
+            {fromSetup && (
+              <a
+                href="/admin/getting-started?skip=paymentSetup"
+                className="inline-block mt-3 text-sm text-gray-400 hover:text-gray-600 underline transition"
+              >
+                Set this up later
+              </a>
+            )}
           </div>
 
           {loading ? (

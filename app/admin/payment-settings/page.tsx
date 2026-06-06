@@ -28,10 +28,15 @@ export default function PaymentSettingsPage() {
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
   const [settings, setSettings] = useState<PaymentSettings>(DEFAULT);
+  const [fromSetup, setFromSetup] = useState(false);
 
   useEffect(() => {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    setFromSetup(new URLSearchParams(window.location.search).get("from") === "setup");
   }, []);
 
   async function init() {
@@ -250,6 +255,17 @@ export default function PaymentSettingsPage() {
         >
           {saving ? "Saving..." : saved ? "✅ Saved!" : "Save Payment Settings"}
         </button>
+
+        {fromSetup && (
+          <div className="text-center mt-3">
+            <a
+              href="/admin/getting-started?skip=paymentSettings"
+              className="text-sm text-gray-400 hover:text-gray-600 underline transition"
+            >
+              Set this up later
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ type SidebarDots = {
   availability: boolean;
   branding: boolean;
   paymentSetup: boolean;
+  paymentSettings: boolean;
   staff: boolean;
   campaigns: boolean;
   rewards: boolean;
@@ -51,6 +52,16 @@ export default function Sidebar({
   const pathname = usePathname();
   const [showMobileQR, setShowMobileQR] = useState(false);
   const [growthHubOpen, setGrowthHubOpen] = useState(false);
+  const [skippedPayments, setSkippedPayments] = useState({ paymentSetup: false, paymentSettings: false });
+
+  // Load skipped payment state from localStorage (set during onboarding), scoped by business
+  useEffect(() => {
+    if (!businessId) return;
+    try {
+      const stored = localStorage.getItem(`onboarding-skipped-${businessId}`);
+      if (stored) setSkippedPayments(JSON.parse(stored));
+    } catch {}
+  }, [businessId]);
 
   // Auto-open Growth Hub if current page is inside it; persist toggle state
   useEffect(() => {
@@ -73,9 +84,11 @@ export default function Sidebar({
     });
   };
 
-  const dot = (active: boolean) => (
+  const dot = (active: boolean | "yellow") => (
     <span
-      className={`ml-auto w-2 h-2 rounded-full flex-shrink-0 ${active ? "bg-green-500" : "bg-gray-300"}`}
+      className={`ml-auto w-2 h-2 rounded-full flex-shrink-0 ${
+        active === true ? "bg-green-500" : active === "yellow" ? "bg-yellow-400" : "bg-gray-300"
+      }`}
     />
   );
 
@@ -83,7 +96,7 @@ export default function Sidebar({
     href: string,
     icon: string,
     label: string,
-    showDot?: boolean,
+    showDot?: boolean | "yellow",
   ) => {
     const isActive = EXACT_ROUTES.includes(href)
       ? pathname === href
@@ -138,6 +151,7 @@ export default function Sidebar({
   };
 
   const handleLogout = async () => {
+    try { localStorage.removeItem("onboarding-skipped"); } catch {}
     await supabase.auth.signOut();
     router.push("/admin/login");
     router.refresh();
@@ -185,8 +199,8 @@ export default function Sidebar({
               : navLink("/admin/services", "✂️", "Services", dots.services)}
             {isCarwash && navLink("/admin/carwash", "⚙️", "Car Wash Settings")}
             {isLawnCare && navLink("/admin/lawncare", "🌿", "Lawn Care Settings")}
-            {navLink("/admin/stripe", "💰", "Payment Setup", dots.paymentSetup)}
-            {navLink("/admin/payment-settings", "💵", "Payment Settings")}
+            {navLink("/admin/stripe", "💰", "Payment Setup", dots.paymentSetup ? true : skippedPayments.paymentSetup ? "yellow" : false)}
+            {navLink("/admin/payment-settings", "💵", "Payment Settings", dots.paymentSettings ? true : skippedPayments.paymentSettings ? "yellow" : false)}
           </nav>
 
           <div className="px-3 pt-4 pb-6">
@@ -280,7 +294,7 @@ export default function Sidebar({
             </button>
           </div>
 
-          {navLink("/admin/stripe", "💰", "Payment Setup", dots.paymentSetup)}
+          {navLink("/admin/stripe", "💰", "Payment Setup", dots.paymentSetup ? true : skippedPayments.paymentSetup ? "yellow" : false)}
           {navLink("/admin/payments", "📋", "Payment Ledger")}
           {isCarwash && navLink("/admin/carwash", "⚙️", "Car Wash Settings")}
           {isLawnCare && navLink("/admin/lawncare", "🌿", "Lawn Care Settings")}
@@ -305,7 +319,7 @@ export default function Sidebar({
               {navLink("/admin/notifications", "💬", "Messages")}
               {navLink("/admin/notifications-log", "🔔", "Notifications")}
               {navLink("/admin/settings", "⚙️", "Settings")}
-              {navLink("/admin/payment-settings", "💵", "Payment Settings")}
+              {navLink("/admin/payment-settings", "💵", "Payment Settings", dots.paymentSettings ? true : skippedPayments.paymentSettings ? "yellow" : false)}
               {navLink("/admin/take-payment", "💳", "Take Payment")}
               {navLink("/admin/installs", "📲", "App Installs")}
               {plan !== "free" && (

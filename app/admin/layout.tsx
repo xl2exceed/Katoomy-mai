@@ -70,6 +70,7 @@ export default async function AdminLayout({
     availability: false,
     branding: false,
     paymentSetup: false,
+    paymentSettings: false,
     staff: false,
     campaigns: false,
     rewards: false,
@@ -88,6 +89,7 @@ export default async function AdminLayout({
       { count: membershipCount },
       { data: cashAppData },
       { count: campaignCount },
+      { data: depositData },
     ] = await Promise.all([
       supabaseAdmin.from("services").select("*", { count: "exact", head: true }).eq("business_id", businessId),
       supabaseAdmin.from("availability_rules").select("id").eq("business_id", businessId).maybeSingle(),
@@ -98,18 +100,20 @@ export default async function AdminLayout({
       supabaseAdmin.from("membership_plans").select("*", { count: "exact", head: true }).eq("business_id", businessId),
       supabaseAdmin.from("cashapp_settings").select("business_id").eq("business_id", businessId).maybeSingle(),
       supabaseAdmin.from("sms_campaigns").select("*", { count: "exact", head: true }).eq("business_id", businessId),
+      supabaseAdmin.from("deposit_settings").select("business_id").eq("business_id", businessId).maybeSingle(),
     ]);
 
     dots = {
-      services:     (serviceCount ?? 0) > 0,
-      availability: !!availData,
-      branding:     !!logoUrl,
-      paymentSetup: !!stripeData || !!cashAppData,
-      staff:        (staffCount ?? 0) > 0,
-      campaigns:    (campaignCount ?? 0) > 0,
-      rewards:      loyaltyData?.enabled === true,
-      membership:   (membershipCount ?? 0) > 0,
-      network:      (partnerCount ?? 0) > 0,
+      services:        (serviceCount ?? 0) > 0,
+      availability:    !!availData,
+      branding:        !!logoUrl,
+      paymentSetup:    !!stripeData,
+      paymentSettings: !!cashAppData,
+      staff:           (staffCount ?? 0) > 0,
+      campaigns:       (campaignCount ?? 0) > 0,
+      rewards:         loyaltyData?.enabled === true,
+      membership:      (membershipCount ?? 0) > 0,
+      network:         (partnerCount ?? 0) > 0,
     };
   }
 

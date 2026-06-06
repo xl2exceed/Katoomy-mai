@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type StatusData = {
   completed: boolean;
+  businessId: string;
   niche: string;
   branding: boolean;
   availability: boolean;
@@ -37,6 +38,9 @@ export default function GettingStartedPage() {
   const [status, setStatus] = useState<StatusData | null>(null);
   const [skipped, setSkipped] = useState<SkipState>({ paymentSetup: false, paymentSettings: false });
   const [fetching, setFetching] = useState(false);
+  const initialized = useRef(false);
+
+  const lsKey = (id: string) => `onboarding-skipped-${id}`;
 
   const fetchStatus = useCallback(async () => {
     setFetching(true);
@@ -49,22 +53,35 @@ export default function GettingStartedPage() {
         return;
       }
       setStatus(data);
+
+      // First load only: read localStorage skip state scoped to this business
+      if (!initialized.current && data.businessId) {
+        initialized.current = true;
+        const key = lsKey(data.businessId);
+        let base: SkipState = { paymentSetup: false, paymentSettings: false };
+        try {
+          const stored = localStorage.getItem(key);
+          if (stored) base = JSON.parse(stored);
+        } catch {}
+
+        // Handle ?skip= param set when user clicks "Set this up later" on a setup page
+        const params = new URLSearchParams(window.location.search);
+        const skipParam = params.get("skip");
+        if (skipParam === "paymentSetup" || skipParam === "paymentSettings") {
+          base = { ...base, [skipParam]: true };
+          try { localStorage.setItem(key, JSON.stringify(base)); } catch {}
+        }
+        setSkipped(base);
+      }
     } catch {}
     setFetching(false);
   }, [router]);
 
   useEffect(() => {
-    // Load skipped state from localStorage
-    try {
-      const stored = localStorage.getItem("onboarding-skipped");
-      if (stored) setSkipped(JSON.parse(stored));
-    } catch {}
-
     fetchStatus();
   }, [fetchStatus]);
 
   // Re-fetch when the user returns to this tab after visiting a setup page.
-  // visibilitychange catches same-tab SPA navigation back; focus catches tab/window switches.
   useEffect(() => {
     const onVisible = () => {
       if (!document.hidden) fetchStatus();
@@ -78,9 +95,10 @@ export default function GettingStartedPage() {
   }, [fetchStatus]);
 
   const toggleSkip = (key: keyof SkipState) => {
+    const storageKey = status?.businessId ? lsKey(status.businessId) : "onboarding-skipped";
     setSkipped((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      try { localStorage.setItem("onboarding-skipped", JSON.stringify(next)); } catch {}
+      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
       return next;
     });
   };
@@ -149,9 +167,9 @@ export default function GettingStartedPage() {
       id: "payment-setup",
       icon: "💰",
       title: "Payment Setup",
-      desc: "Connect Stripe to accept online card payments, or configure Cash App and Zelle for manual payments.",
+      desc: "Connect Stripe to accept online card payments. Customers can pay by card when they book.",
       href: "/admin/stripe?from=setup",
-      tooltip: "Opens Payment Setup — connect a Stripe account to accept credit/debit card payments online, or configure Cash App and Zelle so customers know how to pay you directly.",
+      tooltip: "Opens Payment Setup — connect a Stripe account to accept credit/debit card payments online. Also lets you configure deposit requirements.",
       done: status.paymentSetup,
       canSkip: true,
       skipKey: "paymentSetup",
@@ -160,9 +178,9 @@ export default function GettingStartedPage() {
       id: "payment-settings",
       icon: "💵",
       title: "Payment Settings",
-      desc: "Choose whether to require a deposit at booking and set your deposit amount.",
+      desc: "Set up Cash App or Zelle so customers can pay you directly from the booking page.",
       href: "/admin/payment-settings?from=setup",
-      tooltip: "Opens Payment Settings — decide if you want to require a deposit when customers book, and set the deposit amount or percentage.",
+      tooltip: "Opens Payment Settings — enable Cash App and Zelle payments so customers see your cashtag or Zelle info at checkout.",
       done: status.paymentSettings,
       canSkip: true,
       skipKey: "paymentSettings",
@@ -241,7 +259,7 @@ export default function GettingStartedPage() {
                       <span className="text-xs text-green-600 font-medium">Complete</span>
                     )}
                     {state === "skipped" && (
-                      <span className="text-xs text-yellow-600 font-medium">Skipped — Cash Only</span>
+                      <span className="text-xs text-yellow-600 font-medium">Skipped</span>
                     )}
                   </div>
                   <p className="text-sm text-gray-500 mt-0.5 leading-snug">{step.desc}</p>
@@ -252,7 +270,7 @@ export default function GettingStartedPage() {
                       onClick={() => step.skipKey && toggleSkip(step.skipKey)}
                       className="mt-2 text-xs text-gray-400 hover:text-yellow-600 underline transition"
                     >
-                      Not Now — I&apos;ll collect payment in person
+                      Not Now — I&apos;ll set this up later
                     </button>
                   )}
                   {step.canSkip && state === "skipped" && (
@@ -285,7 +303,7 @@ export default function GettingStartedPage() {
           })}
         </div>
 
-        {/* CTA — always visible, enabled only when ready */}
+        {/* CTA */}
         <div className="mt-8 text-center">
           {allReady ? (
             <>
@@ -310,7 +328,7 @@ export default function GettingStartedPage() {
               <p className="text-xs text-gray-400 mt-2">
                 Complete all required steps above to continue.
                 {steps.some((s) => s.canSkip && getState(s) === "pending") && (
-                  <> Payment steps can be skipped if you take cash.</>
+                  <> Payment steps can be skipped.</>
                 )}
               </p>
             </>

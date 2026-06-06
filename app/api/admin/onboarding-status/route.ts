@@ -53,12 +53,13 @@ export async function GET() {
 
   return NextResponse.json({
     completed:       false,
+    businessId:      biz.id,
     niche,
     branding:        biz.branding_completed ?? false,
     availability:    !!availData,
     services:        (serviceCount ?? 0) > 0,
     nicheSettings:   (isCarwash || isLawnCare) ? !!nicheData : null,
-    paymentSetup:    !!stripeData || !!cashAppData,
-    paymentSettings: !!depositData,
+    paymentSetup:    !!stripeData,
+    paymentSettings: !!cashAppData,
   });
 }
