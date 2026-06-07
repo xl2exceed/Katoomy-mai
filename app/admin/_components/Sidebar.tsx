@@ -151,11 +151,14 @@ export default function Sidebar({
     );
   };
 
-  const sectionHeader = (label: string, isOpen: boolean, onToggle: () => void) => (
+  const sectionHeader = (label: string, isOpen: boolean, onToggle: () => void, tooltip?: string) => (
     <button
       type="button"
       onClick={onToggle}
-      className="w-full flex items-center px-3 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition"
+      onMouseEnter={tooltip ? (e) => showTip(tooltip, e) : undefined}
+      onMouseLeave={tooltip ? hideTip : undefined}
+      className="w-full flex items-center px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider transition hover:opacity-80"
+      style={{ color: "#f56d47" }}
     >
       <span className="flex-1 text-left">{label}</span>
       <span className="text-[10px]">{isOpen ? "▲" : "▼"}</span>
@@ -264,7 +267,8 @@ export default function Sidebar({
         <nav className="px-3 space-y-1 pb-6">
 
           {/* ── OPERATIONS ── */}
-          {sectionHeader("Operations", operationsOpen, makeToggle("section-ops", setOperationsOpen))}
+          {sectionHeader("Operations", operationsOpen, makeToggle("section-ops", setOperationsOpen),
+            "Everything you need to run your business day-to-day — manage bookings, staff, services, and your customer-facing booking page.")}
           {operationsOpen && (
             <div className="space-y-1">
               {navLink("/admin", "🏠", "Overview", undefined,
@@ -325,7 +329,8 @@ export default function Sidebar({
           )}
 
           {/* ── GROWTH ── */}
-          {sectionHeader("Growth", growthOpen, makeToggle("section-growth", setGrowthOpen))}
+          {sectionHeader("Growth", growthOpen, makeToggle("section-growth", setGrowthOpen),
+            "Tools to grow your customer base, increase repeat visits, and prevent revenue loss through referrals, campaigns, and memberships.")}
           {growthOpen && (
             <div className="space-y-1">
               {navLink("/admin/network", "⭐", "My Network", dots.network,
@@ -340,7 +345,8 @@ export default function Sidebar({
           )}
 
           {/* ── TOOLS ── */}
-          {sectionHeader("Tools", toolsOpen, makeToggle("section-tools", setToolsOpen))}
+          {sectionHeader("Tools", toolsOpen, makeToggle("section-tools", setToolsOpen),
+            "Track your business performance, monitor revenue trends, and get data-driven insights to stay on top of your business health.")}
           {toolsOpen && (
             <div className="space-y-1">
               {navLink("/admin/notifications-log", "🔔", "Notifications", undefined,
@@ -357,7 +363,8 @@ export default function Sidebar({
           )}
 
           {/* ── SETTINGS ── */}
-          {sectionHeader("Settings", settingsOpen, makeToggle("section-settings", setSettingsOpen))}
+          {sectionHeader("Settings", settingsOpen, makeToggle("section-settings", setSettingsOpen),
+            "Adjust and configure Katoomy's features to match how your business operates — payments, rewards, notifications, and more.")}
           {settingsOpen && (
             <div className="space-y-1">
               {navLink("/admin/settings", "⚙️", "Settings", undefined,
