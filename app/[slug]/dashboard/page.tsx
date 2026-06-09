@@ -77,6 +77,8 @@ export default function DashboardPage() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [awaitingPaymentBookings, setAwaitingPaymentBookings] = useState<Booking[]>([]);
+  const [pastBookings, setPastBookings] = useState<Booking[]>([]);
+  const [showPastHistory, setShowPastHistory] = useState(false);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [memberDiscount, setMemberDiscount] = useState<number | null>(null);
   const [referralStats, setReferralStats] = useState({
@@ -141,6 +143,16 @@ export default function DashboardPage() {
     const awaitingData = (awaitingPayment as Booking[]) || [];
     setAwaitingPaymentBookings(awaitingData);
     await loadPaymentReports(awaitingData.map(b => b.id));
+
+    const excludeIds = new Set(awaitingData.map((b) => b.id));
+    const { data: past } = await supabase
+      .from("bookings")
+      .select("*, services(name, duration_minutes, price_cents), staff(full_name)")
+      .eq("customer_id", customerId)
+      .lt("start_ts", now)
+      .order("start_ts", { ascending: false })
+      .limit(15);
+    setPastBookings(((past || []) as Booking[]).filter((b) => !excludeIds.has(b.id)));
   };
 
   const loadPaymentReports = async (bookingIds: string[]) => {
@@ -323,6 +335,16 @@ export default function DashboardPage() {
     setAwaitingPaymentBookings(awaitingData2);
     await loadPaymentReports(awaitingData2.map(b => b.id));
 
+    const excludeIds2 = new Set(awaitingData2.map((b) => b.id));
+    const { data: past } = await supabase
+      .from("bookings")
+      .select("*, services(name, duration_minutes, price_cents), staff(full_name)")
+      .eq("customer_id", customerData.id)
+      .lt("start_ts", now)
+      .order("start_ts", { ascending: false })
+      .limit(15);
+    setPastBookings(((past || []) as Booking[]).filter((b) => !excludeIds2.has(b.id)));
+
     const { data: loyaltyData } = await supabase
       .from("loyalty_ledger")
       .select("points_delta")
@@ -503,6 +525,16 @@ export default function DashboardPage() {
       hour: "numeric",
       minute: "2-digit",
     });
+  };
+
+  const getPastStatusDisplay = (booking: Booking) => {
+    switch (booking.status) {
+      case "completed":  return { label: "Completed",  color: "bg-green-100 text-green-700"  };
+      case "cancelled":  return { label: "Cancelled",  color: "bg-gray-100 text-gray-600"    };
+      case "no_show":    return { label: "No Show",    color: "bg-red-100 text-red-700"      };
+      case "incomplete": return { label: "Incomplete", color: "bg-orange-100 text-orange-700" };
+      default:           return { label: "Past",       color: "bg-yellow-100 text-yellow-700" };
+    }
   };
 
   const primaryColor = business?.primary_color || "#3B82F6";
@@ -907,6 +939,62 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Appointment History */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowPastHistory((v) => !v)}
+            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition"
+          >
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Appointment History</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {pastBookings.length > 0
+                  ? `${pastBookings.length} past appointment${pastBookings.length !== 1 ? "s" : ""}`
+                  : "No past appointments"}
+              </p>
+            </div>
+            <span className="text-gray-400 text-sm ml-4">{showPastHistory ? "▲" : "▼"}</span>
+          </button>
+
+          {showPastHistory && (
+            <div className="px-6 pb-6">
+              {pastBookings.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">No appointment history yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {pastBookings.map((booking) => {
+                    const { label, color } = getPastStatusDisplay(booking);
+                    return (
+                      <div key={booking.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">{booking.services.name}</p>
+                            <p className="text-sm text-gray-500 mt-0.5">
+                              {formatDate(booking.start_ts)} at {formatTime(booking.start_ts)}
+                            </p>
+                            {booking.staff?.full_name && (
+                              <p className="text-xs text-gray-400 mt-0.5">With {booking.staff.full_name}</p>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${color}`}>
+                              {label}
+                            </span>
+                            <p className="text-sm font-semibold text-gray-700 mt-1">
+                              ${(booking.total_price_cents / 100).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
