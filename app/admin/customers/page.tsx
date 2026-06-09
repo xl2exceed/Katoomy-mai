@@ -17,6 +17,7 @@ interface Customer {
   created_at: string;
   device_type: string | null;
   app_installed: boolean | null;
+  require_deposit: boolean;
   booking_count?: number;
   total_spent?: number;
   last_visit?: string;
@@ -204,6 +205,19 @@ export default function CustomersPage() {
     setEditName("");
     setEditPhone("");
     setEditEmail("");
+  };
+
+  const toggleRequireDeposit = async (customerId: string, newValue: boolean) => {
+    setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, require_deposit: newValue } : c));
+    const { error } = await supabase
+      .from("customers")
+      .update({ require_deposit: newValue })
+      .eq("id", customerId);
+    if (error) {
+      setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, require_deposit: !newValue } : c));
+      console.error(error);
+      alert("Failed to update deposit requirement");
+    }
   };
 
   const filteredAndSortedCustomers = customers
@@ -403,6 +417,9 @@ export default function CustomersPage() {
                             Device
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Deposit
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
@@ -423,8 +440,15 @@ export default function CustomersPage() {
                                   </span>
                                 </div>
                                 <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {customer.full_name || "—"}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {customer.full_name || "—"}
+                                    </span>
+                                    {customer.require_deposit && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">
+                                        Deposit req.
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="text-sm text-gray-500">
                                     Joined{" "}
@@ -465,6 +489,22 @@ export default function CustomersPage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <DeviceBadge type={customer.device_type} installed={customer.app_installed} />
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => toggleRequireDeposit(customer.id, !customer.require_deposit)}
+                                title={customer.require_deposit ? "Deposit required — click to remove" : "Click to require deposit for this customer"}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                  customer.require_deposit ? "bg-orange-500" : "bg-gray-300"
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    customer.require_deposit ? "translate-x-6" : "translate-x-1"
+                                  }`}
+                                />
+                              </button>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               <button
@@ -532,6 +572,7 @@ export default function CustomersPage() {
                   placeholder="john@example.com"
                 />
               </div>
+
             </div>
 
             <div className="flex space-x-3">

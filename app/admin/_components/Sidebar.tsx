@@ -29,7 +29,7 @@ type SidebarProps = {
 };
 
 const OPERATIONS_PATHS = [
-  "/admin/bookings", "/admin/services", "/admin/availability",
+  "/admin/bookings", "/admin/customers", "/admin/services", "/admin/availability",
   "/admin/branding", "/admin/staff", "/admin/mobile", "/admin/take-payment",
   "/admin/carwash", "/admin/lawncare", "/admin/recurring",
 ];
@@ -275,6 +275,8 @@ export default function Sidebar({
                 "Your main dashboard — see today's bookings, recent activity, and a quick snapshot of your business.")}
               {navLink("/admin/bookings", "📅", "My Schedule", undefined,
                 "View and manage all your upcoming bookings. Approve, reschedule, or cancel appointments in one place.")}
+              {navLink("/admin/customers", "👥", "Customers", undefined,
+                "View and manage your customer list — contact info, visit history, loyalty points, and notes.")}
               {isCarwash
                 ? navLink("/admin/services", "🚗", "Services", dots.services,
                     "Add and manage the services you offer. Set the name, price, and duration for each one.")

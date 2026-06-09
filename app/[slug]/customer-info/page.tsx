@@ -52,6 +52,7 @@ export default function CustomerInfoPage() {
   const [depositSettings, setDepositSettings] = useState<DepositSettings | null>(null);
   const [paymentChoice, setPaymentChoice] = useState<"full" | "deposit" | "cash" | null>(null);
   const [paymentError, setPaymentError] = useState(false);
+  const [customerRequiresDeposit, setCustomerRequiresDeposit] = useState(false);
   const paymentSectionRef = useRef<HTMLDivElement>(null);
   const [memberDiscountPct, setMemberDiscountPct] = useState(0);
   const [selectedStaffId, setSelectedStaffId] = useState("");
@@ -175,7 +176,7 @@ export default function CustomerInfoPage() {
         }
       }
 
-      // Load deposit settings
+      // Load deposit settings (defer paymentChoice default until we know if this customer requires a deposit)
       const { data: depositData } = await supabase
         .from("deposit_settings")
         .select("*")
@@ -183,7 +184,6 @@ export default function CustomerInfoPage() {
         .maybeSingle();
       if (depositData) {
         setDepositSettings(depositData as DepositSettings);
-        if (depositData.enabled) setPaymentChoice("deposit");
       }
 
       // Fetch fee_mode for display
@@ -274,11 +274,12 @@ export default function CustomerInfoPage() {
       } catch { /* non-critical */ }
 
       // ── Prefill if we know this customer ──────────────────────────────────
+      let requiresDepositLocal = false;
       const savedPhone = localStorage.getItem(PHONE_STORAGE_KEY);
       if (savedPhone) {
         const { data: existingCustomer } = await supabase
           .from("customers")
-          .select("first_name, last_name, full_name, phone, email, sms_consent, sms_transactional_consent, sms_marketing_consent")
+          .select("first_name, last_name, full_name, phone, email, sms_consent, sms_transactional_consent, sms_marketing_consent, require_deposit")
           .eq("business_id", businessData.id)
           .eq("phone", savedPhone)
           .single();
@@ -303,6 +304,11 @@ export default function CustomerInfoPage() {
               }),
             }).catch(() => {});
           }
+          if (existingCustomer.require_deposit) {
+            requiresDepositLocal = true;
+            setCustomerRequiresDeposit(true);
+          }
+
           // Hide consent section if customer has already opted in via either
           // the new split fields or the legacy sms_consent field.
           const hasConsented =
@@ -332,6 +338,11 @@ export default function CustomerInfoPage() {
         } catch {
           // non-critical
         }
+      }
+
+      // Set default payment choice based on business-wide setting or per-customer flag
+      if (depositData?.enabled || (requiresDepositLocal && !!depositData)) {
+        setPaymentChoice("deposit");
       }
     }
 
@@ -1000,7 +1011,7 @@ export default function CustomerInfoPage() {
                 </div>
               </button>
 
-              {depositSettings?.enabled && (
+              {(depositSettings?.enabled || (customerRequiresDeposit && !!depositSettings)) && (
                 <button
                   type="button"
                   onClick={() => { setPaymentChoice("deposit"); setPaymentError(false); }}
@@ -1020,7 +1031,7 @@ export default function CustomerInfoPage() {
                 </button>
               )}
 
-              {!depositSettings?.enabled && (
+              {!depositSettings?.enabled && !customerRequiresDeposit && (
                 <button
                   type="button"
                   onClick={() => { setPaymentChoice("cash"); setPaymentError(false); }}
